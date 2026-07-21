@@ -1,0 +1,95 @@
+'use client';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Pencil, Trash2, Wallet } from 'lucide-react';
+import { api, apiErr } from '@/lib/api';
+import { inr2 } from '@/lib/cn';
+import { Modal, Field } from '@/components/Modal';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+
+const CATS = ['rent', 'electricity', 'salary', 'transport', 'supplies', 'marketing', 'other'];
+const empty = { category: 'rent', amount: '', note: '', spentAt: '' };
+
+export default function ExpensesPage() {
+    const qc = useQueryClient();
+    const [modal, setModal] = useState(false);
+    const [editing, setEditing] = useState<any>(null);
+    const [form, setForm] = useState<any>(empty);
+    const [err, setErr] = useState('');
+    const [del, setDel] = useState<any>(null);
+
+    const { data } = useQuery({ queryKey: ['expenses'], queryFn: async () => (await api.get('/shopkeeper/expenses?limit=100')).data.data.items });
+
+    const openNew = () => { setEditing(null); setForm(empty); setErr(''); setModal(true); };
+    const openEdit = (e: any) => { setEditing(e); setForm({ category: e.category, amount: e.amount, note: e.note || '', spentAt: e.spentAt?.slice(0, 10) || '' }); setErr(''); setModal(true); };
+
+    const save = useMutation({
+        mutationFn: async () => {
+            const body = { category: form.category, amount: Number(form.amount), note: form.note, ...(form.spentAt && { spentAt: form.spentAt }) };
+            if (editing) return (await api.patch(`/shopkeeper/expenses/${editing._id}`, body)).data.data;
+            return (await api.post('/shopkeeper/expenses', body)).data.data;
+        },
+        onSuccess: () => { setModal(false); qc.invalidateQueries({ queryKey: ['expenses'] }); },
+        onError: (e) => setErr(apiErr(e)),
+    });
+    const doDelete = useMutation({
+        mutationFn: async () => (await api.delete(`/shopkeeper/expenses/${del._id}`)).data,
+        onSuccess: () => { setDel(null); qc.invalidateQueries({ queryKey: ['expenses'] }); },
+    });
+
+    const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+    const monthTotal = (data || []).reduce((s: number, e: any) => s + e.amount, 0);
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Expenses</h1>
+                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> Add Expense</button>
+            </div>
+
+            <div className="wp-card p-5 flex items-center gap-3">
+                <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: '#fef3c7', color: 'var(--accent-600)' }}><Wallet size={20} /></div>
+                <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Total (recent)</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(monthTotal)}</p></div>
+            </div>
+
+            <div className="wp-card overflow-hidden">
+                <div className="overflow-x-auto wp-scroll">
+                    <table className="w-full text-sm" style={{ minWidth: 560 }}>
+                        <thead><tr style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }} className="text-left">
+                            <th className="p-3 font-medium">Category</th><th className="p-3 font-medium">Note</th>
+                            <th className="p-3 font-medium">Date</th><th className="p-3 font-medium text-right">Amount</th><th className="p-3 font-medium text-right">Actions</th>
+                        </tr></thead>
+                        <tbody>
+                            {(data || []).length === 0 && <tr><td colSpan={5} className="p-6 text-center" style={{ color: 'var(--text-muted)' }}>No expenses yet.</td></tr>}
+                            {(data || []).map((e: any) => (
+                                <tr key={e._id} style={{ borderTop: '1px solid var(--card-border)' }}>
+                                    <td className="p-3 capitalize font-medium" style={{ color: 'var(--text-primary)' }}>{e.category}</td>
+                                    <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{e.note || '—'}</td>
+                                    <td className="p-3" style={{ color: 'var(--text-muted)' }}>{new Date(e.spentAt).toLocaleDateString('en-IN')}</td>
+                                    <td className="p-3 text-right font-semibold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(e.amount)}</td>
+                                    <td className="p-3">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(e)}><Pencil size={14} /></button>
+                                            <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(e)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit expense' : 'Add expense'}
+                footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !Number(form.amount)} onClick={() => save.mutate()}>{editing ? 'Save changes' : 'Add expense'}</button>}>
+                <Field label="Category"><select className="wp-input capitalize" value={form.category} onChange={(e) => set('category', e.target.value)}>{CATS.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+                <Field label="Amount ₹"><input className="wp-input tabular" type="number" value={form.amount} onChange={(e) => set('amount', e.target.value)} autoFocus /></Field>
+                <Field label="Note"><input className="wp-input" value={form.note} onChange={(e) => set('note', e.target.value)} placeholder="Optional" /></Field>
+                <Field label="Date"><input className="wp-input" type="date" value={form.spentAt} onChange={(e) => set('spentAt', e.target.value)} /></Field>
+                {err && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{err}</p>}
+            </Modal>
+
+            <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title="Delete expense?" message="This expense will be permanently removed." />
+        </div>
+    );
+}

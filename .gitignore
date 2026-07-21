@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment / secrets — never commit these
+.env
+.env.*
+!.env.example
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Caches
+.turbo/
+.cache/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local data
+.mongodb_data/
+public/uploads/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

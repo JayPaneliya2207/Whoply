@@ -1,0 +1,43 @@
+/**
+ * Dealer — a retailer who buys from a wholesaler. Tier drives price-list pricing;
+ * outstandingBalance tracks credit owed to the wholesaler.
+ */
+import mongoose, { Schema, type Document, type Types, type Model } from 'mongoose';
+
+export type DealerTier = 'A' | 'B' | 'C';
+
+export interface IDealer {
+    businessId: Types.ObjectId;
+    name: string;
+    shopName?: string;
+    mobile?: string;
+    tier: DealerTier;
+    city?: string;
+    creditLimit: number;
+    outstandingBalance: number;
+    assignedRepId?: Types.ObjectId;
+    isActive: boolean;
+}
+export interface IDealerDocument extends IDealer, Document {
+    _id: Types.ObjectId;
+    createdAt: Date;
+}
+
+const dealerSchema = new Schema<IDealerDocument>(
+    {
+        businessId: { type: Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
+        name: { type: String, required: true, trim: true },
+        shopName: String,
+        mobile: { type: String, index: true },
+        tier: { type: String, enum: ['A', 'B', 'C'], default: 'B' },
+        city: String,
+        creditLimit: { type: Number, default: 50000 },
+        outstandingBalance: { type: Number, default: 0 },
+        assignedRepId: { type: Schema.Types.ObjectId, ref: 'User' },
+        isActive: { type: Boolean, default: true },
+    },
+    { timestamps: true, collection: 'dealers' }
+);
+
+const Dealer: Model<IDealerDocument> = mongoose.models.Dealer || mongoose.model<IDealerDocument>('Dealer', dealerSchema);
+export default Dealer;

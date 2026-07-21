@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "whoply-admin", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 7300 }
+  ]
+}
