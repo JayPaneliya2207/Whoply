@@ -7,6 +7,7 @@ export interface ICustomer {
     businessId: Types.ObjectId;
     name: string;
     mobile?: string;
+    countryCode?: string;
     address?: string;
     creditBalance: number; // outstanding udhar (positive = customer owes shop)
     creditLimit: number;
@@ -23,6 +24,7 @@ const customerSchema = new Schema<ICustomerDocument>(
         businessId: { type: Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
         name: { type: String, required: true, trim: true },
         mobile: { type: String, index: true },
+        countryCode: { type: String, default: '+91' },
         address: String,
         creditBalance: { type: Number, default: 0 },
         creditLimit: { type: Number, default: 0 },

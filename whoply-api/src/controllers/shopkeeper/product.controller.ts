@@ -13,7 +13,13 @@ export const listProducts = asyncHandler(async (req: AuthRequest, res: Response)
     const businessId = businessOf(req);
     const { skip, limit, meta } = paginate(req.query);
     const filter: any = { businessId, isActive: true };
-    if (req.query.search) filter.name = { $regex: String(req.query.search), $options: 'i' };
+    // Search matches name, barcode or SKU — lets a scanned barcode resolve to its product.
+    if (req.query.search) {
+        const rx = { $regex: String(req.query.search).trim(), $options: 'i' };
+        filter.$or = [{ name: rx }, { barcode: rx }, { sku: rx }];
+    }
+    // Exact barcode lookup (used by scan-to-add flows).
+    if (req.query.barcode) filter.barcode = String(req.query.barcode).trim();
     if (req.query.categoryId) filter.categoryId = req.query.categoryId;
     if (req.query.lowStock === 'true') filter.$expr = { $lte: ['$currentStock', '$lowStockThreshold'] };
 

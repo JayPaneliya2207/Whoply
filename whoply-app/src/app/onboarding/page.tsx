@@ -44,7 +44,8 @@ export default function OnboardingPage() {
                 <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Business name</label>
                 <input className="wp-input mt-1.5 mb-3" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. Sharma General Store" />
                 <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>GSTIN (optional)</label>
-                <input className="wp-input mt-1.5 mb-4" value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="24ABCDE1234F1Z5" />
+                <input className="wp-input mt-1.5 mb-1 uppercase" value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" maxLength={15} />
+                <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>15-digit GST Identification Number</p>
 
                 {error && <p className="text-sm mb-3" style={{ color: 'var(--danger-500)' }}>{error}</p>}
                 <button className="wp-btn wp-btn-primary w-full" disabled={loading || !businessName} onClick={submit}>Create business</button>

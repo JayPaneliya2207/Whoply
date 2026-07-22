@@ -1,8 +1,18 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/response.js';
+import Plan from '../../models/Plan.js';
 
 const router = Router();
+
+/** GET /api/public/plans — active subscription plans for the marketing site */
+router.get(
+    '/plans',
+    asyncHandler(async (_req, res) => {
+        const plans = await Plan.find({ isActive: true }).sort({ order: 1, price: 1 }).lean();
+        sendSuccess(res, plans.map((p) => ({ key: p.key, name: p.name, price: p.price, period: p.period, features: p.features, highlight: p.highlight })));
+    })
+);
 
 /** GET /api/public/stats — headline numbers for the marketing landing page */
 router.get(

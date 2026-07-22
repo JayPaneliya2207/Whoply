@@ -56,6 +56,7 @@ export const register = asyncHandler(async (req, res) => {
     const user = await User.create({
         name: body.name,
         mobile,
+        countryCode: (req.body as any).countryCode || '+91',
         role: 'owner',
         language: body.language || 'en',
         ...(body.password && { password: body.password }),

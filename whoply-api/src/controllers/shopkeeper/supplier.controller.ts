@@ -24,6 +24,22 @@ export const createSupplier = asyncHandler(async (req: AuthRequest, res: Respons
     sendCreated(res, supplier);
 });
 
+export const updateSupplier = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const patch: any = {};
+    ['name', 'mobile', 'countryCode', 'gstin', 'address'].forEach((k) => { if (req.body[k] !== undefined) patch[k] = req.body[k]; });
+    const supplier = await Supplier.findOneAndUpdate({ _id: req.params.id, businessId }, patch, { new: true });
+    if (!supplier) throw AppError.notFound('Supplier not found');
+    sendSuccess(res, supplier, 'Supplier updated');
+});
+
+export const deleteSupplier = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const supplier = await Supplier.findOneAndUpdate({ _id: req.params.id, businessId }, { isActive: false }, { new: true });
+    if (!supplier) throw AppError.notFound('Supplier not found');
+    sendSuccess(res, { ok: true }, 'Supplier removed');
+});
+
 /* ---- Purchase Orders ---- */
 export const listPurchases = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);

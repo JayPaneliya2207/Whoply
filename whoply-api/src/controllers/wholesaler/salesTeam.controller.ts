@@ -22,6 +22,7 @@ export const createRep = asyncHandler(async (req: AuthRequest, res: Response) =>
     const rep = await User.create({
         name,
         mobile: normalized,
+        countryCode: req.body.countryCode || '+91',
         role: 'salesStaff',
         businessId,
         salary: Number(req.body.salary) || 0,

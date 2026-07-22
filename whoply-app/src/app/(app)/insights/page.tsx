@@ -33,38 +33,37 @@ export default function InsightsPage() {
                 </div>
             )}
 
-            <div className="wp-card overflow-hidden">
-                <div className="overflow-x-auto wp-scroll">
-                    <table className="w-full text-sm">
-                        <thead><tr style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }} className="text-left">
-                            <th className="p-3 font-medium">Product</th>
-                            <th className="p-3 font-medium text-right">In stock</th>
-                            <th className="p-3 font-medium text-right">Sells/day</th>
-                            <th className="p-3 font-medium text-right">Days left</th>
-                            <th className="p-3 font-medium text-right">Suggested order</th>
-                            <th className="p-3 font-medium text-right">Urgency</th>
-                        </tr></thead>
-                        <tbody>
-                            {isLoading && <tr><td colSpan={6} className="p-6 text-center" style={{ color: 'var(--text-muted)' }}>Analysing sales…</td></tr>}
-                            {(data?.suggestions || []).map((s: any, i: number) => (
-                                <motion.tr key={s.productId} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} style={{ borderTop: '1px solid var(--card-border)' }}>
-                                    <td className="p-3 font-medium" style={{ color: 'var(--text-primary)' }}>{s.name}</td>
-                                    <td className="p-3 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{s.currentStock} {s.unit}</td>
-                                    <td className="p-3 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{s.dailyVelocity}</td>
-                                    <td className="p-3 text-right tabular font-semibold" style={{ color: s.daysOfCover !== null && s.daysOfCover <= 5 ? 'var(--danger-500)' : 'var(--text-primary)' }}>
-                                        {s.daysOfCover === null ? '—' : `${s.daysOfCover}d`}
-                                    </td>
-                                    <td className="p-3 text-right">
-                                        {s.suggestedQty > 0 ? (
-                                            <span className="wp-chip" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}><PackagePlus size={12} /> {s.suggestedQty} {s.unit}</span>
-                                        ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                                    </td>
-                                    <td className="p-3 text-right"><span className="wp-chip capitalize" style={urgencyTone[s.urgency]}>{s.urgency}</span></td>
-                                </motion.tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+            {isLoading && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Analysing sales…</p>}
+            {!isLoading && (data?.suggestions || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No reorder suggestions right now.</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {(data?.suggestions || []).map((s: any, i: number) => (
+                    <motion.div key={s.productId} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }} className="wp-card p-4">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                            <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
+                            <span className="wp-chip capitalize shrink-0" style={urgencyTone[s.urgency]}>{s.urgency}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-sm font-bold tabular" style={{ color: 'var(--text-primary)' }}>{s.currentStock}</p>
+                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>in stock</p>
+                            </div>
+                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-sm font-bold tabular" style={{ color: 'var(--text-secondary)' }}>{s.dailyVelocity}</p>
+                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>sells/day</p>
+                            </div>
+                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-sm font-bold tabular" style={{ color: s.daysOfCover !== null && s.daysOfCover <= 5 ? 'var(--danger-500)' : 'var(--text-primary)' }}>{s.daysOfCover === null ? '—' : `${s.daysOfCover}d`}</p>
+                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>days left</p>
+                            </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between">
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Suggested order</span>
+                            {s.suggestedQty > 0
+                                ? <span className="wp-chip" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}><PackagePlus size={12} /> {s.suggestedQty} {s.unit}</span>
+                                : <span className="text-sm" style={{ color: 'var(--text-muted)' }}>—</span>}
+                        </div>
+                    </motion.div>
+                ))}
             </div>
             <p className="text-xs flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
                 <TrendingDown size={13} /> Transparent heuristic: days-of-cover = stock ÷ daily sales. Products running out soonest are listed first.

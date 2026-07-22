@@ -3,21 +3,15 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useAuth } from '@/stores/auth.store';
 
 /** Bell icon in the header — shows the unread count and links to the notifications page. */
 export function NotificationBell() {
-    const { user } = useAuth();
-    const isRetail = user?.business?.type !== 'wholesale';
-
     const { data } = useQuery({
         queryKey: ['notifications'],
         queryFn: async () => (await api.get('/shopkeeper/notifications')).data.data,
-        enabled: isRetail,
         refetchInterval: 60000,
     });
 
-    if (!isRetail) return null;
     const unread = data?.unread || 0;
 
     return (

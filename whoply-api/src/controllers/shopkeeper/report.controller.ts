@@ -154,12 +154,13 @@ export const exportInvoicesCsv = asyncHandler(async (req: AuthRequest, res: Resp
     const invoices = await Invoice.find({ businessId: bId, createdAt: { $gte: since } }).sort({ createdAt: 1 }).lean();
 
     const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const header = ['Invoice No', 'Date', 'Customer', 'Payment', 'Subtotal', 'GST', 'Discount', 'Total', 'Paid', 'Due', 'Status'];
+    const header = ['Invoice No', 'Date', 'Customer', 'Mobile', 'Payment', 'Subtotal', 'GST', 'Discount', 'Total', 'Paid', 'Due', 'Status'];
     const lines = invoices.map((i) =>
         [
             i.invoiceNo,
             new Date(i.createdAt).toLocaleString('en-IN'),
             i.customerName || 'Walk-in',
+            i.customerMobile || '',
             i.paymentMode,
             i.subtotal,
             i.totalGst,

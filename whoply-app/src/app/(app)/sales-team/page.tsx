@@ -6,6 +6,8 @@ import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PhoneInput } from '@/components/PhoneInput';
+import { kycPlaceholder } from '@/lib/forms';
 
 const outcomeTone: Record<string, any> = {
     order: { background: '#dcfce7', color: 'var(--success-600)' },
@@ -19,7 +21,7 @@ const statusTone: Record<string, any> = {
     delivered: { background: '#dcfce7', color: 'var(--success-600)' },
 };
 const DOC_LABELS: Record<string, string> = { aadhaar: 'Aadhaar', pan: 'PAN', voterid: 'Voter ID', driving: 'Driving Licence', other: 'Other' };
-const empty = { name: '', mobile: '', salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false };
+const empty = { name: '', mobile: '', country: '+91', salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false };
 
 export default function SalesTeamPage() {
     const qc = useQueryClient();
@@ -42,7 +44,7 @@ export default function SalesTeamPage() {
         mutationFn: async () => {
             const kyc = { docType: form.kycDoc, docNumber: form.kycNumber, verified: form.kycVerified };
             if (editing) return (await api.patch(`/wholesaler/sales-team/${editing._id}`, { name: form.name })).data.data;
-            return (await api.post('/wholesaler/sales-team', { name: form.name, mobile: form.mobile, salary: Number(form.salary) || 0, kyc, password: form.password || undefined })).data.data;
+            return (await api.post('/wholesaler/sales-team', { name: form.name, mobile: form.mobile, countryCode: form.country, salary: Number(form.salary) || 0, kyc, password: form.password || undefined })).data.data;
         },
         onSuccess: () => { setModal(false); qc.invalidateQueries({ queryKey: ['reps'] }); },
         onError: (e) => setErr(apiErr(e)),
@@ -84,15 +86,18 @@ export default function SalesTeamPage() {
                 ))}
             </div>
 
-            <div className="wp-card p-5">
-                <h3 className="font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><MapPin size={17} /> Recent field visits</h3>
-                <div className="space-y-2">
-                    {(visits || []).length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>No visits recorded yet.</p>}
+            <div>
+                <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><MapPin size={17} /> Recent field visits</h3>
+                {(visits || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No visits recorded yet.</p>}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(visits || []).map((v: any) => (
-                        <div key={v._id} className="flex items-center gap-3 py-2" style={{ borderTop: '1px solid var(--card-border)' }}>
-                            <Route size={15} style={{ color: 'var(--text-muted)' }} />
-                            <div className="flex-1 min-w-0"><p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{v.salesRepName} → {v.dealerName}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(v.visitedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · {v.note}</p></div>
-                            <span className="wp-chip capitalize" style={outcomeTone[v.outcome]}>{v.outcome.replace('_', ' ')}</span>
+                        <div key={v._id} className="wp-card p-3.5 flex items-center gap-3">
+                            <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)' }}><Route size={15} style={{ color: 'var(--text-muted)' }} /></div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{v.salesRepName} → {v.dealerName}</p>
+                                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{new Date(v.visitedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{v.note ? ` · ${v.note}` : ''}</p>
+                            </div>
+                            <span className="wp-chip capitalize shrink-0" style={outcomeTone[v.outcome]}>{v.outcome.replace('_', ' ')}</span>
                         </div>
                     ))}
                 </div>
@@ -102,10 +107,8 @@ export default function SalesTeamPage() {
             <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit sales rep' : 'Add sales rep'}
                 footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !form.name || (!editing && !form.mobile)} onClick={() => save.mutate()}>{editing ? 'Save' : 'Add rep'}</button>}>
                 <Field label="Name"><input className="wp-input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Sunil Yadav" autoFocus /></Field>
-                <div className="grid grid-cols-2 gap-3">
-                    <Field label="Mobile"><input className="wp-input" value={form.mobile} onChange={(e) => set('mobile', e.target.value)} disabled={!!editing} placeholder="10-digit" /></Field>
-                    <Field label="Monthly salary ₹"><input className="wp-input tabular" type="number" value={form.salary} onChange={(e) => set('salary', e.target.value)} placeholder="0" disabled={!!editing} /></Field>
-                </div>
+                <Field label="Mobile"><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} disabled={!!editing} /></Field>
+                <Field label="Monthly salary ₹"><input className="wp-input tabular" type="number" value={form.salary} onChange={(e) => set('salary', e.target.value)} placeholder="0" disabled={!!editing} /></Field>
                 {!editing && (
                     <>
                         <Field label="Login password (optional)"><input className="wp-input" type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="They can also login via OTP" /></Field>
@@ -113,7 +116,7 @@ export default function SalesTeamPage() {
                             <p className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><IdCard size={15} /> KYC document</p>
                             <div className="grid grid-cols-2 gap-3">
                                 <Field label="Document"><select className="wp-input" value={form.kycDoc} onChange={(e) => set('kycDoc', e.target.value)}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-                                <Field label="Number"><input className="wp-input" value={form.kycNumber} onChange={(e) => set('kycNumber', e.target.value)} placeholder="Doc number" /></Field>
+                                <Field label="Number"><input className="wp-input uppercase" value={form.kycNumber} onChange={(e) => set('kycNumber', e.target.value)} placeholder={kycPlaceholder(form.kycDoc)} /></Field>
                             </div>
                             <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}><input type="checkbox" checked={form.kycVerified} onChange={(e) => set('kycVerified', e.target.checked)} /> Mark KYC as verified</label>
                         </div>
@@ -136,23 +139,32 @@ export default function SalesTeamPage() {
                     ))}
                 </div>
                 {detailTab === 'visits' && (
-                    <div className="space-y-2">
-                        {(detail?.visits || []).length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>No visits.</p>}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {(detail?.visits || []).length === 0 && <p className="text-sm text-center py-4 sm:col-span-2" style={{ color: 'var(--text-muted)' }}>No visits.</p>}
                         {(detail?.visits || []).map((v: any) => (
-                            <div key={v._id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--surface-2)' }}>
-                                <div><p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{v.dealerName}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(v.visitedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p></div>
-                                <span className="wp-chip capitalize" style={outcomeTone[v.outcome]}>{v.outcome.replace('_', ' ')}</span>
+                            <div key={v._id} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-2)' }}>
+                                <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{v.dealerName}</p>
+                                    <span className="wp-chip capitalize shrink-0" style={outcomeTone[v.outcome]}>{v.outcome.replace('_', ' ')}</span>
+                                </div>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{new Date(v.visitedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                             </div>
                         ))}
                     </div>
                 )}
                 {detailTab === 'orders' && (
-                    <div className="space-y-2">
-                        {(detail?.orders || []).length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>No orders.</p>}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {(detail?.orders || []).length === 0 && <p className="text-sm text-center py-4 sm:col-span-2" style={{ color: 'var(--text-muted)' }}>No orders.</p>}
                         {(detail?.orders || []).map((o: any) => (
-                            <div key={o._id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: 'var(--surface-2)' }}>
-                                <div className="flex items-center gap-2"><ShoppingBag size={14} style={{ color: 'var(--text-muted)' }} /><div><p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.dealerName}</p></div></div>
-                                <div className="text-right"><p className="text-sm font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p><span className="wp-chip capitalize" style={statusTone[o.status]}>{o.status}</span></div>
+                            <div key={o._id} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-2)' }}>
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-1.5 min-w-0"><ShoppingBag size={13} className="shrink-0" style={{ color: 'var(--text-muted)' }} /><p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p></div>
+                                    <span className="wp-chip capitalize shrink-0" style={statusTone[o.status]}>{o.status}</span>
+                                </div>
+                                <div className="flex items-center justify-between mt-0.5">
+                                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{o.dealerName}</p>
+                                    <p className="text-sm font-bold tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p>
+                                </div>
                             </div>
                         ))}
                     </div>

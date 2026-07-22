@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Truck, CheckCircle2, PackageCheck, Clock } from 'lucide-react';
@@ -14,6 +15,7 @@ const columns = [
 
 export default function DispatchPage() {
     const qc = useQueryClient();
+    const [active, setActive] = useState('pending');
     const { data: orders } = useQuery({ queryKey: ['dispatch-orders'], queryFn: async () => (await api.get('/wholesaler/orders?limit=100')).data.data.items });
 
     const advance = useMutation({
@@ -22,38 +24,44 @@ export default function DispatchPage() {
     });
 
     const byStatus = (s: string) => (orders || []).filter((o: any) => o.status === s);
+    const col = columns.find((c) => c.key === active)!;
+    const list = byStatus(active);
 
     return (
         <div className="space-y-4">
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Dispatch & Delivery</h1>
-            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
-                {columns.map((col) => {
-                    const Icon = col.icon;
-                    const list = byStatus(col.key);
+
+            {/* single-line status tabs */}
+            <div className="grid grid-cols-4 gap-2">
+                {columns.map((c) => {
+                    const Icon = c.icon;
+                    const n = byStatus(c.key).length;
+                    const on = active === c.key;
                     return (
-                        <div key={col.key} className="wp-card p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Icon size={17} style={{ color: 'var(--brand-700)' }} />
-                                <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{col.label}</h3>
-                                <span className="wp-chip ml-auto" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{list.length}</span>
-                            </div>
-                            <div className="space-y-2">
-                                {list.length === 0 && <p className="text-xs py-4 text-center" style={{ color: 'var(--text-muted)' }}>No orders</p>}
-                                {list.map((o: any) => (
-                                    <motion.div key={o._id} layout className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p>
-                                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.dealerName} · {o.items.length} items</p>
-                                        <p className="text-sm font-bold tabular mt-1" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p>
-                                        {col.next && (
-                                            <button className="wp-btn wp-btn-primary w-full mt-2 !py-1.5 !text-xs" disabled={advance.isPending}
-                                                onClick={() => advance.mutate({ id: o._id, status: col.next })}>{col.action} →</button>
-                                        )}
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
+                        <button key={c.key} onClick={() => setActive(c.key)} className="wp-card p-3 text-center transition-all"
+                            style={on ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
+                            <Icon size={17} className="mx-auto mb-1" style={{ color: on ? 'var(--brand-700)' : 'var(--text-muted)' }} />
+                            <p className="text-lg font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{n}</p>
+                            <p className="text-[11px] sm:text-xs mt-1 truncate" style={{ color: on ? 'var(--brand-700)' : 'var(--text-secondary)' }}>{c.label}</p>
+                        </button>
                     );
                 })}
+            </div>
+
+            {/* selected status orders */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {list.length === 0 && <p className="col-span-full text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No {col.label.toLowerCase()} orders.</p>}
+                {list.map((o: any) => (
+                    <motion.div key={o._id} layout className="wp-card p-4">
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.dealerName} · {o.items.length} items</p>
+                        <p className="text-lg font-extrabold tabular mt-1" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p>
+                        {col.next && (
+                            <button className="wp-btn wp-btn-primary w-full mt-2 !py-1.5 !text-xs" disabled={advance.isPending}
+                                onClick={() => advance.mutate({ id: o._id, status: col.next })}>{col.action} →</button>
+                        )}
+                    </motion.div>
+                ))}
             </div>
         </div>
     );

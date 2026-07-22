@@ -11,6 +11,7 @@ export interface IDealer {
     name: string;
     shopName?: string;
     mobile?: string;
+    countryCode?: string;
     tier: DealerTier;
     city?: string;
     creditLimit: number;
@@ -29,6 +30,7 @@ const dealerSchema = new Schema<IDealerDocument>(
         name: { type: String, required: true, trim: true },
         shopName: String,
         mobile: { type: String, index: true },
+        countryCode: { type: String, default: '+91' },
         tier: { type: String, enum: ['A', 'B', 'C'], default: 'B' },
         city: String,
         creditLimit: { type: Number, default: 50000 },

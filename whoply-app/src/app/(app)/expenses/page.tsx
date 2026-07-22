@@ -52,32 +52,24 @@ export default function ExpensesPage() {
                 <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Total (recent)</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(monthTotal)}</p></div>
             </div>
 
-            <div className="wp-card overflow-hidden">
-                <div className="overflow-x-auto wp-scroll">
-                    <table className="w-full text-sm" style={{ minWidth: 560 }}>
-                        <thead><tr style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }} className="text-left">
-                            <th className="p-3 font-medium">Category</th><th className="p-3 font-medium">Note</th>
-                            <th className="p-3 font-medium">Date</th><th className="p-3 font-medium text-right">Amount</th><th className="p-3 font-medium text-right">Actions</th>
-                        </tr></thead>
-                        <tbody>
-                            {(data || []).length === 0 && <tr><td colSpan={5} className="p-6 text-center" style={{ color: 'var(--text-muted)' }}>No expenses yet.</td></tr>}
-                            {(data || []).map((e: any) => (
-                                <tr key={e._id} style={{ borderTop: '1px solid var(--card-border)' }}>
-                                    <td className="p-3 capitalize font-medium" style={{ color: 'var(--text-primary)' }}>{e.category}</td>
-                                    <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{e.note || '—'}</td>
-                                    <td className="p-3" style={{ color: 'var(--text-muted)' }}>{new Date(e.spentAt).toLocaleDateString('en-IN')}</td>
-                                    <td className="p-3 text-right font-semibold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(e.amount)}</td>
-                                    <td className="p-3">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(e)}><Pencil size={14} /></button>
-                                            <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(e)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+            {(data || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No expenses yet.</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {(data || []).map((e: any) => (
+                    <div key={e._id} className="wp-card p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="min-w-0">
+                                <p className="capitalize font-semibold" style={{ color: 'var(--text-primary)' }}>{e.category}</p>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{new Date(e.spentAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(e)}><Pencil size={14} /></button>
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(e)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                            </div>
+                        </div>
+                        <p className="text-xl font-extrabold tabular mt-2" style={{ color: 'var(--text-primary)' }}>{inr2(e.amount)}</p>
+                        {e.note && <p className="text-xs mt-1 truncate" style={{ color: 'var(--text-secondary)' }}>{e.note}</p>}
+                    </div>
+                ))}
             </div>
 
             <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit expense' : 'Add expense'}

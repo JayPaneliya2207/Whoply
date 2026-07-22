@@ -7,6 +7,7 @@ import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PhoneInput } from '@/components/PhoneInput';
 
 const tierTone: Record<string, any> = {
     A: { background: '#dcfce7', color: 'var(--success-600)' },
@@ -15,7 +16,7 @@ const tierTone: Record<string, any> = {
 };
 // "tier" renamed to a friendly Price Group for clarity
 const groupLabel: Record<string, string> = { A: 'Premium', B: 'Standard', C: 'Basic' };
-const empty = { name: '', shopName: '', mobile: '', tier: 'B', city: '', creditLimit: '100000' };
+const empty = { name: '', shopName: '', mobile: '', country: '+91', tier: 'B', city: '', creditLimit: '100000' };
 
 export default function DealersPage() {
     const qc = useQueryClient();
@@ -32,11 +33,12 @@ export default function DealersPage() {
     const { data } = useQuery({ queryKey: ['dealers'], queryFn: async () => (await api.get('/wholesaler/dealers?limit=100')).data.data.items });
 
     const openNew = () => { setEditing(null); setForm(empty); setFormErr(''); setModal(true); };
-    const openEdit = (d: any) => { setEditing(d); setForm({ name: d.name, shopName: d.shopName || '', mobile: d.mobile || '', tier: d.tier, city: d.city || '', creditLimit: d.creditLimit }); setFormErr(''); setModal(true); };
+    const openEdit = (d: any) => { setEditing(d); setForm({ name: d.name, shopName: d.shopName || '', mobile: d.mobile || '', country: d.countryCode || '+91', tier: d.tier, city: d.city || '', creditLimit: d.creditLimit }); setFormErr(''); setModal(true); };
 
     const save = useMutation({
         mutationFn: async () => {
-            const body = { ...form, creditLimit: Number(form.creditLimit) || 0 };
+            const { country, ...rest } = form;
+            const body = { ...rest, countryCode: country, creditLimit: Number(form.creditLimit) || 0 };
             if (editing) return (await api.patch(`/wholesaler/dealers/${editing._id}`, body)).data.data;
             return (await api.post('/wholesaler/dealers', body)).data.data;
         },
@@ -97,10 +99,8 @@ export default function DealersPage() {
             <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit dealer' : 'Add dealer'}
                 footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !form.name} onClick={() => save.mutate()}>{editing ? 'Save changes' : 'Add dealer'}</button>}>
                 <Field label="Dealer name"><input className="wp-input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Ravi Traders" autoFocus /></Field>
-                <div className="grid grid-cols-2 gap-3">
-                    <Field label="Shop name"><input className="wp-input" value={form.shopName} onChange={(e) => set('shopName', e.target.value)} /></Field>
-                    <Field label="Mobile"><input className="wp-input" value={form.mobile} onChange={(e) => set('mobile', e.target.value)} /></Field>
-                </div>
+                <Field label="Shop name"><input className="wp-input" value={form.shopName} onChange={(e) => set('shopName', e.target.value)} placeholder="e.g. Ravi Kirana Store" /></Field>
+                <Field label="Mobile"><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} /></Field>
                 <div className="grid grid-cols-3 gap-3">
                     <Field label="Price Group"><select className="wp-input" value={form.tier} onChange={(e) => set('tier', e.target.value)}><option value="A">Premium (best rate)</option><option value="B">Standard</option><option value="C">Basic</option></select></Field>
                     <Field label="City"><input className="wp-input" value={form.city} onChange={(e) => set('city', e.target.value)} /></Field>

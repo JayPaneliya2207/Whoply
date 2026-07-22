@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Plus, Pencil, Trash2, FolderPlus, Boxes } from 'lucide-react';
+import { AlertTriangle, Plus, Pencil, Trash2, FolderPlus, Boxes, ChevronDown } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
@@ -9,8 +9,9 @@ import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CatIcon, catEmoji } from '@/lib/icons';
 import { SearchInput } from '@/components/SearchInput';
+import { ScanButton } from '@/components/BarcodeScanner';
 
-const emptyProduct = { name: '', categoryId: '', sku: '', hsn: '', unit: 'pcs', costPrice: '', sellPrice: '', wholesalePrice: '', gstRate: '0', currentStock: '0', lowStockThreshold: '10', trackExpiry: false };
+const emptyProduct = { name: '', categoryId: '', sku: '', barcode: '', hsn: '', unit: 'pcs', costPrice: '', sellPrice: '', wholesalePrice: '', gstRate: '0', currentStock: '0', lowStockThreshold: '10', trackExpiry: false };
 
 export default function ProductsPage() {
     const { user } = useAuth();
@@ -30,6 +31,7 @@ export default function ProductsPage() {
     const [catModal, setCatModal] = useState(false);
     const [catName, setCatName] = useState('');
     const [editingCat, setEditingCat] = useState<any>(null);
+    const [catPicker, setCatPicker] = useState(false);
 
     const [del, setDel] = useState<any>(null);
 
@@ -39,11 +41,20 @@ export default function ProductsPage() {
         queryFn: async () => (await api.get(`${base}/products?limit=200&search=${encodeURIComponent(search)}${catFilter ? `&categoryId=${catFilter}` : ''}${lowOnly ? '&lowStock=true' : ''}`)).data.data.items,
     });
 
+    const activeCat = (cats || []).find((c: any) => c._id === catFilter) || null;
+
     const openNew = () => { setEditing(null); setForm({ ...emptyProduct, categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); };
     const openEdit = (p: any) => {
         setEditing(p);
-        setForm({ name: p.name, categoryId: p.categoryId?._id || p.categoryId || '', sku: p.sku, hsn: p.hsn || '', unit: p.unit, costPrice: p.costPrice, sellPrice: p.sellPrice, wholesalePrice: p.wholesalePrice || '', gstRate: p.gstRate, currentStock: p.currentStock, lowStockThreshold: p.lowStockThreshold, trackExpiry: p.trackExpiry });
+        setForm({ name: p.name, categoryId: p.categoryId?._id || p.categoryId || '', sku: p.sku, barcode: p.barcode || '', hsn: p.hsn || '', unit: p.unit, costPrice: p.costPrice, sellPrice: p.sellPrice, wholesalePrice: p.wholesalePrice || '', gstRate: p.gstRate, currentStock: p.currentStock, lowStockThreshold: p.lowStockThreshold, trackExpiry: p.trackExpiry });
         setFormErr(''); setProdModal(true);
+    };
+
+    // Scan on the list: existing barcode → edit that product (top up stock); new → prefill add form.
+    const scanLookup = async (code: string) => {
+        const items = (await api.get(`${base}/products?barcode=${encodeURIComponent(code)}`)).data.data.items;
+        if (items[0]) { openEdit(items[0]); }
+        else { setEditing(null); setForm({ ...emptyProduct, barcode: code, categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); }
     };
 
     const saveProduct = useMutation({
@@ -82,67 +93,47 @@ export default function ProductsPage() {
                 </div>
             </div>
 
-            {/* Category chips */}
-            <div className="flex gap-2 overflow-x-auto wp-scroll pb-1">
-                <button onClick={() => setCatFilter('')} className="wp-chip shrink-0 px-3 py-1.5" style={!catFilter ? { background: 'var(--brand-700)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                    <Boxes size={13} /> All
+            {/* Category filter — opens a popup of category boxes */}
+            <div className="flex gap-2">
+                <button onClick={() => setCatPicker(true)} className="wp-btn wp-btn-ghost flex-1 justify-between">
+                    <span className="flex items-center gap-2 truncate">
+                        {activeCat ? <><span>{catEmoji(activeCat.name)}</span> {activeCat.name}</> : <><Boxes size={15} /> All categories</>}
+                    </span>
+                    <ChevronDown size={16} />
                 </button>
-                {(cats || []).map((c: any) => (
-                    <button key={c._id} onClick={() => setCatFilter(c._id)} className="wp-chip shrink-0 px-3 py-1.5 group" style={catFilter === c._id ? { background: 'var(--brand-700)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
-                        <span>{catEmoji(c.name)}</span> {c.name} <span className="opacity-70">({c.productCount ?? 0})</span>
-                        <Pencil size={11} className="opacity-0 group-hover:opacity-70 ml-0.5" onClick={(e) => { e.stopPropagation(); setEditingCat(c); setCatName(c.name); setCatModal(true); }} />
-                    </button>
-                ))}
             </div>
 
             <div className="flex gap-2">
-                <SearchInput value={search} onChange={setSearch} placeholder="Search products…" />
+                <SearchInput value={search} onChange={setSearch} placeholder="Search by name, barcode or SKU…" />
+                <ScanButton onScan={scanLookup} label="Scan" />
                 <button onClick={() => setLowOnly((v) => !v)} className="wp-btn wp-btn-ghost shrink-0" style={lowOnly ? { background: '#fef3c7', color: 'var(--accent-600)', borderColor: 'transparent' } : {}}><AlertTriangle size={15} /></button>
             </div>
 
-            {/* Table (touch-scrolls on mobile) */}
-            <div className="wp-card overflow-hidden">
-                <div className="overflow-x-auto wp-scroll">
-                    <table className="w-full text-sm" style={{ minWidth: 640 }}>
-                        <thead>
-                            <tr style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }} className="text-left">
-                                <th className="p-3 font-medium">Product</th>
-                                <th className="p-3 font-medium text-right">Cost</th>
-                                <th className="p-3 font-medium text-right">Sell</th>
-                                <th className="p-3 font-medium text-right">GST</th>
-                                <th className="p-3 font-medium text-right">Stock</th>
-                                <th className="p-3 font-medium text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoading && <tr><td colSpan={6} className="p-6 text-center" style={{ color: 'var(--text-muted)' }}>Loading…</td></tr>}
-                            {!isLoading && (data || []).length === 0 && <tr><td colSpan={6} className="p-6 text-center" style={{ color: 'var(--text-muted)' }}>No products. Tap “Product” to add one.</td></tr>}
-                            {(data || []).map((p: any) => {
-                                const low = p.currentStock <= p.lowStockThreshold;
-                                return (
-                                    <tr key={p._id} style={{ borderTop: '1px solid var(--card-border)' }}>
-                                        <td className="p-3">
-                                            <div className="flex items-center gap-2.5">
-                                                <CatIcon name={p.categoryId?.name || p.name} size="sm" />
-                                                <div><p className="font-medium" style={{ color: 'var(--text-primary)' }}>{p.name}</p><p className="text-xs capitalize" style={{ color: 'var(--text-muted)' }}>{p.categoryId?.name || p.sku}</p></div>
-                                            </div>
-                                        </td>
-                                        <td className="p-3 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{inr2(p.costPrice)}</td>
-                                        <td className="p-3 text-right font-semibold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.sellPrice)}</td>
-                                        <td className="p-3 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{p.gstRate}%</td>
-                                        <td className="p-3 text-right"><span className="wp-chip tabular" style={low ? { background: '#fef3c7', color: 'var(--accent-600)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}</span></td>
-                                        <td className="p-3">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(p)}><Pencil size={14} /></button>
-                                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+            {/* One product per row — scrolls up/down only */}
+            {isLoading && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+            {!isLoading && (data || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No products. Tap “Product” to add one.</p>}
+            <div className="space-y-2">
+                {(data || []).map((p: any) => {
+                    const low = p.currentStock <= p.lowStockThreshold;
+                    return (
+                        <div key={p._id} className="wp-card p-3 flex items-center gap-3">
+                            <CatIcon name={p.categoryId?.name || p.name} size="sm" />
+                            <div className="flex-1 min-w-0">
+                                <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+                                <p className="text-xs capitalize truncate" style={{ color: 'var(--text-muted)' }}>{p.categoryId?.name || p.sku}{p.barcode ? ` · ${p.barcode}` : ''}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <p className="font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.sellPrice)}</p>
+                                <p className="text-[11px] tabular hidden sm:block" style={{ color: 'var(--text-muted)' }}>cost {inr2(p.costPrice)} · GST {p.gstRate}%</p>
+                            </div>
+                            <span className="wp-chip tabular shrink-0" style={low ? { background: '#fef3c7', color: 'var(--accent-600)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}</span>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(p)}><Pencil size={14} /></button>
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Product modal */}
@@ -153,9 +144,15 @@ export default function ProductsPage() {
                     <Field label="Category"><select className="wp-input" value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)}><option value="">—</option>{(cats || []).map((c: any) => <option key={c._id} value={c._id}>{c.name}</option>)}</select></Field>
                     <Field label="SKU"><input className="wp-input" value={form.sku} onChange={(e) => set('sku', e.target.value)} placeholder="SKU code" /></Field>
                 </div>
+                <Field label="Barcode">
+                    <div className="flex gap-2">
+                        <input className="wp-input" value={form.barcode} onChange={(e) => set('barcode', e.target.value)} placeholder="Scan or type the barcode" inputMode="numeric" />
+                        <ScanButton onScan={(code) => set('barcode', code)} label="" />
+                    </div>
+                </Field>
                 <div className="grid grid-cols-2 gap-3">
                     <Field label="Unit"><input className="wp-input" value={form.unit} onChange={(e) => set('unit', e.target.value)} placeholder="pcs / kg / box" /></Field>
-                    <Field label="HSN"><input className="wp-input" value={form.hsn} onChange={(e) => set('hsn', e.target.value)} placeholder="HSN code" /></Field>
+                    <Field label="HSN code"><input className="wp-input" value={form.hsn} onChange={(e) => set('hsn', e.target.value)} placeholder="e.g. 6109 (tax code)" /></Field>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                     <Field label="Cost ₹"><input className="wp-input tabular" type="number" value={form.costPrice} onChange={(e) => set('costPrice', e.target.value)} /></Field>
@@ -175,6 +172,29 @@ export default function ProductsPage() {
             <Modal open={catModal} onClose={() => setCatModal(false)} title={editingCat ? 'Edit category' : 'Add category'}
                 footer={<button className="wp-btn wp-btn-primary w-full" disabled={saveCat.isPending || !catName} onClick={() => saveCat.mutate()}>{editingCat ? 'Save' : 'Add category'}</button>}>
                 <Field label="Category name"><input className="wp-input" value={catName} onChange={(e) => setCatName(e.target.value)} placeholder="e.g. Groceries" autoFocus /></Field>
+            </Modal>
+
+            {/* Category picker — boxes, gesture-dismiss */}
+            <Modal open={catPicker} onClose={() => setCatPicker(false)} title="Categories"
+                footer={<button className="wp-btn wp-btn-ghost w-full" onClick={() => { setCatPicker(false); setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> Add category</button>}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <button onClick={() => { setCatFilter(''); setCatPicker(false); }} className="wp-card p-3 text-center"
+                        style={!catFilter ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
+                        <Boxes size={20} className="mx-auto mb-1" style={{ color: 'var(--brand-700)' }} />
+                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>All</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{(cats || []).reduce((s: number, c: any) => s + (c.productCount ?? 0), 0)} items</p>
+                    </button>
+                    {(cats || []).map((c: any) => (
+                        <div key={c._id} className="wp-card p-3 text-center relative" style={catFilter === c._id ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingCat(c); setCatName(c.name); setCatPicker(false); setCatModal(true); }} className="absolute top-1.5 right-1.5 opacity-60"><Pencil size={12} /></button>
+                            <button onClick={() => { setCatFilter(c._id); setCatPicker(false); }} className="w-full">
+                                <span className="text-2xl block leading-none mb-1">{catEmoji(c.name)}</span>
+                                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{c.name}</p>
+                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{c.productCount ?? 0} items</p>
+                            </button>
+                        </div>
+                    ))}
+                </div>
             </Modal>
 
             <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title="Delete product?" message={`Remove “${del?.name}” from your catalog?`} />

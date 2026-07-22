@@ -32,6 +32,7 @@ import PriceList from '../models/PriceList.js';
 import Order from '../models/Order.js';
 import Visit from '../models/Visit.js';
 import Notification from '../models/Notification.js';
+import Plan from '../models/Plan.js';
 
 const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 const pick = <T>(arr: readonly T[]): T => arr[rand(0, arr.length - 1)];
@@ -58,7 +59,16 @@ async function run() {
         Order.deleteMany({}),
         Visit.deleteMany({}),
         Notification.deleteMany({}),
+        Plan.deleteMany({}),
     ]);
+
+    /* ---------------- Subscription plans ---------------- */
+    await Plan.insertMany([
+        { key: 'free', name: 'Free', price: 0, period: 'month', order: 1, highlight: false, features: ['1 shop', 'Unlimited billing', 'Basic inventory', 'Udhar tracking'] },
+        { key: 'pro', name: 'Pro', price: 299, period: 'month', order: 2, highlight: true, features: ['Everything in Free', 'WhatsApp reminders', 'GST reports', 'Barcode scanning', '3 staff logins'] },
+        { key: 'business', name: 'Business', price: 799, period: 'month', order: 3, highlight: false, features: ['Everything in Pro', 'Wholesale suite', 'Dealers & price-lists', 'Dispatch & sales-team', 'AI reorder'] },
+    ]);
+    console.log('Created 3 subscription plans');
     console.log('Cleared old data');
 
     const passwordHash = await bcrypt.hash('whoply123', 10);
@@ -240,6 +250,8 @@ async function run() {
             const when = new Date();
             when.setDate(when.getDate() - day);
             when.setHours(rand(9, 20), rand(0, 59), 0, 0);
+            // never seed a future timestamp — clamp "today" bills to the recent past
+            if (when.getTime() > Date.now()) when.setTime(Date.now() - rand(2, 240) * 60000);
 
             const lineCount = rand(1, 4);
             const items: any[] = [];
@@ -373,6 +385,7 @@ async function run() {
             const when = new Date();
             when.setDate(when.getDate() - day);
             when.setHours(rand(9, 19), rand(0, 59), 0, 0);
+            if (when.getTime() > Date.now()) when.setTime(Date.now() - rand(2, 240) * 60000);
             const dealer = pick(dealers);
             const rows = await PriceList.find({ businessId: wholesale._id, tier: dealer.tier }).lean();
             const priceMap = new Map(rows.map((r) => [String(r.productId), r.price]));

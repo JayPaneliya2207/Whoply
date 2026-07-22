@@ -24,13 +24,15 @@ import {
 import {
     listSuppliers,
     createSupplier,
+    updateSupplier,
+    deleteSupplier,
     listPurchases,
     createPurchase,
     receivePurchase,
 } from '../../controllers/shopkeeper/supplier.controller.js';
 import { listExpenses, createExpense, updateExpense, deleteExpense } from '../../controllers/shopkeeper/expense.controller.js';
 import { salesReport, productReport, profitReport, summaryReport, exportInvoicesCsv } from '../../controllers/shopkeeper/report.controller.js';
-import { aiReorder, listNotifications, markAllRead } from '../../controllers/shopkeeper/insights.controller.js';
+import { aiReorder, listNotifications, markAllRead, markRead } from '../../controllers/shopkeeper/insights.controller.js';
 
 const router = Router();
 
@@ -65,6 +67,8 @@ router.post('/customers/:id/repayment', recordRepayment);
 // Suppliers & purchases
 router.get('/suppliers', listSuppliers);
 router.post('/suppliers', createSupplier);
+router.patch('/suppliers/:id', updateSupplier);
+router.delete('/suppliers/:id', deleteSupplier);
 router.get('/purchases', listPurchases);
 router.post('/purchases', createPurchase);
 router.post('/purchases/:id/receive', receivePurchase);
@@ -86,5 +90,6 @@ router.get('/reports/export', exportInvoicesCsv);
 router.get('/ai/reorder', aiReorder);
 router.get('/notifications', listNotifications);
 router.post('/notifications/read-all', markAllRead);
+router.post('/notifications/:id/read', markRead);
 
 export default router;

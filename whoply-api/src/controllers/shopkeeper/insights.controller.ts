@@ -31,3 +31,10 @@ export const markAllRead = asyncHandler(async (req: AuthRequest, res: Response) 
     await Notification.updateMany({ businessId, isRead: false }, { isRead: true });
     sendSuccess(res, { ok: true });
 });
+
+/** POST /notifications/:id/read — mark a single notification read (on open) */
+export const markRead = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    await Notification.updateOne({ _id: req.params.id, businessId }, { isRead: true });
+    sendSuccess(res, { ok: true });
+});

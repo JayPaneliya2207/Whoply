@@ -7,6 +7,8 @@ import { inr, inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PhoneInput } from '@/components/PhoneInput';
+import { kycPlaceholder } from '@/lib/forms';
 
 const ROLE_LABELS: Record<string, string> = {
     cashier: 'Cashier', manager: 'Manager', warehouse: 'Warehouse', salesStaff: 'Sales Staff', accountant: 'Accountant',
@@ -20,7 +22,7 @@ const roleTone: Record<string, any> = {
     accountant: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
 };
 
-const empty = { name: '', mobile: '', role: 'cashier', salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false };
+const empty = { name: '', mobile: '', country: '+91', role: 'cashier', salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false };
 
 export default function StaffPage() {
     const { user } = useAuth();
@@ -39,7 +41,7 @@ export default function StaffPage() {
     const openNew = () => { setEditing(null); setForm({ ...empty, role: roleOptions[0] }); setErr(''); setModal(true); };
     const openEdit = (s: any) => {
         setEditing(s);
-        setForm({ name: s.name, mobile: s.mobile, role: s.role, salary: s.salary || '', password: '', kycDoc: s.kyc?.docType || 'aadhaar', kycNumber: s.kyc?.docNumber || '', kycVerified: s.kyc?.verified || false });
+        setForm({ name: s.name, mobile: s.mobile, country: s.countryCode || '+91', role: s.role, salary: s.salary || '', password: '', kycDoc: s.kyc?.docType || 'aadhaar', kycNumber: s.kyc?.docNumber || '', kycVerified: s.kyc?.verified || false });
         setErr(''); setModal(true);
     };
 
@@ -47,7 +49,7 @@ export default function StaffPage() {
         mutationFn: async () => {
             const kyc = { docType: form.kycDoc, docNumber: form.kycNumber, verified: form.kycVerified };
             if (editing) return (await api.patch(`/staff/${editing._id}`, { name: form.name, role: form.role, salary: Number(form.salary) || 0, kyc })).data.data;
-            return (await api.post('/staff', { name: form.name, mobile: form.mobile, role: form.role, salary: Number(form.salary) || 0, kyc, password: form.password || undefined })).data.data;
+            return (await api.post('/staff', { name: form.name, mobile: form.mobile, countryCode: form.country, role: form.role, salary: Number(form.salary) || 0, kyc, password: form.password || undefined })).data.data;
         },
         onSuccess: () => { setModal(false); qc.invalidateQueries({ queryKey: ['staff'] }); qc.invalidateQueries({ queryKey: ['rep-summary'] }); },
         onError: (e) => setErr(apiErr(e)),
@@ -111,10 +113,8 @@ export default function StaffPage() {
             <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit staff' : 'Add staff'}
                 footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !form.name || (!editing && !form.mobile)} onClick={() => save.mutate()}>{editing ? 'Save changes' : 'Add staff'}</button>}>
                 <Field label="Full name"><input className="wp-input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Anita Desai" autoFocus /></Field>
-                <div className="grid grid-cols-2 gap-3">
-                    <Field label="Mobile"><input className="wp-input" value={form.mobile} onChange={(e) => set('mobile', e.target.value)} disabled={!!editing} placeholder="10-digit" /></Field>
-                    <Field label="Role"><select className="wp-input" value={form.role} onChange={(e) => set('role', e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></Field>
-                </div>
+                <Field label="Mobile"><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} disabled={!!editing} /></Field>
+                <Field label="Role"><select className="wp-input" value={form.role} onChange={(e) => set('role', e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></Field>
                 <Field label="Monthly salary ₹"><input className="wp-input tabular" type="number" value={form.salary} onChange={(e) => set('salary', e.target.value)} placeholder="0" /></Field>
                 {!editing && <Field label="Login password (optional)"><input className="wp-input" type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="They can also login via OTP" /></Field>}
 
@@ -122,7 +122,7 @@ export default function StaffPage() {
                     <p className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><IdCard size={15} /> KYC document</p>
                     <div className="grid grid-cols-2 gap-3">
                         <Field label="Document"><select className="wp-input" value={form.kycDoc} onChange={(e) => set('kycDoc', e.target.value)}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-                        <Field label="Number"><input className="wp-input" value={form.kycNumber} onChange={(e) => set('kycNumber', e.target.value)} placeholder="Doc number" /></Field>
+                        <Field label="Number"><input className="wp-input uppercase" value={form.kycNumber} onChange={(e) => set('kycNumber', e.target.value)} placeholder={kycPlaceholder(form.kycDoc)} /></Field>
                     </div>
                     <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
                         <input type="checkbox" checked={form.kycVerified} onChange={(e) => set('kycVerified', e.target.checked)} /> Mark KYC as verified

@@ -12,7 +12,7 @@ import { Types } from 'mongoose';
 export const listStaff = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const staff = await User.find({ businessId, role: { $in: STAFF_ROLES }, isActive: true })
-        .select('name mobile role salary kyc createdAt')
+        .select('name mobile countryCode role salary kyc createdAt')
         .sort({ createdAt: -1 })
         .lean();
     const monthlySalary = staff.reduce((s, u) => s + (u.salary || 0), 0);
@@ -34,6 +34,7 @@ export const createStaff = asyncHandler(async (req: AuthRequest, res: Response) 
     const staff = await User.create({
         name,
         mobile: normalized,
+        countryCode: req.body.countryCode || '+91',
         role,
         businessId,
         salary: Number(salary) || 0,

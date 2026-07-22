@@ -23,6 +23,7 @@ export interface IInvoice {
     invoiceNo: string;
     customerId?: Types.ObjectId;
     customerName?: string;
+    customerMobile?: string;
     items: IInvoiceItem[];
     subtotal: number;
     totalGst: number;
@@ -60,6 +61,7 @@ const invoiceSchema = new Schema<IInvoiceDocument>(
         invoiceNo: { type: String, required: true, index: true },
         customerId: { type: Schema.Types.ObjectId, ref: 'Customer', index: true },
         customerName: String,
+        customerMobile: String,
         items: { type: [invoiceItemSchema], default: [] },
         subtotal: { type: Number, default: 0 },
         totalGst: { type: Number, default: 0 },

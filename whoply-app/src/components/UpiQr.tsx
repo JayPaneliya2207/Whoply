@@ -42,7 +42,7 @@ export function UpiQr({ amount, note, onClose }: { amount: number; note: string;
     const vpa = 'sharma.store@whoply';
     const intent = `upi://pay?pa=${vpa}&pn=Sharma%20General%20Store&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
     return (
-        <div className="fixed inset-0 bg-black/50 grid place-items-center z-[60] p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/50 grid place-items-center z-[90] p-4" onClick={onClose}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="wp-card p-6 w-full max-w-xs text-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-2">
                     <p className="font-bold" style={{ color: 'var(--text-primary)' }}>Scan to pay</p>

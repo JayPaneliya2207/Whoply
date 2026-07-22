@@ -19,7 +19,7 @@ import type { AuthRequest } from '../../interfaces/index.js';
  */
 export const createSale = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { items = [], customerId, discount = 0, paymentMode = 'cash', paidAmount } = req.body;
+    const { items = [], customerId, discount = 0, paymentMode = 'cash', paidAmount, walkInName, walkInMobile } = req.body;
     if (!Array.isArray(items) || items.length === 0) throw AppError.badRequest('At least one item is required');
 
     // Load products in one query
@@ -58,7 +58,33 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     const due = +(grandTotal - paid).toFixed(2);
     const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'credit';
 
-    if (due > 0 && !customerId) throw AppError.badRequest('A customer is required for credit (udhar) sales');
+    // Resolve the customer. A walk-in with a mobile is auto-matched to an existing
+    // customer (fetch) or saved as a new one (add), so udhar & history stay linked.
+    let resolvedCustomerId = customerId;
+    let customerName: string | undefined;
+    let customerMobile: string | undefined;
+    if (customerId) {
+        const c = await Customer.findOne({ _id: customerId, businessId });
+        if (!c) throw AppError.badRequest('Customer not found');
+        customerName = c.name;
+        customerMobile = c.mobile;
+    } else if (walkInMobile) {
+        const mobile = String(walkInMobile).replace(/\D/g, '');
+        let c = await Customer.findOne({ businessId, mobile });
+        if (!c) {
+            c = await Customer.create({ businessId, name: walkInName?.trim() || 'Walk-in', mobile });
+        } else if (walkInName?.trim() && (!c.name || c.name === 'Walk-in')) {
+            c.name = walkInName.trim();
+            await c.save();
+        }
+        resolvedCustomerId = c._id;
+        customerName = c.name;
+        customerMobile = c.mobile;
+    } else if (walkInName) {
+        customerName = walkInName.trim();
+    }
+
+    if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A mobile number is required for credit (udhar) sales');
 
     // Invoice number: INV/<YYYYMM>/<seq>
     const ym = new Date().toISOString().slice(0, 7).replace('-', '');
@@ -67,18 +93,12 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     const prefix = biz?.settings?.invoicePrefix || 'INV';
     const invoiceNo = `${prefix}/${ym}/${String(seq).padStart(4, '0')}`;
 
-    let customerName: string | undefined;
-    if (customerId) {
-        const c = await Customer.findOne({ _id: customerId, businessId });
-        if (!c) throw AppError.badRequest('Customer not found');
-        customerName = c.name;
-    }
-
     const invoice = await Invoice.create({
         businessId,
         invoiceNo,
-        customerId,
+        customerId: resolvedCustomerId,
         customerName,
+        customerMobile,
         items: lineItems,
         subtotal: +subtotal.toFixed(2),
         totalGst: +totalGst.toFixed(2),
@@ -105,15 +125,15 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     }
 
     // Udhar ledger for the due amount
-    if (due > 0 && customerId) {
-        const customer = await Customer.findById(customerId);
+    if (due > 0 && resolvedCustomerId) {
+        const customer = await Customer.findById(resolvedCustomerId);
         if (customer) {
             customer.creditBalance += due;
             customer.loyaltyPoints += Math.floor(grandTotal / 100);
             await customer.save();
             await CreditLedger.create({
                 businessId,
-                customerId,
+                customerId: resolvedCustomerId,
                 type: 'credit',
                 amount: due,
                 balanceAfter: customer.creditBalance,
@@ -140,10 +160,13 @@ export const listInvoices = asyncHandler(async (req: AuthRequest, res: Response)
     sendPaginated(res, items, meta(total));
 });
 
-/** GET /billing/:id */
+/** GET /billing/:id — invoice + shop details (for printable bill / WhatsApp) */
 export const getInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const invoice = await Invoice.findOne({ _id: req.params.id, businessId }).lean();
     if (!invoice) throw AppError.notFound('Invoice not found');
-    sendSuccess(res, invoice);
+    const business = await Business.findById(businessId)
+        .select('name ownerName mobile countryCode gstin address city state')
+        .lean();
+    sendSuccess(res, { ...invoice, business });
 });

@@ -21,4 +21,5 @@ export { default as PriceList } from './PriceList.js';
 export { default as Order } from './Order.js';
 export { default as Visit } from './Visit.js';
 
+export { default as Plan } from './Plan.js';
 export { default as Notification } from './Notification.js';

@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
     ArrowRight, Package, Receipt, Wallet, Truck, BarChart3, Users, Check,
@@ -8,6 +9,11 @@ import { Nav } from '@/components/Nav';
 import { Logo } from '@/components/Logo';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:7200';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7000/api';
+
+interface Plan { key: string; name: string; price: number; period: string; features: string[]; highlight: boolean; }
+
+const inrPrice = (n: number) => (n === 0 ? '₹0' : `₹${n.toLocaleString('en-IN')}`);
 
 const stats = [
     { k: '12,000+', v: 'Shopkeepers' },
@@ -31,13 +37,22 @@ const steps = [
     { n: '3', title: 'Grow with insights', desc: 'Track profit, chase udhar and never run out of stock again.' },
 ];
 
-const plans = [
-    { name: 'Free', price: '₹0', period: '/forever', features: ['1 shop', 'Unlimited billing', 'Basic inventory', 'Udhar tracking'], cta: 'Start free', highlight: false },
-    { name: 'Pro', price: '₹299', period: '/month', features: ['Everything in Free', 'WhatsApp reminders', 'GST reports', 'Barcode scanning', '3 staff logins'], cta: 'Go Pro', highlight: true },
-    { name: 'Business', price: '₹799', period: '/month', features: ['Everything in Pro', 'Wholesale suite', 'Dealers & price-lists', 'Dispatch & sales-team', 'AI reorder'], cta: 'Contact sales', highlight: false },
+// fallback plans (used only if the API is unreachable)
+const fallbackPlans: Plan[] = [
+    { key: 'free', name: 'Free', price: 0, period: 'month', features: ['1 shop', 'Unlimited billing', 'Basic inventory', 'Udhar tracking'], highlight: false },
+    { key: 'pro', name: 'Pro', price: 299, period: 'month', features: ['Everything in Free', 'WhatsApp reminders', 'GST reports', 'Barcode scanning', '3 staff logins'], highlight: true },
+    { key: 'business', name: 'Business', price: 799, period: 'month', features: ['Everything in Pro', 'Wholesale suite', 'Dealers & price-lists', 'Dispatch & sales-team', 'AI reorder'], highlight: false },
 ];
 
 export default function Landing() {
+    const [plans, setPlans] = useState<Plan[]>(fallbackPlans);
+    useEffect(() => {
+        fetch(`${API_URL}/public/plans`)
+            .then((r) => r.json())
+            .then((j) => { if (j?.success && j.data?.length) setPlans(j.data); })
+            .catch(() => { /* keep fallback */ });
+    }, []);
+
     return (
         <div style={{ background: 'var(--background)' }}>
             <Nav />
@@ -172,16 +187,16 @@ export default function Landing() {
                 </div>
                 <div className="grid md:grid-cols-3 gap-5 items-start">
                     {plans.map((p) => (
-                        <div key={p.name} className="wp-card p-7 relative" style={p.highlight ? { borderColor: 'var(--brand-700)', boxShadow: 'var(--shadow-lg)' } : {}}>
+                        <div key={p.key} className="wp-card p-7 relative" style={p.highlight ? { borderColor: 'var(--brand-700)', boxShadow: 'var(--shadow-lg)' } : {}}>
                             {p.highlight && <span className="wp-chip absolute -top-3 left-7" style={{ background: 'var(--accent-500)', color: '#1a1205' }}>Most popular</span>}
                             <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{p.name}</h3>
-                            <p className="mt-2"><span className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{p.price}</span><span style={{ color: 'var(--text-muted)' }}>{p.period}</span></p>
+                            <p className="mt-2"><span className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{inrPrice(p.price)}</span><span style={{ color: 'var(--text-muted)' }}>/{p.period}</span></p>
                             <ul className="mt-5 space-y-2 mb-6">
                                 {p.features.map((f) => (
                                     <li key={f} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}><Check size={16} style={{ color: 'var(--success-600)' }} /> {f}</li>
                                 ))}
                             </ul>
-                            <a href={`${APP_URL}/login`} className={`wp-btn w-full ${p.highlight ? 'wp-btn-primary' : 'wp-btn-ghost'}`}>{p.cta}</a>
+                            <a href={`${APP_URL}/login`} className={`wp-btn w-full ${p.highlight ? 'wp-btn-primary' : 'wp-btn-ghost'}`}>{p.price === 0 ? 'Start free' : `Choose ${p.name}`}</a>
                         </div>
                     ))}
                 </div>

@@ -6,6 +6,7 @@ import { Wallet, MessageCircle, IndianRupee, X, Check } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
+import { buildUdharReminderText, whatsappLink } from '@/lib/bill';
 
 export default function CustomersPage() {
     const { user } = useAuth();
@@ -59,8 +60,11 @@ export default function CustomersPage() {
                             </div>
                             {c.creditBalance > 0 && (
                                 <div className="flex gap-1.5">
-                                    <button className="wp-btn wp-btn-ghost !px-2.5 !py-2" title="WhatsApp reminder (stub)"
-                                        onClick={() => alert(`WhatsApp reminder to ${c.name} — coming soon (stubbed in MVP).`)}>
+                                    <button className="wp-btn wp-btn-ghost !px-2.5 !py-2" title="Send WhatsApp udhar reminder"
+                                        onClick={() => {
+                                            if (!c.mobile) { alert(`No mobile number on file for ${c.name}. Add one to send a reminder.`); return; }
+                                            window.open(whatsappLink(c.mobile, buildUdharReminderText(c.name, c.creditBalance, user?.business ? { name: user.business.name } : undefined), c.countryCode || '+91'), '_blank');
+                                        }}>
                                         <MessageCircle size={15} style={{ color: 'var(--success-600)' }} />
                                     </button>
                                     <button className="wp-btn wp-btn-accent !px-2.5 !py-2" onClick={() => { setPayFor(c); setAmount(String(c.creditBalance)); }}>

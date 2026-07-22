@@ -9,6 +9,7 @@ import type { roles } from '../interfaces/index.js';
 export interface IUser {
     name: string;
     mobile: string;
+    countryCode: string;
     email?: string;
     password?: string;
     role: roles;
@@ -39,6 +40,7 @@ const userSchema = new Schema<IUserDocument>(
     {
         name: { type: String, required: true, trim: true },
         mobile: { type: String, required: true, unique: true, index: true },
+        countryCode: { type: String, default: '+91' },
         email: { type: String, lowercase: true, trim: true, sparse: true },
         password: { type: String, select: false },
         role: {

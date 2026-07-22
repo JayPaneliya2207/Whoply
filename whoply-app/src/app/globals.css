@@ -91,11 +91,15 @@ body {
 .wp-btn-ghost:hover { background: var(--surface-2); color: var(--text-primary); }
 .wp-btn:disabled { opacity: .55; cursor: not-allowed; }
 
-.wp-input {
-  width: 100%; background: var(--card-bg); color: var(--text-primary);
-  border: 1px solid var(--card-border); border-radius: 12px;
-  padding: .7rem .9rem; font-size: .95rem; transition: border .15s, box-shadow .15s;
-  outline: none;
+/* In @layer components so Tailwind padding utilities (pl-11 etc.) override the
+   base horizontal padding — this keeps input icons from overlapping the text. */
+@layer components {
+  .wp-input {
+    width: 100%; background: var(--card-bg); color: var(--text-primary);
+    border: 1px solid var(--card-border); border-radius: 12px;
+    padding: .7rem .9rem; font-size: .95rem; transition: border .15s, box-shadow .15s;
+    outline: none;
+  }
 }
 .wp-input:focus { border-color: var(--brand-600); box-shadow: 0 0 0 3px var(--brand-100); }
 .dark .wp-input:focus { box-shadow: 0 0 0 3px rgba(79,70,229,.25); }
@@ -105,8 +109,13 @@ body {
   font-size: .72rem; font-weight: 600; padding: .2rem .6rem; border-radius: 999px;
 }
 
-.wp-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-.wp-scroll::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 8px; }
+/* Scrollable regions stay scrollable, but the scrollbar line is hidden. */
+.wp-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.wp-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* Hide the page/body scrollbar too (content still scrolls). */
+html, body { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 /* subtle brand gradient used on auth + hero */
 .wp-gradient {

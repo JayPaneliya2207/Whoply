@@ -91,11 +91,13 @@ body {
 .wp-btn-ghost:hover { background: var(--surface-2); color: var(--text-primary); }
 .wp-btn:disabled { opacity: .55; cursor: not-allowed; }
 
-.wp-input {
-  width: 100%; background: var(--card-bg); color: var(--text-primary);
-  border: 1px solid var(--card-border); border-radius: 12px;
-  padding: .7rem .9rem; font-size: .95rem; transition: border .15s, box-shadow .15s;
-  outline: none;
+@layer components {
+  .wp-input {
+    width: 100%; background: var(--card-bg); color: var(--text-primary);
+    border: 1px solid var(--card-border); border-radius: 12px;
+    padding: .7rem .9rem; font-size: .95rem; transition: border .15s, box-shadow .15s;
+    outline: none;
+  }
 }
 .wp-input:focus { border-color: var(--brand-600); box-shadow: 0 0 0 3px var(--brand-100); }
 .dark .wp-input:focus { box-shadow: 0 0 0 3px rgba(79,70,229,.25); }

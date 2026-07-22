@@ -40,13 +40,13 @@ export default function AdminLogin() {
 
                 <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Mobile</label>
                 <div className="relative mt-1.5 mb-3">
-                    <Smartphone size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                    <input className="wp-input pl-10" value={mobile} onChange={(e) => setMobile(e.target.value)} />
+                    <Smartphone size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                    <input className="wp-input pl-11" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="Admin mobile" style={{ fontSize: 16 }} />
                 </div>
                 <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Password</label>
                 <div className="relative mt-1.5 mb-4">
-                    <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                    <input type="password" className="wp-input pl-10" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && login()} />
+                    <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                    <input type="password" className="wp-input pl-11" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && login()} placeholder="Password" style={{ fontSize: 16 }} />
                 </div>
                 {error && <p className="text-sm mb-3" style={{ color: 'var(--danger-500)' }}>{error}</p>}
                 <button className="wp-btn wp-btn-primary w-full" disabled={loading} onClick={login}>

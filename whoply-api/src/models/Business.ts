@@ -11,6 +11,7 @@ export interface IBusiness {
     type: BusinessType;
     ownerName: string;
     mobile: string;
+    countryCode: string;
     email?: string;
     gstin?: string;
     address?: string;
@@ -40,6 +41,7 @@ const businessSchema = new Schema<IBusinessDocument>(
         type: { type: String, enum: ['retail', 'wholesale'], required: true, index: true },
         ownerName: { type: String, required: true, trim: true },
         mobile: { type: String, required: true, index: true },
+        countryCode: { type: String, default: '+91' },
         email: { type: String, lowercase: true, trim: true },
         gstin: { type: String, uppercase: true, trim: true, sparse: true },
         address: String,

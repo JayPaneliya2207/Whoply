@@ -5,7 +5,7 @@ export interface INotification {
     userId?: Types.ObjectId;
     title: string;
     body: string;
-    type: 'low_stock' | 'expiry' | 'udhar' | 'summary' | 'order' | 'general';
+    type: 'low_stock' | 'expiry' | 'udhar' | 'summary' | 'order' | 'payable' | 'general';
     isRead: boolean;
 }
 export interface INotificationDocument extends INotification, Document {
@@ -21,7 +21,7 @@ const notificationSchema = new Schema<INotificationDocument>(
         body: { type: String, required: true },
         type: {
             type: String,
-            enum: ['low_stock', 'expiry', 'udhar', 'summary', 'order', 'general'],
+            enum: ['low_stock', 'expiry', 'udhar', 'summary', 'order', 'payable', 'general'],
             default: 'general',
         },
         isRead: { type: Boolean, default: false, index: true },

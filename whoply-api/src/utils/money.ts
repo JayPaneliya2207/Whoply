@@ -2,7 +2,8 @@
  * Money helpers — Whoply keeps all monetary values in paise-free rupees (Number)
  * but formats consistently for display / receipts.
  */
-const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
+// Always prepend ₹ explicitly (never rely on ICU currency symbol, which can vary by runtime).
+const nf = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export const getMoneyFormatter = () => inr;
-export const formatINR = (value: number): string => inr.format(value || 0);
+export const getMoneyFormatter = () => nf;
+export const formatINR = (value: number): string => `₹${nf.format(value || 0)}`;

@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes';
 import { useEffect } from 'react';
 import {
     LayoutDashboard, ShoppingCart, Package, Users, FileText, Truck, Wallet,
-    BarChart3, LogOut, Menu, X, Moon, Sun, Store, Building2, Tags, Route, Sparkles, Settings, ArrowLeft, UsersRound,
+    BarChart3, LogOut, Menu, X, Moon, Sun, Store, Building2, Tags, Route, Sparkles, Settings, ArrowLeft, UsersRound, Receipt,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/stores/auth.store';
@@ -20,6 +20,7 @@ import { useLang, useT } from '@/i18n';
 const retailNav = [
     { href: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
     { href: '/billing', key: 'billing', icon: ShoppingCart },
+    { href: '/bills', key: 'bills', icon: Receipt },
     { href: '/products', key: 'products', icon: Package },
     { href: '/customers', key: 'customersUdhar', icon: Users },
     { href: '/purchases', key: 'suppliers', icon: Truck },

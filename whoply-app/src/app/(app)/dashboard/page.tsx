@@ -77,48 +77,37 @@ export default function DashboardPage() {
                     <StatCard label="Total Revenue" value={inr(data.revenue)} icon={TrendingUp} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} />
                 </div>
 
-                <div className="grid lg:grid-cols-3 gap-4">
-                    <div className="wp-card p-5 lg:col-span-2">
-                        <h3 className="font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Recent Orders</h3>
-                        {/* mobile cards */}
-                        <div className="sm:hidden space-y-2">
-                            {data.recentOrders.map((o: any) => (
-                                <div key={o._id} className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--surface-2)' }}>
-                                    <div className="min-w-0"><p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.dealerName}</p></div>
-                                    <div className="text-right shrink-0 ml-2"><p className="font-bold tabular text-sm" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p><span className="wp-chip capitalize" style={statusTone[o.status]}>{o.status}</span></div>
-                                </div>
-                            ))}
-                        </div>
-                        {/* desktop table */}
-                        <div className="hidden sm:block overflow-x-auto wp-scroll">
-                            <table className="w-full text-sm">
-                                <thead><tr style={{ color: 'var(--text-muted)' }} className="text-left">
-                                    <th className="pb-2 font-medium">Order</th><th className="pb-2 font-medium">Dealer</th>
-                                    <th className="pb-2 font-medium text-right">Amount</th><th className="pb-2 font-medium text-right">Status</th>
-                                </tr></thead>
-                                <tbody>
-                                    {data.recentOrders.map((o: any) => (
-                                        <tr key={o._id} style={{ borderTop: '1px solid var(--card-border)' }}>
-                                            <td className="py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</td>
-                                            <td className="py-2.5" style={{ color: 'var(--text-secondary)' }}>{o.dealerName}</td>
-                                            <td className="py-2.5 text-right font-semibold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</td>
-                                            <td className="py-2.5 text-right"><span className="wp-chip capitalize" style={statusTone[o.status]}>{o.status}</span></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                {/* Order pipeline — boxes */}
+                <div>
+                    <h3 className="font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Order pipeline</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {data.statusBreakdown.map((s: any) => (
+                            <Link key={s.status} href={`/orders?status=${s.status}`} className="wp-card wp-card-hover p-4">
+                                <p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{s.count}</p>
+                                <span className="wp-chip capitalize mt-1" style={statusTone[s.status]}>{s.status}</span>
+                            </Link>
+                        ))}
                     </div>
-                    <div className="wp-card p-5">
-                        <h3 className="font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Order pipeline</h3>
-                        <div className="space-y-2">
-                            {data.statusBreakdown.map((s: any) => (
-                                <div key={s.status} className="flex items-center justify-between">
-                                    <span className="wp-chip capitalize" style={statusTone[s.status]}>{s.status}</span>
-                                    <span className="font-bold tabular" style={{ color: 'var(--text-primary)' }}>{s.count}</span>
+                </div>
+
+                {/* Recent orders — boxes (latest 4) */}
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Recent Orders</h3>
+                        <Link href="/orders" className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>View all →</Link>
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {data.recentOrders.length === 0 && <p className="col-span-full text-sm" style={{ color: 'var(--text-muted)' }}>No orders yet.</p>}
+                        {data.recentOrders.slice(0, 4).map((o: any) => (
+                            <Link key={o._id} href="/orders" className="wp-card wp-card-hover p-4 block">
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p>
+                                    <span className="wp-chip capitalize shrink-0" style={statusTone[o.status]}>{o.status}</span>
                                 </div>
-                            ))}
-                        </div>
+                                <p className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p>
+                                <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{o.dealerName}</p>
+                            </Link>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -140,96 +129,54 @@ export default function DashboardPage() {
                 <StatCard label="Pending Udhar" value={inr(data.pendingUdhar)} icon={Wallet} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} />
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-4">
-                {/* Top products */}
-                <div className="wp-card p-5 lg:col-span-2">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Trophy size={18} style={{ color: 'var(--accent-500)' }} /> Top Products (this month)</h3>
-                    </div>
-                    <div className="space-y-3">
-                        {data.topProducts.map((p: any, i: number) => (
-                            <div key={i} className="flex items-center gap-3">
-                                <span className="h-7 w-7 grid place-items-center rounded-lg text-xs font-bold" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{i + 1}</span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                                    <div className="h-1.5 rounded-full mt-1.5 overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                                        <div className="h-full rounded-full" style={{ width: `${Math.min(100, (p.qty / (data.topProducts[0]?.qty || 1)) * 100)}%`, background: 'var(--brand-700)' }} />
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-sm font-semibold tabular" style={{ color: 'var(--text-primary)' }}>{inr(p.revenue)}</p>
-                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{p.qty} sold</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Alerts */}
-                <div className="space-y-4">
-                    <div className="wp-card p-5">
-                        <div className="flex items-center gap-2 mb-1"><AlertTriangle size={18} style={{ color: 'var(--accent-500)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Low Stock</h3></div>
-                        <p className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{data.lowStockCount}</p>
-                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>products need reordering</p>
-                        <Link href="/products?lowStock=true" className="text-sm font-semibold mt-2 inline-block" style={{ color: 'var(--brand-700)' }}>View products →</Link>
-                    </div>
-                    <div className="wp-card p-5">
-                        <div className="flex items-center gap-2 mb-1"><Wallet size={18} style={{ color: 'var(--accent-600)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Udhar</h3></div>
-                        <p className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{data.udharCustomers}</p>
-                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>customers owe {inr(data.pendingUdhar)}</p>
-                        <Link href="/customers?hasDue=true" className="text-sm font-semibold mt-2 inline-block" style={{ color: 'var(--brand-700)' }}>Send reminders →</Link>
-                    </div>
-                </div>
+            {/* Low stock + Udhar — two compact boxes on one line */}
+            <div className="grid grid-cols-2 gap-4">
+                <Link href="/products?lowStock=true" className="wp-card wp-card-hover p-4 sm:p-5">
+                    <div className="flex items-center gap-2 mb-1"><AlertTriangle size={17} style={{ color: 'var(--accent-500)' }} /><h3 className="font-bold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>Low Stock</h3></div>
+                    <p className="text-2xl sm:text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{data.lowStockCount}</p>
+                    <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>products need reordering</p>
+                </Link>
+                <Link href="/customers?hasDue=true" className="wp-card wp-card-hover p-4 sm:p-5">
+                    <div className="flex items-center gap-2 mb-1"><Wallet size={17} style={{ color: 'var(--accent-600)' }} /><h3 className="font-bold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>Udhar</h3></div>
+                    <p className="text-2xl sm:text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{data.udharCustomers}</p>
+                    <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>customers owe {inr(data.pendingUdhar)}</p>
+                </Link>
             </div>
 
-            {/* Recent invoices */}
+            {/* Top products — compact 2-column layout */}
             <div className="wp-card p-5">
-                <h3 className="font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Recent Bills</h3>
-
-                {/* mobile: card list */}
-                <div className="sm:hidden space-y-2">
-                    {data.recentInvoices.map((inv: any) => (
-                        <div key={inv._id} className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--surface-2)' }}>
-                            <div className="min-w-0">
-                                <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{inv.invoiceNo}</p>
-                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{inv.customerName || 'Walk-in'} · {inv.paymentMode}</p>
-                            </div>
-                            <div className="text-right shrink-0 ml-2">
-                                <p className="font-bold tabular text-sm" style={{ color: 'var(--text-primary)' }}>{inr2(inv.grandTotal)}</p>
-                                <span className="wp-chip" style={inv.status === 'paid' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' }}>{inv.status}</span>
-                            </div>
+                <h3 className="font-bold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}><Trophy size={18} style={{ color: 'var(--accent-500)' }} /> Top Products (this month)</h3>
+                {data.topProducts.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No sales yet this month.</p>}
+                <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2.5">
+                    {data.topProducts.map((p: any, i: number) => (
+                        <div key={i} className="flex items-center gap-2.5">
+                            <span className="h-6 w-6 grid place-items-center rounded-md text-xs font-bold shrink-0" style={{ background: i < 3 ? 'var(--brand-100)' : 'var(--surface-2)', color: i < 3 ? 'var(--brand-800)' : 'var(--text-secondary)' }}>{i + 1}</span>
+                            <p className="text-sm font-medium truncate flex-1" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+                            <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>{p.qty} sold</span>
+                            <span className="text-sm font-semibold tabular shrink-0 w-20 text-right" style={{ color: 'var(--text-primary)' }}>{inr(p.revenue)}</span>
                         </div>
                     ))}
                 </div>
+            </div>
 
-                {/* desktop: table */}
-                <div className="hidden sm:block overflow-x-auto wp-scroll">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr style={{ color: 'var(--text-muted)' }} className="text-left">
-                                <th className="pb-2 font-medium">Invoice</th>
-                                <th className="pb-2 font-medium">Customer</th>
-                                <th className="pb-2 font-medium">Payment</th>
-                                <th className="pb-2 font-medium text-right">Amount</th>
-                                <th className="pb-2 font-medium text-right">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.recentInvoices.map((inv: any) => (
-                                <tr key={inv._id} style={{ borderTop: '1px solid var(--card-border)' }}>
-                                    <td className="py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>{inv.invoiceNo}</td>
-                                    <td className="py-2.5" style={{ color: 'var(--text-secondary)' }}>{inv.customerName || 'Walk-in'}</td>
-                                    <td className="py-2.5 capitalize" style={{ color: 'var(--text-secondary)' }}>{inv.paymentMode}</td>
-                                    <td className="py-2.5 text-right font-semibold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(inv.grandTotal)}</td>
-                                    <td className="py-2.5 text-right">
-                                        <span className="wp-chip" style={inv.status === 'paid'
-                                            ? { background: '#dcfce7', color: 'var(--success-600)' }
-                                            : { background: '#fef3c7', color: 'var(--accent-600)' }}>{inv.status}</span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {/* Recent bills — 4 boxes */}
+            <div>
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Recent Bills</h3>
+                    <Link href="/bills" className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>View all →</Link>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {data.recentInvoices.length === 0 && <p className="col-span-full text-sm" style={{ color: 'var(--text-muted)' }}>No bills yet.</p>}
+                    {data.recentInvoices.slice(0, 4).map((inv: any) => (
+                        <Link key={inv._id} href="/bills" className="wp-card wp-card-hover p-4 block">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{inv.invoiceNo}</p>
+                                <span className="wp-chip shrink-0" style={inv.status === 'paid' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' }}>{inv.status}</span>
+                            </div>
+                            <p className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(inv.grandTotal)}</p>
+                            <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{inv.customerName || 'Walk-in'} · {inv.paymentMode}</p>
+                        </Link>
+                    ))}
                 </div>
             </div>
         </div>

@@ -10,6 +10,7 @@ import 'swiper/css/pagination';
 import { Smartphone, Lock, ArrowRight, ArrowLeft, Receipt, Package, BarChart3, ChevronRight, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { OTPInput } from '@/components/OTPInput';
+import { PhoneInput } from '@/components/PhoneInput';
 import { api, apiErr } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
 import { useT, useLang, LANGS, type Lang } from '@/i18n';
@@ -24,6 +25,7 @@ export default function LoginPage() {
     const swiperRef = useRef<SwiperType | null>(null);
 
     const [mobile, setMobile] = useState('');
+    const [country, setCountry] = useState('+91');
     const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
     const [password, setPassword] = useState('');
     const [method, setMethod] = useState<Method>('otp');
@@ -157,9 +159,8 @@ export default function LoginPage() {
 
                                     {/* Mobile */}
                                     <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>{t('mobileNumber')}</label>
-                                    <div className="flex gap-2 mb-4">
-                                        <div className="flex items-center gap-1.5 px-3 rounded-xl text-sm font-medium" style={{ background: 'var(--surface-2)', border: '1px solid var(--card-border)', color: 'var(--text-secondary)' }}>🇮🇳 +91</div>
-                                        <input type="tel" inputMode="numeric" placeholder={t('enterMobile')} value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))} disabled={otpSent && method === 'otp'} maxLength={10} className="wp-input flex-1" style={{ fontSize: 16 }} />
+                                    <div className="mb-4">
+                                        <PhoneInput value={mobile} onChange={setMobile} country={country} onCountryChange={setCountry} disabled={otpSent && method === 'otp'} />
                                     </div>
 
                                     {/* Tabs */}
@@ -182,7 +183,7 @@ export default function LoginPage() {
                                             </button>
                                         ) : (
                                             <div className="space-y-4">
-                                                <p className="text-xs font-semibold text-center" style={{ color: 'var(--text-secondary)' }}>{t('otpSentTo')} +91 {mobile}</p>
+                                                <p className="text-xs font-semibold text-center" style={{ color: 'var(--text-secondary)' }}>{t('otpSentTo')} {country} {mobile}</p>
                                                 <OTPInput value={otp} onChange={setOtp} onComplete={verifyOtp} disabled={loading} />
                                                 {devOtp && <p className="text-xs text-center wp-chip mx-auto w-fit" style={{ background: 'var(--accent-500)', color: '#1a1205' }}>Dev OTP: {devOtp}</p>}
                                                 {loading && <div className="flex justify-center"><Loader2 className="animate-spin" size={20} style={{ color: 'var(--brand-700)' }} /></div>}

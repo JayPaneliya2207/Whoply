@@ -96,6 +96,7 @@ const en: Dict = {
     agreeTerms: 'By continuing, you agree to our Terms & Privacy Policy',
     staff: 'Staff',
     notifications: 'Notifications',
+    bills: 'Bills',
 };
 
 const hi: Dict = {
@@ -175,6 +176,7 @@ const hi: Dict = {
     agreeTerms: 'जारी रखकर, आप हमारी शर्तों और गोपनीयता नीति से सहमत हैं',
     staff: 'स्टाफ',
     notifications: 'सूचनाएँ',
+    bills: 'बिल',
 };
 
 const gu: Dict = {
@@ -254,6 +256,7 @@ const gu: Dict = {
     agreeTerms: 'ચાલુ રાખીને, તમે અમારી શરતો અને ગોપનીયતા નીતિ સાથે સંમત થાઓ છો',
     staff: 'સ્ટાફ',
     notifications: 'સૂચનાઓ',
+    bills: 'બિલ',
 };
 
 export const dictionaries: Record<Lang, Dict> = { en, hi, gu };
