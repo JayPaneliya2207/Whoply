@@ -66,7 +66,7 @@ export const register = asyncHandler(async (req, res) => {
 
     sendCreated(
         res,
-        { mobile: maskMobile(mobile), devOtp: otp, userId: user._id },
+        { mobile: maskMobile(mobile), userId: user._id, ...(process.env.NODE_ENV !== 'production' && { devOtp: otp }) },
         'Account created. Verify the OTP sent to your mobile.'
     );
 });
@@ -85,8 +85,8 @@ export const requestOtp = asyncHandler(async (req, res) => {
     user.otpExpiry = getOtpExpiry();
     await user.save();
 
-    // In prod: dispatch SMS here. Dev returns the OTP for convenience.
-    sendSuccess(res, { mobile: maskMobile(mobile), devOtp: otp }, 'OTP sent successfully');
+    // In prod: dispatch SMS via your provider here. Dev returns the OTP for convenience.
+    sendSuccess(res, { mobile: maskMobile(mobile), ...(process.env.NODE_ENV !== 'production' && { devOtp: otp }) }, 'OTP sent successfully');
 });
 
 /** POST /api/auth/verify-otp — verify OTP and issue token */

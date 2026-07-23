@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.middleware.js';
 import { requireRole } from '../../middleware/role.middleware.js';
 import { wholesalerDashboard } from '../../controllers/wholesaler/dashboard.controller.js';
+import { getMyBusiness, updateMyBusiness } from '../../controllers/shared/business.controller.js';
 import {
     listDealers,
     createDealer,
@@ -11,7 +12,7 @@ import {
     collectPayment,
 } from '../../controllers/wholesaler/dealer.controller.js';
 import { createOrder, listOrders, updateOrderStatus } from '../../controllers/wholesaler/order.controller.js';
-import { getPriceList, setPrice } from '../../controllers/wholesaler/priceList.controller.js';
+import { getPriceList, setPrice } from '../../controllers/wholesaler/pricelist.controller.js';
 import {
     listReps,
     createRep,
@@ -38,6 +39,10 @@ const router = Router();
 router.use(authenticate, requireRole('owner', 'manager', 'warehouse', 'salesStaff'));
 
 router.get('/dashboard', wholesalerDashboard);
+
+// Business profile (name, GSTIN, address — shown on invoices)
+router.get('/business', getMyBusiness);
+router.patch('/business', requireRole('owner', 'manager'), updateMyBusiness);
 
 // Warehouse stock — full product & category CRUD
 router.get('/products', listProducts);

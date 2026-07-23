@@ -1,10 +1,12 @@
 /**
- * Generate 6-digit OTP.
- * In development we return a fixed OTP so testing is friction-free.
- * Swap to the random line when wiring a real SMS provider.
+ * Generate a 6-digit OTP.
+ * Production → a real random code (dispatch it via your SMS provider).
+ * Dev/test  → fixed 123456 so manual testing is friction-free.
  */
 export const generateOtp = (): string => {
-    // return Math.floor(100000 + Math.random() * 900000).toString();
+    if (process.env.NODE_ENV === 'production') {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
     return '123456';
 };
 

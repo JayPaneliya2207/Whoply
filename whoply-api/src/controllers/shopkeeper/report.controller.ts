@@ -1,10 +1,11 @@
 import type { Response } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/response.js';
-import { businessOf, monthStart } from '../../utils/http.js';
+import { businessOf, monthStart, todayRange } from '../../utils/http.js';
 import Invoice from '../../models/Invoice.js';
 import Product from '../../models/Product.js';
 import Expense from '../../models/Expense.js';
+import CreditLedger from '../../models/CreditLedger.js';
 import User from '../../models/User.js';
 import { STAFF_ROLES, type AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
@@ -143,6 +144,61 @@ export const summaryReport = asyncHandler(async (req: AuthRequest, res: Response
         staffSalaryForPeriod: salaryForPeriod,
         expenses,
         netProfit,
+    });
+});
+
+/** GET /reports/day-close?date=YYYY-MM-DD — end-of-day cash tally */
+export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const bId = new Types.ObjectId(String(businessOf(req)));
+    let start: Date;
+    let end: Date;
+    if (req.query.date) {
+        start = new Date(String(req.query.date));
+        start.setHours(0, 0, 0, 0);
+        end = new Date(start);
+        end.setDate(end.getDate() + 1);
+    } else {
+        ({ start, end } = todayRange());
+    }
+
+    const [byMode, totals, ledgerAgg, expAgg] = await Promise.all([
+        Invoice.aggregate([
+            { $match: { businessId: bId, createdAt: { $gte: start, $lt: end } } },
+            { $group: { _id: '$paymentMode', collected: { $sum: '$paidAmount' }, sales: { $sum: '$grandTotal' }, count: { $sum: 1 } } },
+        ]),
+        Invoice.aggregate([
+            { $match: { businessId: bId, createdAt: { $gte: start, $lt: end } } },
+            { $group: { _id: null, sales: { $sum: '$grandTotal' }, collected: { $sum: '$paidAmount' }, udharGiven: { $sum: '$dueAmount' }, count: { $sum: 1 } } },
+        ]),
+        // udhar collected today (repayments)
+        CreditLedger.aggregate([
+            { $match: { businessId: bId, type: 'repayment', createdAt: { $gte: start, $lt: end } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+        Expense.aggregate([
+            { $match: { businessId: bId, spentAt: { $gte: start, $lt: end } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
+    ]);
+
+    const m: Record<string, any> = Object.fromEntries(byMode.map((x) => [x._id, x]));
+    const cash = m.cash?.collected || 0;
+    const upi = m.upi?.collected || 0;
+    const card = m.card?.collected || 0;
+    const udharCollected = ledgerAgg[0]?.total || 0;
+    const expenses = expAgg[0]?.total || 0;
+
+    sendSuccess(res, {
+        date: start.toISOString().slice(0, 10),
+        billCount: totals[0]?.count || 0,
+        totalSales: +(totals[0]?.sales || 0).toFixed(2),
+        totalCollected: +(totals[0]?.collected || 0).toFixed(2),
+        cash, upi, card,
+        udharGiven: +(totals[0]?.udharGiven || 0).toFixed(2),
+        udharCollected,
+        expenses,
+        // rough cash expected in the drawer: cash sales + udhar collected − expenses
+        cashInDrawer: +(cash + udharCollected - expenses).toFixed(2),
     });
 });
 

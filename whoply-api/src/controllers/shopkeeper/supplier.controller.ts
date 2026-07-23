@@ -101,6 +101,29 @@ export const createPurchase = asyncHandler(async (req: AuthRequest, res: Respons
     sendCreated(res, po);
 });
 
+/** POST /purchases/:id/payment — record a payment YOU make to the supplier */
+export const payPurchase = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const amount = Number(req.body.amount);
+    if (!amount || amount <= 0) throw AppError.badRequest('Enter a valid payment amount');
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, businessId });
+    if (!po) throw AppError.notFound('Purchase order not found');
+    if (po.dueAmount <= 0) throw AppError.badRequest('This purchase order is already fully paid');
+
+    const pay = Math.min(amount, po.dueAmount);
+    po.paidAmount = +(po.paidAmount + pay).toFixed(2);
+    po.dueAmount = +(po.dueAmount - pay).toFixed(2);
+    await po.save();
+
+    // Reduce what we owe this supplier by the same amount.
+    const supplier = await Supplier.findById(po.supplierId);
+    if (supplier) {
+        supplier.payableBalance = Math.max(0, +(supplier.payableBalance - pay).toFixed(2));
+        await supplier.save();
+    }
+    sendSuccess(res, po, 'Payment recorded');
+});
+
 /** POST /purchases/:id/receive — mark received & add stock */
 export const receivePurchase = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);

@@ -17,6 +17,8 @@ const envSchema = z.object({
     ADMIN_URL: z.string().url().default('http://localhost:7300'),
     APP_URL: z.string().url().default('http://localhost:7200'),
     FRONT_URL: z.string().url().default('http://localhost:7100'),
+    // Extra CORS origins (comma-separated) allowed in production, on top of the URLs above
+    CORS_ORIGINS: z.string().optional(),
 
     // Cloudinary (optional)
     CLOUDINARY_CLOUD_NAME: z.string().optional(),

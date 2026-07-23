@@ -9,6 +9,7 @@
         "build": "tsc && tsc-alias",
         "start": "node dist/server.js",
         "seed": "tsx src/seeds/seed.ts",
+        "seed:reset": "tsx src/seeds/reset.ts",
         "lint": "eslint src/",
         "lint:fix": "eslint src/ --fix",
         "format": "prettier --write \"src/**/*.ts\"",

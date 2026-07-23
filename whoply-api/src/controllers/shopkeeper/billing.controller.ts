@@ -170,3 +170,15 @@ export const getInvoice = asyncHandler(async (req: AuthRequest, res: Response) =
         .lean();
     sendSuccess(res, { ...invoice, business });
 });
+
+/** POST /billing/:id/mark-sent — record that the bill was shared on WhatsApp */
+export const markBillSent = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const invoice = await Invoice.findOneAndUpdate(
+        { _id: req.params.id, businessId },
+        { whatsappSentAt: new Date() },
+        { new: true }
+    );
+    if (!invoice) throw AppError.notFound('Invoice not found');
+    sendSuccess(res, { _id: invoice._id, whatsappSentAt: invoice.whatsappSentAt });
+});

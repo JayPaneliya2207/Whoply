@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { Tags } from 'lucide-react';
 import { api } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
+import { useT } from '@/i18n';
 
-const TIERS: { key: 'A' | 'B' | 'C'; label: string; hint: string }[] = [
-    { key: 'A', label: 'Premium', hint: 'best price' },
-    { key: 'B', label: 'Standard', hint: 'regular' },
-    { key: 'C', label: 'Basic', hint: 'small buyers' },
+const TIERS: { key: 'A' | 'B' | 'C'; labelKey: string; hintKey: string }[] = [
+    { key: 'A', labelKey: 'tierPremium', hintKey: 'bestPrice' },
+    { key: 'B', labelKey: 'tierStandard', hintKey: 'regularDealers' },
+    { key: 'C', labelKey: 'tierBasic', hintKey: 'smallBuyers' },
 ];
 
 function PriceCell({ row, tier }: { row: any; tier: 'A' | 'B' | 'C' }) {
@@ -30,34 +31,30 @@ function PriceCell({ row, tier }: { row: any; tier: 'A' | 'B' | 'C' }) {
 }
 
 export default function PriceListsPage() {
+    const t = useT();
     const { data } = useQuery({ queryKey: ['price-lists'], queryFn: async () => (await api.get('/wholesaler/price-lists')).data.data });
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-2">
                 <Tags size={20} style={{ color: 'var(--brand-700)' }} />
-                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Dealer Price Lists</h1>
+                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('dealerPriceLists')}</h1>
             </div>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                One price list for <b>all your products</b>. Instead of pricing per dealer, set three group prices —
-                <b> Premium</b> (your best price), <b>Standard</b> (regular dealers) and <b>Basic</b> (small buyers).
-                Each dealer is put in one group on the <b>Dealers</b> page, and their group price is used automatically on every order.
-                Leave a box blank to fall back to the base price. Changes save automatically.
-            </p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('priceListDesc')}</p>
 
-            {(data || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No products to price yet.</p>}
+            {(data || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noProductsToPrice')}</p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {(data || []).map((row: any) => (
                     <div key={row.productId} className="wp-card p-4">
                         <div className="flex items-center justify-between mb-3">
                             <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{row.name}</p>
-                            <span className="text-xs tabular shrink-0 ml-2" style={{ color: 'var(--text-muted)' }}>base {inr2(row.base)}</span>
+                            <span className="text-xs tabular shrink-0 ml-2" style={{ color: 'var(--text-muted)' }}>{t('baseWord')} {inr2(row.base)}</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
-                            {TIERS.map((t) => (
-                                <div key={t.key}>
-                                    <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>{t.label}</label>
-                                    <PriceCell row={row} tier={t.key} />
-                                    <span className="text-[10px] block mt-0.5" style={{ color: 'var(--text-muted)' }}>{t.hint}</span>
+                            {TIERS.map((tr) => (
+                                <div key={tr.key}>
+                                    <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-secondary)' }}>{t(tr.labelKey)}</label>
+                                    <PriceCell row={row} tier={tr.key} />
+                                    <span className="text-[10px] block mt-0.5" style={{ color: 'var(--text-muted)' }}>{t(tr.hintKey)}</span>
                                 </div>
                             ))}
                         </div>

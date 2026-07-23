@@ -10,7 +10,10 @@ import { initializeCronJobs } from './cron/index.js';
 export const app: Express = express();
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, crossOriginEmbedderPolicy: false }));
-app.use(cors({ origin: '*' }));
+// In production, only the known Whoply front-ends may call the API. Extra
+// origins can be added via CORS_ORIGINS (comma-separated). Dev stays open.
+const corsAllowlist = [env.APP_URL, env.ADMIN_URL, env.FRONT_URL, ...(process.env.CORS_ORIGINS?.split(',').map((s) => s.trim()).filter(Boolean) || [])];
+app.use(cors({ origin: env.NODE_ENV === 'production' ? corsAllowlist : '*' }));
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 

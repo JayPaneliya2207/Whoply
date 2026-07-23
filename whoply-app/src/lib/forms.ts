@@ -35,6 +35,23 @@ export const PLACEHOLDERS = {
     pincode: '6-digit PIN',
 };
 
+/**
+ * Restrict/format a KYC number to what the selected document allows — so the
+ * user can only enter valid characters and length (no stray keywords).
+ *   Aadhaar → 12 digits grouped 4-4-4 · PAN/Voter → 10 alphanumeric ·
+ *   Driving → alphanumeric+space · Other → free (short).
+ */
+export const formatKyc = (docType: string, raw: string): string => {
+    const v = raw || '';
+    switch (docType) {
+        case 'aadhaar': return v.replace(/\D/g, '').slice(0, 12).replace(/(\d{4})(?=\d)/g, '$1 ');
+        case 'pan': return v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+        case 'voterid': return v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+        case 'driving': return v.toUpperCase().replace(/[^A-Z0-9 ]/g, '').slice(0, 18);
+        default: return v.slice(0, 40);
+    }
+};
+
 /** Placeholder + note per KYC document type. */
 export const kycPlaceholder = (docType: string): string => {
     switch (docType) {

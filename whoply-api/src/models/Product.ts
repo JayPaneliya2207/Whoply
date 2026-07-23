@@ -15,6 +15,7 @@ export interface IProduct {
     costPrice: number;
     sellPrice: number; // retail MRP / selling price
     wholesalePrice?: number; // base wholesale price (dealer tiers override)
+    discountPct?: number; // optional default discount % applied at billing
     gstRate: number; // %
     currentStock: number;
     lowStockThreshold: number;
@@ -40,6 +41,7 @@ const productSchema = new Schema<IProductDocument>(
         costPrice: { type: Number, default: 0 },
         sellPrice: { type: Number, required: true, default: 0 },
         wholesalePrice: { type: Number, default: 0 },
+        discountPct: { type: Number, default: 0, min: 0, max: 100 },
         gstRate: { type: Number, default: 0 },
         currentStock: { type: Number, default: 0 },
         lowStockThreshold: { type: Number, default: 10 },

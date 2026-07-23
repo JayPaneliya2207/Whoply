@@ -6,12 +6,15 @@ import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useT } from '@/i18n';
 
 const CATS = ['rent', 'electricity', 'salary', 'transport', 'supplies', 'marketing', 'other'];
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const empty = { category: 'rent', amount: '', note: '', spentAt: '' };
 
 export default function ExpensesPage() {
     const qc = useQueryClient();
+    const t = useT();
     const [modal, setModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
     const [form, setForm] = useState<any>(empty);
@@ -20,7 +23,7 @@ export default function ExpensesPage() {
 
     const { data } = useQuery({ queryKey: ['expenses'], queryFn: async () => (await api.get('/shopkeeper/expenses?limit=100')).data.data.items });
 
-    const openNew = () => { setEditing(null); setForm(empty); setErr(''); setModal(true); };
+    const openNew = () => { setEditing(null); setForm({ ...empty, spentAt: todayStr() }); setErr(''); setModal(true); };
     const openEdit = (e: any) => { setEditing(e); setForm({ category: e.category, amount: e.amount, note: e.note || '', spentAt: e.spentAt?.slice(0, 10) || '' }); setErr(''); setModal(true); };
 
     const save = useMutation({
@@ -43,16 +46,16 @@ export default function ExpensesPage() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Expenses</h1>
-                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> Add Expense</button>
+                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('expensesTitle')}</h1>
+                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addExpense')}</button>
             </div>
 
             <div className="wp-card p-5 flex items-center gap-3">
                 <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: '#fef3c7', color: 'var(--accent-600)' }}><Wallet size={20} /></div>
-                <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Total (recent)</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(monthTotal)}</p></div>
+                <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('totalRecent')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(monthTotal)}</p></div>
             </div>
 
-            {(data || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No expenses yet.</p>}
+            {(data || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noExpenses')}</p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {(data || []).map((e: any) => (
                     <div key={e._id} className="wp-card p-4">
@@ -72,16 +75,18 @@ export default function ExpensesPage() {
                 ))}
             </div>
 
-            <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit expense' : 'Add expense'}
-                footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !Number(form.amount)} onClick={() => save.mutate()}>{editing ? 'Save changes' : 'Add expense'}</button>}>
-                <Field label="Category"><select className="wp-input capitalize" value={form.category} onChange={(e) => set('category', e.target.value)}>{CATS.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-                <Field label="Amount ₹"><input className="wp-input tabular" type="number" value={form.amount} onChange={(e) => set('amount', e.target.value)} autoFocus /></Field>
-                <Field label="Note"><input className="wp-input" value={form.note} onChange={(e) => set('note', e.target.value)} placeholder="Optional" /></Field>
-                <Field label="Date"><input className="wp-input" type="date" value={form.spentAt} onChange={(e) => set('spentAt', e.target.value)} /></Field>
+            <Modal open={modal} onClose={() => setModal(false)} title={editing ? t('editExpense') : t('addExpense')}
+                footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !Number(form.amount)} onClick={() => save.mutate()}>{editing ? t('save') : t('addExpense')}</button>}>
+                <div className="grid grid-cols-2 gap-3">
+                    <Field label={t('category')}><select className="wp-input capitalize" value={form.category} onChange={(e) => set('category', e.target.value)}>{CATS.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
+                    <Field label={t('date')}><input className="wp-input" type="date" max={todayStr()} value={form.spentAt} onChange={(e) => set('spentAt', e.target.value)} /></Field>
+                </div>
+                <Field label={t('amountRs')}><input className="wp-input tabular" type="number" value={form.amount} onChange={(e) => set('amount', e.target.value)} autoFocus /></Field>
+                <Field label={t('note')}><input className="wp-input" value={form.note} onChange={(e) => set('note', e.target.value)} placeholder={t('optionalWord')} /></Field>
                 {err && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{err}</p>}
             </Modal>
 
-            <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title="Delete expense?" message="This expense will be permanently removed." />
+            <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title={t('deleteExpenseTitle')} message="This expense will be permanently removed." />
         </div>
     );
 }

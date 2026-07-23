@@ -26,6 +26,7 @@ export interface IUser {
         docType?: 'aadhaar' | 'pan' | 'voterid' | 'driving' | 'other';
         docNumber?: string;
         verified?: boolean;
+        documents?: string[]; // uploaded doc images (data URLs), up to 5
     };
 }
 
@@ -61,6 +62,7 @@ const userSchema = new Schema<IUserDocument>(
             docType: { type: String, enum: ['aadhaar', 'pan', 'voterid', 'driving', 'other'] },
             docNumber: String,
             verified: { type: Boolean, default: false },
+            documents: { type: [String], default: [] },
         },
     },
     { timestamps: true, collection: 'users' }

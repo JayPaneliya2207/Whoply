@@ -8,6 +8,7 @@ import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { kycPlaceholder } from '@/lib/forms';
+import { useT } from '@/i18n';
 
 const outcomeTone: Record<string, any> = {
     order: { background: '#dcfce7', color: 'var(--success-600)' },
@@ -25,6 +26,7 @@ const empty = { name: '', mobile: '', country: '+91', salary: '', password: '', 
 
 export default function SalesTeamPage() {
     const qc = useQueryClient();
+    const t = useT();
     const [modal, setModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
     const [form, setForm] = useState<any>(empty);
@@ -60,11 +62,11 @@ export default function SalesTeamPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Sales Team</h1>
-                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> Add Rep</button>
+                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('salesTeamTitle')}</h1>
+                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addRep')}</button>
             </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {(reps || []).map((r: any) => (
                     <div key={r._id} className="wp-card wp-card-hover p-5">
                         <div className="flex items-center gap-3 mb-4">
@@ -75,20 +77,20 @@ export default function SalesTeamPage() {
                         </div>
                         {/* clickable stats → open detail */}
                         <button className="grid grid-cols-3 gap-2 text-center w-full" onClick={() => { setDetailId(r._id); setDetailTab('visits'); }}>
-                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{r.visits}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Visits</p></div>
-                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{r.orders}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Orders</p></div>
-                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--success-600)' }}>{inr2(r.commission)}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Comm.</p></div>
+                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{r.visits}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('visitsWord')}</p></div>
+                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{r.orders}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('ordersWord')}</p></div>
+                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--success-600)' }}>{inr2(r.commission)}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('commission')}</p></div>
                         </button>
                         <button className="text-sm mt-3 flex items-center gap-1 font-semibold" style={{ color: 'var(--brand-700)' }} onClick={() => { setDetailId(r._id); setDetailTab('orders'); }}>
-                            <IndianRupee size={13} /> {inr2(r.sales)} sales · view detail <ChevronRight size={14} />
+                            <IndianRupee size={13} /> {inr2(r.sales)} {t('salesWordLc')} · {t('viewDetail')} <ChevronRight size={14} />
                         </button>
                     </div>
                 ))}
             </div>
 
             <div>
-                <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><MapPin size={17} /> Recent field visits</h3>
-                {(visits || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No visits recorded yet.</p>}
+                <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><MapPin size={17} /> {t('recentFieldVisits')}</h3>
+                {(visits || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noVisits')}</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(visits || []).map((v: any) => (
                         <div key={v._id} className="wp-card p-3.5 flex items-center gap-3">
@@ -104,21 +106,21 @@ export default function SalesTeamPage() {
             </div>
 
             {/* Add/Edit rep */}
-            <Modal open={modal} onClose={() => setModal(false)} title={editing ? 'Edit sales rep' : 'Add sales rep'}
-                footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !form.name || (!editing && !form.mobile)} onClick={() => save.mutate()}>{editing ? 'Save' : 'Add rep'}</button>}>
-                <Field label="Name"><input className="wp-input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Sunil Yadav" autoFocus /></Field>
-                <Field label="Mobile"><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} disabled={!!editing} /></Field>
-                <Field label="Monthly salary ₹"><input className="wp-input tabular" type="number" value={form.salary} onChange={(e) => set('salary', e.target.value)} placeholder="0" disabled={!!editing} /></Field>
+            <Modal open={modal} onClose={() => setModal(false)} title={editing ? t('editRepTitle') : t('addRepTitle')}
+                footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !form.name || (!editing && !form.mobile)} onClick={() => save.mutate()}>{editing ? t('save') : t('addRep')}</button>}>
+                <Field label={t('name')}><input className="wp-input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Sunil Yadav" autoFocus /></Field>
+                <Field label={t('mobile')}><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} disabled={!!editing} /></Field>
+                <Field label={t('salaryMonthRs')}><input className="wp-input tabular" type="number" value={form.salary} onChange={(e) => set('salary', e.target.value)} placeholder="0" disabled={!!editing} /></Field>
                 {!editing && (
                     <>
-                        <Field label="Login password (optional)"><input className="wp-input" type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="They can also login via OTP" /></Field>
+                        <Field label={t('loginPasswordOptional')}><input className="wp-input" type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="They can also login via OTP" /></Field>
                         <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                            <p className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><IdCard size={15} /> KYC document</p>
+                            <p className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><IdCard size={15} /> {t('kycDocument')}</p>
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Document"><select className="wp-input" value={form.kycDoc} onChange={(e) => set('kycDoc', e.target.value)}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-                                <Field label="Number"><input className="wp-input uppercase" value={form.kycNumber} onChange={(e) => set('kycNumber', e.target.value)} placeholder={kycPlaceholder(form.kycDoc)} /></Field>
+                                <Field label={t('documentLabel')}><select className="wp-input" value={form.kycDoc} onChange={(e) => set('kycDoc', e.target.value)}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+                                <Field label={t('numberLabel')}><input className="wp-input uppercase" value={form.kycNumber} onChange={(e) => set('kycNumber', e.target.value)} placeholder={kycPlaceholder(form.kycDoc)} /></Field>
                             </div>
-                            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}><input type="checkbox" checked={form.kycVerified} onChange={(e) => set('kycVerified', e.target.checked)} /> Mark KYC as verified</label>
+                            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}><input type="checkbox" checked={form.kycVerified} onChange={(e) => set('kycVerified', e.target.checked)} /> {t('markKycVerified')}</label>
                         </div>
                     </>
                 )}
@@ -135,12 +137,12 @@ export default function SalesTeamPage() {
                 )}
                 <div className="flex gap-1 p-1 rounded-xl mb-3" style={{ background: 'var(--surface-2)' }}>
                     {(['visits', 'orders'] as const).map((tb) => (
-                        <button key={tb} onClick={() => setDetailTab(tb)} className="flex-1 py-2 rounded-lg text-sm font-semibold capitalize" style={detailTab === tb ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>{tb} ({tb === 'visits' ? detail?.visits?.length || 0 : detail?.orders?.length || 0})</button>
+                        <button key={tb} onClick={() => setDetailTab(tb)} className="flex-1 py-2 rounded-lg text-sm font-semibold capitalize" style={detailTab === tb ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>{tb === 'visits' ? t('visitsWord') : t('ordersWord')} ({tb === 'visits' ? detail?.visits?.length || 0 : detail?.orders?.length || 0})</button>
                     ))}
                 </div>
                 {detailTab === 'visits' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {(detail?.visits || []).length === 0 && <p className="text-sm text-center py-4 sm:col-span-2" style={{ color: 'var(--text-muted)' }}>No visits.</p>}
+                        {(detail?.visits || []).length === 0 && <p className="text-sm text-center py-4 sm:col-span-2" style={{ color: 'var(--text-muted)' }}>{t('noVisits')}</p>}
                         {(detail?.visits || []).map((v: any) => (
                             <div key={v._id} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                 <div className="flex items-start justify-between gap-2">
@@ -154,7 +156,7 @@ export default function SalesTeamPage() {
                 )}
                 {detailTab === 'orders' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {(detail?.orders || []).length === 0 && <p className="text-sm text-center py-4 sm:col-span-2" style={{ color: 'var(--text-muted)' }}>No orders.</p>}
+                        {(detail?.orders || []).length === 0 && <p className="text-sm text-center py-4 sm:col-span-2" style={{ color: 'var(--text-muted)' }}>{t('noOrders')}</p>}
                         {(detail?.orders || []).map((o: any) => (
                             <div key={o._id} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                 <div className="flex items-center justify-between gap-2">
@@ -171,7 +173,7 @@ export default function SalesTeamPage() {
                 )}
             </Modal>
 
-            <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title="Remove sales rep?" message={`Remove “${del?.name}” from the team?`} />
+            <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title={t('removeRepTitle')} message={`Remove “${del?.name}” from the team?`} />
         </div>
     );
 }

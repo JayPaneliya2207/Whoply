@@ -6,6 +6,7 @@ import Invoice from '../../models/Invoice.js';
 import Product from '../../models/Product.js';
 import Customer from '../../models/Customer.js';
 import Expense from '../../models/Expense.js';
+import Supplier from '../../models/Supplier.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
 
@@ -15,7 +16,7 @@ export const shopkeeperDashboard = asyncHandler(async (req: AuthRequest, res: Re
     const bId = new Types.ObjectId(String(businessId));
     const { start, end } = todayRange();
 
-    const [todayAgg, monthAgg, lowStock, dueAgg, topProducts, recentInvoices, expenseAgg] = await Promise.all([
+    const [todayAgg, monthAgg, lowStock, dueAgg, topProducts, recentInvoices, expenseAgg, payableAgg] = await Promise.all([
         Invoice.aggregate([
             { $match: { businessId: bId, createdAt: { $gte: start, $lt: end } } },
             { $group: { _id: null, sales: { $sum: '$grandTotal' }, count: { $sum: 1 } } },
@@ -41,20 +42,29 @@ export const shopkeeperDashboard = asyncHandler(async (req: AuthRequest, res: Re
             { $match: { businessId: bId, spentAt: { $gte: monthStart() } } },
             { $group: { _id: null, total: { $sum: '$amount' } } },
         ]),
+        // What the shop still owes its suppliers (payable)
+        Supplier.aggregate([
+            { $match: { businessId: bId, isActive: true, payableBalance: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: '$payableBalance' }, count: { $sum: 1 } } },
+        ]),
     ]);
 
     const monthSales = monthAgg[0]?.sales || 0;
     const monthExpense = expenseAgg[0]?.total || 0;
+    const todaySales = todayAgg[0]?.sales || 0;
 
     sendSuccess(res, {
-        todaySales: todayAgg[0]?.sales || 0,
+        todaySales,
         todayOrders: todayAgg[0]?.count || 0,
+        todayProfit: +(todaySales * 0.3).toFixed(2), // rough ~30% margin estimate for today
         monthSales,
         monthExpense,
         estimatedProfit: +(monthSales * 0.3 - monthExpense).toFixed(2), // ~30% gross margin est.
         lowStockCount: lowStock,
         pendingUdhar: dueAgg[0]?.total || 0,
         udharCustomers: dueAgg[0]?.count || 0,
+        supplierPayable: payableAgg[0]?.total || 0,
+        supplierPayableCount: payableAgg[0]?.count || 0,
         topProducts: topProducts.map((t) => ({ name: t._id, qty: t.qty, revenue: t.revenue })),
         recentInvoices,
     });

@@ -7,7 +7,12 @@ import Product from '../../models/Product.js';
 import PriceList from '../../models/PriceList.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
-/** GET /price-lists — products with their A/B/C tier prices merged in */
+/** Suggested tier multipliers off the base: Premium (best) < Standard < Basic (small buyers). */
+const TIER_MULT: Record<'A' | 'B' | 'C', number> = { A: 0.95, B: 1.0, C: 1.06 };
+
+/** GET /price-lists — products with their A/B/C tier prices merged in.
+ * Any product missing a tier price gets one auto-filled from the base so the
+ * wholesaler starts with sensible prices to review & tweak (not blank rows). */
 export const getPriceList = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const [products, rows] = await Promise.all([
@@ -20,6 +25,25 @@ export const getPriceList = asyncHandler(async (req: AuthRequest, res: Response)
         if (!byProduct.has(key)) byProduct.set(key, {});
         byProduct.get(key)[r.tier] = r.price;
     });
+
+    // Auto-fill any missing tiers (idempotent, safe against races via upsert + $setOnInsert).
+    const toUpsert: any[] = [];
+    for (const p of products) {
+        const base = p.wholesalePrice || p.sellPrice || 0;
+        if (base <= 0) continue;
+        const key = String(p._id);
+        const tiers = byProduct.get(key) || {};
+        (['A', 'B', 'C'] as const).forEach((tier) => {
+            if (tiers[tier] == null) {
+                const price = Math.round(base * TIER_MULT[tier]);
+                tiers[tier] = price;
+                toUpsert.push({ updateOne: { filter: { businessId, productId: p._id, tier }, update: { $setOnInsert: { price } }, upsert: true } });
+            }
+        });
+        byProduct.set(key, tiers);
+    }
+    if (toUpsert.length) await PriceList.bulkWrite(toUpsert);
+
     const items = products.map((p) => {
         const tiers = byProduct.get(String(p._id)) || {};
         return {

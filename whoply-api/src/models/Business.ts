@@ -19,6 +19,9 @@ export interface IBusiness {
     state?: string;
     pincode?: string;
     logo?: string;
+    upiId?: string; // shop's UPI VPA for POS collect QR
+    upiQrImage?: string; // optional uploaded static QR (data URL)
+    bank?: { name?: string; holder?: string; account?: string; ifsc?: string }; // for bank-transfer collections
     currency: string;
     plan: 'free' | 'pro' | 'business';
     settings: {
@@ -49,6 +52,14 @@ const businessSchema = new Schema<IBusinessDocument>(
         state: String,
         pincode: String,
         logo: String,
+        upiId: { type: String, trim: true },
+        upiQrImage: String,
+        bank: {
+            name: String,
+            holder: String,
+            account: String,
+            ifsc: { type: String, uppercase: true, trim: true },
+        },
         currency: { type: String, default: 'INR' },
         plan: { type: String, enum: ['free', 'pro', 'business'], default: 'free' },
         settings: {

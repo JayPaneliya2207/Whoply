@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Truck, CheckCircle2, PackageCheck, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
+import { useT } from '@/i18n';
 
 const columns = [
     { key: 'pending', label: 'Pending', icon: Clock, next: 'confirmed', action: 'Confirm' },
@@ -13,8 +14,12 @@ const columns = [
     { key: 'delivered', label: 'Delivered', icon: CheckCircle2, next: null, action: null },
 ];
 
+const actionKey: Record<string, string> = { pending: 'confirmAction', confirmed: 'dispatchAction', dispatched: 'markDelivered' };
+
 export default function DispatchPage() {
     const qc = useQueryClient();
+    const t = useT();
+    const stLabel = (s: string) => t('st' + s.charAt(0).toUpperCase() + s.slice(1));
     const [active, setActive] = useState('pending');
     const { data: orders } = useQuery({ queryKey: ['dispatch-orders'], queryFn: async () => (await api.get('/wholesaler/orders?limit=100')).data.data.items });
 
@@ -29,7 +34,7 @@ export default function DispatchPage() {
 
     return (
         <div className="space-y-4">
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Dispatch & Delivery</h1>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('dispatchDelivery')}</h1>
 
             {/* single-line status tabs */}
             <div className="grid grid-cols-4 gap-2">
@@ -42,7 +47,7 @@ export default function DispatchPage() {
                             style={on ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
                             <Icon size={17} className="mx-auto mb-1" style={{ color: on ? 'var(--brand-700)' : 'var(--text-muted)' }} />
                             <p className="text-lg font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{n}</p>
-                            <p className="text-[11px] sm:text-xs mt-1 truncate" style={{ color: on ? 'var(--brand-700)' : 'var(--text-secondary)' }}>{c.label}</p>
+                            <p className="text-[11px] sm:text-xs mt-1 truncate" style={{ color: on ? 'var(--brand-700)' : 'var(--text-secondary)' }}>{stLabel(c.key)}</p>
                         </button>
                     );
                 })}
@@ -50,15 +55,15 @@ export default function DispatchPage() {
 
             {/* selected status orders */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {list.length === 0 && <p className="col-span-full text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>No {col.label.toLowerCase()} orders.</p>}
+                {list.length === 0 && <p className="col-span-full text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noOrders')}</p>}
                 {list.map((o: any) => (
                     <motion.div key={o._id} layout className="wp-card p-4">
                         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.dealerName} · {o.items.length} items</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.dealerName} · {o.items.length} {t('items')}</p>
                         <p className="text-lg font-extrabold tabular mt-1" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p>
                         {col.next && (
                             <button className="wp-btn wp-btn-primary w-full mt-2 !py-1.5 !text-xs" disabled={advance.isPending}
-                                onClick={() => advance.mutate({ id: o._id, status: col.next })}>{col.action} →</button>
+                                onClick={() => advance.mutate({ id: o._id, status: col.next })}>{t(actionKey[col.key])} →</button>
                         )}
                     </motion.div>
                 ))}

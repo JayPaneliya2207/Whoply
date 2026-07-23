@@ -9,6 +9,32 @@ interface Biz {
     address?: string;
     city?: string;
     state?: string;
+    upiId?: string;
+    bank?: { name?: string; holder?: string; account?: string; ifsc?: string };
+}
+
+/** Payment reminder to a dealer/customer that includes how to pay (UPI + bank). */
+export function buildDealerPaymentText(name: string, amount: number, biz?: Biz): string {
+    const L: string[] = [];
+    L.push(`Namaste ${name},`);
+    L.push(`Payment reminder from *${biz?.name || 'us'}*.`);
+    L.push(`Amount due: *${inr2(amount)}*`);
+    if (biz?.upiId) {
+        L.push('');
+        L.push(`Pay by UPI: *${biz.upiId}*`);
+        L.push(`upi://pay?pa=${encodeURIComponent(biz.upiId)}&pn=${encodeURIComponent(biz.name || 'Shop')}&am=${(Number(amount) || 0).toFixed(2)}&cu=INR`);
+    }
+    if (biz?.bank?.account) {
+        L.push('');
+        L.push('Or bank transfer:');
+        if (biz.bank.holder) L.push(`Name: ${biz.bank.holder}`);
+        if (biz.bank.name) L.push(`Bank: ${biz.bank.name}`);
+        L.push(`A/c: ${biz.bank.account}`);
+        if (biz.bank.ifsc) L.push(`IFSC: ${biz.bank.ifsc}`);
+    }
+    L.push('');
+    L.push('Thank you! 🙏');
+    return L.join('\n');
 }
 
 /** Plain-text bill for WhatsApp / SMS, with shop details. */

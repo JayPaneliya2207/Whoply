@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.middleware.js';
 import { requireRole } from '../../middleware/role.middleware.js';
 import { shopkeeperDashboard } from '../../controllers/shopkeeper/dashboard.controller.js';
+import { getMyBusiness, updateMyBusiness } from '../../controllers/shared/business.controller.js';
 import {
     listProducts,
     getProduct,
@@ -14,7 +15,7 @@ import {
     updateCategory,
     deleteCategory,
 } from '../../controllers/shopkeeper/product.controller.js';
-import { createSale, listInvoices, getInvoice } from '../../controllers/shopkeeper/billing.controller.js';
+import { createSale, listInvoices, getInvoice, markBillSent } from '../../controllers/shopkeeper/billing.controller.js';
 import {
     listCustomers,
     createCustomer,
@@ -29,9 +30,10 @@ import {
     listPurchases,
     createPurchase,
     receivePurchase,
+    payPurchase,
 } from '../../controllers/shopkeeper/supplier.controller.js';
 import { listExpenses, createExpense, updateExpense, deleteExpense } from '../../controllers/shopkeeper/expense.controller.js';
-import { salesReport, productReport, profitReport, summaryReport, exportInvoicesCsv } from '../../controllers/shopkeeper/report.controller.js';
+import { salesReport, productReport, profitReport, summaryReport, exportInvoicesCsv, dayCloseReport } from '../../controllers/shopkeeper/report.controller.js';
 import { aiReorder, listNotifications, markAllRead, markRead } from '../../controllers/shopkeeper/insights.controller.js';
 
 const router = Router();
@@ -40,6 +42,10 @@ const router = Router();
 router.use(authenticate, requireRole('owner', 'manager', 'cashier'));
 
 router.get('/dashboard', shopkeeperDashboard);
+
+// Shop profile (name, GSTIN, address — shown on bills)
+router.get('/business', getMyBusiness);
+router.patch('/business', requireRole('owner', 'manager'), updateMyBusiness);
 
 // Products & categories
 router.get('/products', listProducts);
@@ -57,6 +63,7 @@ router.delete('/categories/:id', deleteCategory);
 router.post('/billing', createSale);
 router.get('/billing', listInvoices);
 router.get('/billing/:id', getInvoice);
+router.post('/billing/:id/mark-sent', markBillSent);
 
 // Customers & udhar
 router.get('/customers', listCustomers);
@@ -72,6 +79,7 @@ router.delete('/suppliers/:id', deleteSupplier);
 router.get('/purchases', listPurchases);
 router.post('/purchases', createPurchase);
 router.post('/purchases/:id/receive', receivePurchase);
+router.post('/purchases/:id/payment', payPurchase);
 
 // Expenses
 router.get('/expenses', listExpenses);
@@ -84,6 +92,7 @@ router.get('/reports/sales', salesReport);
 router.get('/reports/products', productReport);
 router.get('/reports/profit', profitReport);
 router.get('/reports/summary', summaryReport);
+router.get('/reports/day-close', dayCloseReport);
 router.get('/reports/export', exportInvoicesCsv);
 
 // AI insights + notifications

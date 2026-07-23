@@ -45,13 +45,13 @@ export default function NotificationsPage() {
         <div className="space-y-4 max-w-2xl">
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('notifications')}</h1>
-                {(data?.unread || 0) > 0 && <button className="wp-btn wp-btn-ghost text-sm" onClick={() => readAll.mutate()}><CheckCheck size={15} /> Mark all read</button>}
+                {(data?.unread || 0) > 0 && <button className="wp-btn wp-btn-ghost text-sm" onClick={() => readAll.mutate()}><CheckCheck size={15} /> {t('markAllRead')}</button>}
             </div>
 
             {items.length === 0 && (
                 <div className="wp-card p-10 text-center">
                     <BellOff size={32} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
-                    <p style={{ color: 'var(--text-secondary)' }}>No notifications yet.</p>
+                    <p style={{ color: 'var(--text-secondary)' }}>{t('noNotifications')}</p>
                 </div>
             )}
 

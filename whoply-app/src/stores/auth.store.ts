@@ -53,6 +53,7 @@ export const useAuth = create<AuthState>((set) => ({
         if (typeof window !== 'undefined') {
             localStorage.removeItem('whoply_token');
             localStorage.removeItem('whoply_user');
+            localStorage.removeItem('whoply_pos_cart'); // don't carry a half-built bill to the next login
         }
         set({ token: null, user: null });
     },

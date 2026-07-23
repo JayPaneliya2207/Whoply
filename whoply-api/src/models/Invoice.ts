@@ -33,6 +33,7 @@ export interface IInvoice {
     dueAmount: number;
     paymentMode: PaymentMode;
     status: 'paid' | 'partial' | 'credit';
+    whatsappSentAt?: Date; // set when the bill is shared on WhatsApp
     createdBy?: Types.ObjectId;
 }
 export interface IInvoiceDocument extends IInvoice, Document {
@@ -71,6 +72,7 @@ const invoiceSchema = new Schema<IInvoiceDocument>(
         dueAmount: { type: Number, default: 0 },
         paymentMode: { type: String, enum: ['cash', 'upi', 'card', 'wallet', 'credit'], default: 'cash' },
         status: { type: String, enum: ['paid', 'partial', 'credit'], default: 'paid', index: true },
+        whatsappSentAt: Date,
         createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     },
     { timestamps: true, collection: 'invoices' }
