@@ -33,6 +33,7 @@ export default function DealersPage() {
     };
     const [collectFor, setCollectFor] = useState<any>(null);
     const [amount, setAmount] = useState('');
+    const [payMode, setPayMode] = useState('cash');
     const [collectErr, setCollectErr] = useState('');
 
     const [modal, setModal] = useState(false);
@@ -61,8 +62,15 @@ export default function DealersPage() {
         onSuccess: () => { setDel(null); qc.invalidateQueries({ queryKey: ['dealers'] }); },
     });
     const collect = useMutation({
-        mutationFn: async () => (await api.post(`/wholesaler/dealers/${collectFor._id}/collect`, { amount: Number(amount) })).data.data,
-        onSuccess: () => { setCollectFor(null); setAmount(''); setCollectErr(''); qc.invalidateQueries({ queryKey: ['dealers'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); },
+        mutationFn: async () => (await api.post(`/wholesaler/dealers/${collectFor._id}/collect`, { amount: Number(amount), mode: payMode })).data.data,
+        onSuccess: () => {
+            setCollectFor(null); setAmount(''); setPayMode('cash'); setCollectErr('');
+            qc.invalidateQueries({ queryKey: ['dealers'] });
+            qc.invalidateQueries({ queryKey: ['dashboard'] });
+            qc.invalidateQueries({ queryKey: ['orders'] });
+            qc.invalidateQueries({ queryKey: ['payments'] });
+            qc.invalidateQueries({ queryKey: ['ws-tally'] });
+        },
         onError: (e) => setCollectErr(apiErr(e)),
     });
 
@@ -125,7 +133,10 @@ export default function DealersPage() {
             <Modal open={!!collectFor} onClose={() => setCollectFor(null)} title={t('collectPayment')}
                 footer={<button className="wp-btn wp-btn-primary w-full" disabled={collect.isPending || !Number(amount)} onClick={() => collect.mutate()}><Check size={16} /> {t('confirm')}</button>}>
                 {collectFor && <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>{collectFor.name} owes <b>{inr2(collectFor.outstandingBalance)}</b></p>}
-                <Field label={t('amountReceived')}><input className="wp-input tabular" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></Field>
+                <div className="grid grid-cols-2 gap-3">
+                    <Field label={t('amountReceived')}><input className="wp-input tabular" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></Field>
+                    <Field label={t('paymentMode')}><select className="wp-input capitalize" value={payMode} onChange={(e) => setPayMode(e.target.value)}>{['cash', 'upi', 'bank', 'cheque', 'other'].map((m) => <option key={m} value={m}>{t('mode_' + m)}</option>)}</select></Field>
+                </div>
 
                 {/* How the dealer can pay */}
                 {(biz?.upiId || biz?.upiQrImage || biz?.bank?.account) && (

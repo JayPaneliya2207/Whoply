@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes';
 import { useEffect } from 'react';
 import {
     LayoutDashboard, ShoppingCart, Package, Users, FileText, Truck, Wallet,
-    BarChart3, LogOut, Menu, X, Moon, Sun, Store, Building2, Tags, Route, Sparkles, Settings, ArrowLeft, UsersRound, Receipt,
+    BarChart3, LogOut, Menu, X, Moon, Sun, Store, Building2, Tags, Route, Sparkles, Settings, ArrowLeft, UsersRound, Receipt, IndianRupee,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/stores/auth.store';
@@ -35,6 +35,8 @@ const wholesaleNav = [
     { href: '/dealers', key: 'dealers', icon: Users },
     { href: '/orders', key: 'orders', icon: FileText },
     { href: '/dispatch', key: 'dispatch', icon: Truck },
+    { href: '/payments', key: 'payments', icon: IndianRupee },
+    { href: '/reports', key: 'reports', icon: BarChart3 },
     { href: '/price-lists', key: 'priceLists', icon: Tags },
     { href: '/sales-team', key: 'salesTeam', icon: Route },
     { href: '/products', key: 'warehouse', icon: Package },

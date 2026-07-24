@@ -17,7 +17,7 @@ const fetchDash = async (type: string) => {
     return data.data;
 };
 
-function StatCard({ label, value, icon: Icon, tone, delta }: any) {
+function StatCard({ label, value, icon: Icon, tone, delta, hint }: any) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -36,6 +36,7 @@ function StatCard({ label, value, icon: Icon, tone, delta }: any) {
             </div>
             <p className="mt-4 text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{value}</p>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+            {hint && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{hint}</p>}
         </motion.div>
     );
 }
@@ -72,12 +73,12 @@ export default function DashboardPage() {
                     <Link href="/orders" className="wp-btn wp-btn-primary"><FileText size={16} /> {t('newOrder')}</Link>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    <StatCard label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} />
-                    <StatCard label={t('pendingDispatch')} value={data.pendingDispatch} icon={Package} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} />
-                    <StatCard label={t('outstanding')} value={inr(data.outstandingPayments)} icon={Wallet} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} />
-                    <StatCard label={t('dealersCount')} value={data.dealerCount} icon={Users} tone={{ bg: '#e0e7ff', fg: 'var(--brand-700)' }} />
-                    <StatCard label={t('warehouseUnits')} value={data.warehouseUnits} icon={Package} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} />
-                    <StatCard label={t('totalRevenue')} value={inr(data.revenue)} icon={TrendingUp} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} />
+                    <StatCard label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} hint={`${inr(data.todaySales || 0)} ${t('billedTodayHint')}`} />
+                    <StatCard label={t('pendingDispatch')} value={data.pendingDispatch} icon={Package} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} hint={t('toShipHint')} />
+                    <StatCard label={t('outstanding')} value={inr(data.outstandingPayments)} icon={Wallet} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} hint={`${data.outstandingDealers || 0} ${t('dealersToCollectHint')}`} />
+                    <StatCard label={t('dealersCount')} value={data.dealerCount} icon={Users} tone={{ bg: '#e0e7ff', fg: 'var(--brand-700)' }} hint={t('activeDealersHint')} />
+                    <StatCard label={t('warehouseUnits')} value={data.warehouseUnits} icon={Package} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} hint={`${data.skuCount || 0} ${t('productsHint')}`} />
+                    <StatCard label={t('totalRevenue')} value={inr(data.revenue)} icon={TrendingUp} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} hint={t('allTimeBilledHint')} />
                 </div>
 
                 {/* Account tally — money to collect from dealers */}
@@ -100,7 +101,7 @@ export default function DashboardPage() {
                             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{t('allOrders')}</p>
                         </div>
                     </div>
-                    <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>Billed = Collected + Outstanding. “Dealers owe you” is what’s still to be received. Record dealer payments on the Dealers page.</p>
+                    <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>{t('wsTallyNote')}</p>
                 </div>
 
                 {/* Order pipeline — boxes */}

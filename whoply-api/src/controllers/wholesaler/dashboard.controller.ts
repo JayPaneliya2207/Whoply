@@ -20,9 +20,10 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
                 { $group: { _id: null, count: { $sum: 1 }, sales: { $sum: '$total' } } },
             ]),
             Order.countDocuments({ businessId: bId, status: { $in: ['pending', 'confirmed'] } }),
-            Dealer.aggregate([
-                { $match: { businessId: bId, outstandingBalance: { $gt: 0 } } },
-                { $group: { _id: null, total: { $sum: '$outstandingBalance' }, count: { $sum: 1 } } },
+            // Outstanding derived from live order dues (source of truth), grouped per dealer.
+            Order.aggregate([
+                { $match: { businessId: bId, dueAmount: { $gt: 0 } } },
+                { $group: { _id: '$dealerId', due: { $sum: '$dueAmount' } } },
             ]),
             Product.aggregate([
                 { $match: { businessId: bId } },
@@ -38,8 +39,8 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
         todayOrders: todayAgg[0]?.count || 0,
         todaySales: todayAgg[0]?.sales || 0,
         pendingDispatch,
-        outstandingPayments: outstanding[0]?.total || 0,
-        outstandingDealers: outstanding[0]?.count || 0,
+        outstandingPayments: outstanding.reduce((s, d) => s + (d.due || 0), 0),
+        outstandingDealers: outstanding.length,
         warehouseUnits: warehouse[0]?.units || 0,
         skuCount: warehouse[0]?.skus || 0,
         dealerCount,

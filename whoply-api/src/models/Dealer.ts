@@ -1,6 +1,7 @@
 /**
- * Dealer — a retailer who buys from a wholesaler. Tier drives price-list pricing;
- * outstandingBalance tracks credit owed to the wholesaler.
+ * Dealer — a retailer who buys from a wholesaler. Tier drives price-list pricing.
+ * Outstanding owed is NOT stored here — it is derived from live order dues
+ * (see utils/wholesaler.ts duesByDealer) so it can never drift out of sync.
  */
 import mongoose, { Schema, type Document, type Types, type Model } from 'mongoose';
 
@@ -15,7 +16,6 @@ export interface IDealer {
     tier: DealerTier;
     city?: string;
     creditLimit: number;
-    outstandingBalance: number;
     assignedRepId?: Types.ObjectId;
     isActive: boolean;
 }
@@ -34,7 +34,6 @@ const dealerSchema = new Schema<IDealerDocument>(
         tier: { type: String, enum: ['A', 'B', 'C'], default: 'B' },
         city: String,
         creditLimit: { type: Number, default: 50000 },
-        outstandingBalance: { type: Number, default: 0 },
         assignedRepId: { type: Schema.Types.ObjectId, ref: 'User' },
         isActive: { type: Boolean, default: true },
     },

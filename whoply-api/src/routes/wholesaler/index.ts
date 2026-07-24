@@ -12,6 +12,7 @@ import {
     collectPayment,
 } from '../../controllers/wholesaler/dealer.controller.js';
 import { createOrder, listOrders, updateOrderStatus } from '../../controllers/wholesaler/order.controller.js';
+import { recordOrderPayment, listPayments, tallyReport } from '../../controllers/wholesaler/payment.controller.js';
 import { getPriceList, setPrice } from '../../controllers/wholesaler/pricelist.controller.js';
 import {
     listReps,
@@ -68,6 +69,11 @@ router.post('/dealers/:id/collect', collectPayment);
 router.get('/orders', listOrders);
 router.post('/orders', createOrder);
 router.patch('/orders/:id/status', updateOrderStatus);
+router.post('/orders/:id/collect', recordOrderPayment);
+
+// Payments (money-in ledger) + account tally report
+router.get('/payments', listPayments);
+router.get('/reports/tally', tallyReport);
 
 // Price lists
 router.get('/price-lists', getPriceList);

@@ -181,6 +181,20 @@ const en: Dict = {
     noDealersYet: 'No dealers yet. Add your first one.',
     bankDetails: 'Bank details', bankName: 'Bank name', accountHolder: 'Account holder', accountNumber: 'Account number',
     showQr: 'Show UPI QR', payTo: 'Pay to', sendReminderWa: 'Send reminder on WhatsApp',
+    // payments + wholesaler account tally
+    payments: 'Payments', paymentsTitle: 'Payments', accountTally: 'Account Tally',
+    paymentMode: 'Mode', recordPayment: 'Record payment', dealer: 'Dealer', onAccount: 'On account',
+    mode_cash: 'Cash', mode_upi: 'UPI', mode_bank: 'Bank', mode_cheque: 'Cheque', mode_other: 'Other',
+    payPaid: 'Paid', payPartial: 'Partial', payUnpaid: 'Unpaid',
+    addUpiBankInSettings: 'Add your UPI ID / bank details in Settings to show them here.',
+    kycInStaffNote: 'KYC & documents are managed on the Staff page.',
+    totalCollectedLabel: 'Total collected', paymentsCountLabel: 'Payments', noPayments: 'No payments recorded yet.',
+    collectedToday: 'Collected today', collectedThisMonth: 'Collected this month', paymentsWord: 'payments',
+    recentPayments: 'Recent payments', allDealersSettled: 'All dealers have settled up. 🎉',
+    tallyFormulaNote: 'Billed = Collected + Outstanding. Record a payment on an order or from the Dealers page — it updates everywhere.',
+    wsTallyNote: 'Billed = Collected + Outstanding. Collect on an order or a dealer, and see every payment on the Payments page.',
+    billedTodayHint: 'billed today', toShipHint: 'to pack & ship', dealersToCollectHint: 'dealers to collect from',
+    activeDealersHint: 'active dealers', productsHint: 'products', allTimeBilledHint: 'all-time billed',
 };
 
 const hi: Dict = {
@@ -345,6 +359,20 @@ const hi: Dict = {
     noDealersYet: 'अभी कोई डीलर नहीं। पहला जोड़ें।',
     bankDetails: 'बैंक विवरण', bankName: 'बैंक का नाम', accountHolder: 'खाताधारक', accountNumber: 'खाता नंबर',
     showQr: 'UPI QR दिखाएँ', payTo: 'यहाँ भुगतान करें', sendReminderWa: 'WhatsApp पर याद दिलाएँ',
+    // payments + wholesaler account tally
+    payments: 'भुगतान', paymentsTitle: 'भुगतान', accountTally: 'खाता मिलान',
+    paymentMode: 'तरीका', recordPayment: 'भुगतान दर्ज करें', dealer: 'डीलर', onAccount: 'खाते पर',
+    mode_cash: 'नकद', mode_upi: 'UPI', mode_bank: 'बैंक', mode_cheque: 'चेक', mode_other: 'अन्य',
+    payPaid: 'चुकता', payPartial: 'आंशिक', payUnpaid: 'बकाया',
+    addUpiBankInSettings: 'यहाँ दिखाने के लिए सेटिंग्स में अपना UPI ID / बैंक विवरण जोड़ें।',
+    kycInStaffNote: 'KYC और दस्तावेज़ स्टाफ़ पेज पर प्रबंधित होते हैं।',
+    totalCollectedLabel: 'कुल वसूली', paymentsCountLabel: 'भुगतान', noPayments: 'अभी तक कोई भुगतान दर्ज नहीं।',
+    collectedToday: 'आज वसूला', collectedThisMonth: 'इस माह वसूला', paymentsWord: 'भुगतान',
+    recentPayments: 'हाल के भुगतान', allDealersSettled: 'सभी डीलरों ने चुका दिया है। 🎉',
+    tallyFormulaNote: 'बिल = वसूली + बकाया। ऑर्डर पर या डीलर पेज से भुगतान दर्ज करें — यह हर जगह अपडेट होता है।',
+    wsTallyNote: 'बिल = वसूली + बकाया। ऑर्डर या डीलर पर वसूलें, और हर भुगतान भुगतान पेज पर देखें।',
+    billedTodayHint: 'आज बिल किया', toShipHint: 'पैक व भेजने हेतु', dealersToCollectHint: 'डीलरों से वसूलना है',
+    activeDealersHint: 'सक्रिय डीलर', productsHint: 'उत्पाद', allTimeBilledHint: 'कुल बिल',
 };
 
 const gu: Dict = {
@@ -509,6 +537,20 @@ const gu: Dict = {
     noDealersYet: 'હજી કોઈ ડીલર નથી. પહેલો ઉમેરો.',
     bankDetails: 'બેંક વિગત', bankName: 'બેંકનું નામ', accountHolder: 'ખાતાધારક', accountNumber: 'ખાતા નંબર',
     showQr: 'UPI QR બતાવો', payTo: 'અહીં ચૂકવો', sendReminderWa: 'WhatsApp પર યાદ કરાવો',
+    // payments + wholesaler account tally
+    payments: 'ચૂકવણી', paymentsTitle: 'ચૂકવણી', accountTally: 'ખાતા મેળ',
+    paymentMode: 'રીત', recordPayment: 'ચૂકવણી નોંધો', dealer: 'ડીલર', onAccount: 'ખાતા પર',
+    mode_cash: 'રોકડ', mode_upi: 'UPI', mode_bank: 'બેંક', mode_cheque: 'ચેક', mode_other: 'અન્ય',
+    payPaid: 'ચૂકવેલ', payPartial: 'આંશિક', payUnpaid: 'બાકી',
+    addUpiBankInSettings: 'અહીં બતાવવા માટે સેટિંગ્સમાં તમારું UPI ID / બેંક વિગત ઉમેરો.',
+    kycInStaffNote: 'KYC અને દસ્તાવેજો સ્ટાફ પેજ પર સંભાળાય છે.',
+    totalCollectedLabel: 'કુલ વસૂલી', paymentsCountLabel: 'ચૂકવણી', noPayments: 'હજી કોઈ ચૂકવણી નોંધાઈ નથી.',
+    collectedToday: 'આજે વસૂલ્યું', collectedThisMonth: 'આ મહિને વસૂલ્યું', paymentsWord: 'ચૂકવણી',
+    recentPayments: 'તાજેતરની ચૂકવણી', allDealersSettled: 'બધા ડીલરોએ ચૂકતે કરી દીધું છે. 🎉',
+    tallyFormulaNote: 'બિલ = વસૂલી + બાકી. ઓર્ડર પર અથવા ડીલર પેજ પરથી ચૂકવણી નોંધો — તે બધે અપડેટ થાય છે.',
+    wsTallyNote: 'બિલ = વસૂલી + બાકી. ઓર્ડર કે ડીલર પર વસૂલો, અને દરેક ચૂકવણી ચૂકવણી પેજ પર જુઓ.',
+    billedTodayHint: 'આજે બિલ થયું', toShipHint: 'પેક કરી મોકલવા', dealersToCollectHint: 'ડીલરો પાસેથી વસૂલવું',
+    activeDealersHint: 'સક્રિય ડીલર', productsHint: 'પ્રોડક્ટ', allTimeBilledHint: 'કુલ બિલ',
 };
 
 export const dictionaries: Record<Lang, Dict> = { en, hi, gu };

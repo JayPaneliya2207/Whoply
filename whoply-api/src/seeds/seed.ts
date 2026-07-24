@@ -369,7 +369,6 @@ async function run() {
                 ...d,
                 mobile: `97${rand(10000000, 99999999)}`,
                 creditLimit: 100000,
-                outstandingBalance: 0,
                 assignedRepId: salesRep?._id,
             })
         );
@@ -427,10 +426,7 @@ async function run() {
                 createdAt: when,
             });
             ordCount++;
-            if (due > 0) {
-                dealer.outstandingBalance = +(dealer.outstandingBalance + due).toFixed(2);
-                await dealer.save();
-            }
+            // Dealer outstanding is derived from these order dues at read time — nothing to persist.
             // a field visit for some orders
             if (salesRep && Math.random() > 0.5) {
                 await Visit.create({

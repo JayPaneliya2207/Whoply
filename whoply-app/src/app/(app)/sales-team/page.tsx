@@ -7,7 +7,6 @@ import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
-import { kycPlaceholder } from '@/lib/forms';
 import { useT } from '@/i18n';
 
 const outcomeTone: Record<string, any> = {
@@ -22,7 +21,7 @@ const statusTone: Record<string, any> = {
     delivered: { background: '#dcfce7', color: 'var(--success-600)' },
 };
 const DOC_LABELS: Record<string, string> = { aadhaar: 'Aadhaar', pan: 'PAN', voterid: 'Voter ID', driving: 'Driving Licence', other: 'Other' };
-const empty = { name: '', mobile: '', country: '+91', salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false };
+const empty = { name: '', mobile: '', country: '+91', salary: '', password: '' };
 
 export default function SalesTeamPage() {
     const qc = useQueryClient();
@@ -40,13 +39,12 @@ export default function SalesTeamPage() {
     const { data: detail } = useQuery({ queryKey: ['staff-detail', detailId], queryFn: async () => (await api.get(`/staff/${detailId}/detail`)).data.data, enabled: !!detailId });
 
     const openNew = () => { setEditing(null); setForm(empty); setErr(''); setModal(true); };
-    const openEdit = (r: any) => { setEditing(r); setForm({ name: r.name, mobile: r.mobile, salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false }); setErr(''); setModal(true); };
+    const openEdit = (r: any) => { setEditing(r); setForm({ name: r.name, mobile: r.mobile, salary: '', password: '' }); setErr(''); setModal(true); };
 
     const save = useMutation({
         mutationFn: async () => {
-            const kyc = { docType: form.kycDoc, docNumber: form.kycNumber, verified: form.kycVerified };
             if (editing) return (await api.patch(`/wholesaler/sales-team/${editing._id}`, { name: form.name })).data.data;
-            return (await api.post('/wholesaler/sales-team', { name: form.name, mobile: form.mobile, countryCode: form.country, salary: Number(form.salary) || 0, kyc, password: form.password || undefined })).data.data;
+            return (await api.post('/wholesaler/sales-team', { name: form.name, mobile: form.mobile, countryCode: form.country, salary: Number(form.salary) || 0, password: form.password || undefined })).data.data;
         },
         onSuccess: () => { setModal(false); qc.invalidateQueries({ queryKey: ['reps'] }); },
         onError: (e) => setErr(apiErr(e)),
@@ -114,14 +112,7 @@ export default function SalesTeamPage() {
                 {!editing && (
                     <>
                         <Field label={t('loginPasswordOptional')}><input className="wp-input" type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="They can also login via OTP" /></Field>
-                        <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                            <p className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><IdCard size={15} /> {t('kycDocument')}</p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <Field label={t('documentLabel')}><select className="wp-input" value={form.kycDoc} onChange={(e) => set('kycDoc', e.target.value)}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-                                <Field label={t('numberLabel')}><input className="wp-input uppercase" value={form.kycNumber} onChange={(e) => set('kycNumber', e.target.value)} placeholder={kycPlaceholder(form.kycDoc)} /></Field>
-                            </div>
-                            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}><input type="checkbox" checked={form.kycVerified} onChange={(e) => set('kycVerified', e.target.checked)} /> {t('markKycVerified')}</label>
-                        </div>
+                        <p className="text-xs flex items-center gap-1.5 rounded-lg p-2.5" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}><IdCard size={13} /> {t('kycInStaffNote')}</p>
                     </>
                 )}
                 {err && <p className="text-sm mt-2" style={{ color: 'var(--danger-500)' }}>{err}</p>}

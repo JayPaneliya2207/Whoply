@@ -174,13 +174,33 @@ export function billsToCsv(bills: any[]): string {
     return [header.map(esc).join(','), ...lines].join('\n');
 }
 
-/** CSV for wholesale orders (client-side). */
-export function ordersToCsv(orders: any[]): string {
+/** Payment status of an order from its paid/due split. */
+export function orderPayStatus(o: any): 'Paid' | 'Partial' | 'Unpaid' {
+    if ((o.dueAmount || 0) <= 0) return 'Paid';
+    if ((o.paidAmount || 0) > 0) return 'Partial';
+    return 'Unpaid';
+}
+
+/**
+ * CSV for wholesale orders (client-side). Pass a dealerId→mobile map to include
+ * each dealer's mobile number in the export.
+ */
+export function ordersToCsv(orders: any[], mobileOf?: (o: any) => string): string {
     const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const header = ['Order No', 'Date', 'Dealer', 'Source', 'Items', 'Total', 'Paid', 'Due', 'Status', 'Dispatched', 'Delivered'];
+    const header = ['Order No', 'Date', 'Dealer', 'Mobile', 'Source', 'Items', 'Total', 'Paid', 'Due', 'Payment Status', 'Order Status', 'Dispatched', 'Delivered'];
     const lines = orders.map((o) =>
-        [o.orderNo, new Date(o.createdAt).toLocaleString('en-IN'), o.dealerName, o.source, o.items?.length || 0, o.total, o.paidAmount, o.dueAmount, o.status,
+        [o.orderNo, new Date(o.createdAt).toLocaleString('en-IN'), o.dealerName, mobileOf ? mobileOf(o) : '', o.source, o.items?.length || 0, o.total, o.paidAmount, o.dueAmount, orderPayStatus(o), o.status,
         o.dispatchedAt ? new Date(o.dispatchedAt).toLocaleDateString('en-IN') : '', o.deliveredAt ? new Date(o.deliveredAt).toLocaleDateString('en-IN') : ''].map(esc).join(',')
+    );
+    return [header.map(esc).join(','), ...lines].join('\n');
+}
+
+/** CSV for the wholesaler money-in (payments) ledger. */
+export function paymentsToCsv(payments: any[]): string {
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Date', 'Dealer', 'Order No', 'Amount', 'Mode', 'Note'];
+    const lines = payments.map((p) =>
+        [new Date(p.createdAt).toLocaleString('en-IN'), p.dealerName || '', p.orderNo || 'On account', p.amount, p.mode, p.note || ''].map(esc).join(',')
     );
     return [header.map(esc).join(','), ...lines].join('\n');
 }

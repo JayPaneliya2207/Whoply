@@ -2,14 +2,22 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, Trash2, Check, X, Search, Eye, Download, Printer, MessageCircle } from 'lucide-react';
+import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle, IndianRupee, QrCode } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
-import { Modal } from '@/components/Modal';
+import { Modal, Field } from '@/components/Modal';
+import { UpiQr } from '@/components/UpiQr';
 import { ScanButton, useWedgeScanner } from '@/components/BarcodeScanner';
-import { ordersToCsv, printOrder, downloadFile, buildOrderText, whatsappLink } from '@/lib/bill';
+import { ordersToCsv, orderPayStatus, printOrder, downloadFile, buildOrderText, whatsappLink } from '@/lib/bill';
+
+const PAY_MODES = ['cash', 'upi', 'bank', 'cheque', 'other'] as const;
+const payTone: Record<string, any> = {
+    Paid: { background: '#dcfce7', color: 'var(--success-600)' },
+    Partial: { background: '#fef3c7', color: 'var(--accent-600)' },
+    Unpaid: { background: '#fee2e2', color: 'var(--danger-500)' },
+};
 
 const statusTone: Record<string, any> = {
     pending: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
@@ -38,6 +46,11 @@ export default function OrdersPage() {
     const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
     const [detail, setDetail] = useState<any>(null);
     const [done, setDone] = useState<any>(null);
+    const [collecting, setCollecting] = useState(false);
+    const [payAmt, setPayAmt] = useState('');
+    const [payMode, setPayMode] = useState<string>('cash');
+    const [payErr, setPayErr] = useState('');
+    const [showQr, setShowQr] = useState(false);
 
     const { data: allOrders } = useQuery({
         queryKey: ['orders'],
@@ -50,6 +63,7 @@ export default function OrdersPage() {
         return c;
     }, [allOrders]);
     const { data: dealers } = useQuery({ queryKey: ['dealers-all'], queryFn: async () => (await api.get('/wholesaler/dealers?limit=100')).data.data.items });
+    const { data: wsBiz } = useQuery({ queryKey: ['ws-business'], queryFn: async () => (await api.get('/wholesaler/business')).data.data });
     const { data: products } = useQuery({ queryKey: ['ws-products', search], queryFn: async () => (await api.get(`/wholesaler/products?limit=50&search=${encodeURIComponent(search)}`)).data.data.items });
 
     const flashMsg = useCallback((m: string) => { setFlash(m); setTimeout(() => setFlash(''), 1800); }, []);
@@ -73,7 +87,22 @@ export default function OrdersPage() {
         onError: (e) => setError(apiErr(e)),
     });
 
+    const collect = useMutation({
+        mutationFn: async () => (await api.post(`/wholesaler/orders/${detail._id}/collect`, { amount: Number(payAmt), mode: payMode })).data.data,
+        onSuccess: ({ order }) => {
+            setDetail(order); setCollecting(false); setPayAmt(''); setPayErr('');
+            qc.invalidateQueries({ queryKey: ['orders'] });
+            qc.invalidateQueries({ queryKey: ['dashboard'] });
+            qc.invalidateQueries({ queryKey: ['payments'] });
+            qc.invalidateQueries({ queryKey: ['dealers'] });
+            qc.invalidateQueries({ queryKey: ['ws-tally'] });
+        },
+        onError: (e) => setPayErr(apiErr(e)),
+    });
+    const openCollect = () => { setPayAmt(String(detail?.dueAmount || '')); setPayMode('cash'); setPayErr(''); setCollecting(true); };
+
     const dealerOf = (o: any) => (dealers || []).find((d: any) => d._id === (o.dealerId?._id || o.dealerId) || d.name === o.dealerName);
+    const mobileOf = (o: any) => { const d = dealerOf(o); return d?.mobile ? `${d.countryCode || '+91'} ${d.mobile}` : ''; };
     const shareOrder = (o: any) => {
         const d = dealerOf(o);
         if (!d?.mobile) { alert('No mobile number on file for this dealer. Add one on the Dealers page to send on WhatsApp.'); return; }
@@ -85,7 +114,7 @@ export default function OrdersPage() {
             <div className="flex items-center justify-between gap-2 flex-wrap">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('ordersTitle')}</h1>
                 <div className="flex gap-2">
-                    <button className="wp-btn wp-btn-ghost" onClick={() => downloadFile(`whoply-orders-${statusFilter}.csv`, ordersToCsv(orders || []))} disabled={!(orders || []).length}><Download size={16} /> CSV</button>
+                    <button className="wp-btn wp-btn-ghost" onClick={() => downloadFile(`whoply-orders-${statusFilter}.csv`, ordersToCsv(orders || [], mobileOf))} disabled={!(orders || []).length}><Download size={16} /> CSV</button>
                     <button className="wp-btn wp-btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {t('newOrder')}</button>
                 </div>
             </div>
@@ -125,18 +154,22 @@ export default function OrdersPage() {
             </div>
 
             {/* Order detail */}
-            <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.orderNo || 'Order'}
+            <Modal open={!!detail} onClose={() => { setDetail(null); setCollecting(false); setShowQr(false); }} title={detail?.orderNo || 'Order'}
                 footer={detail && (
-                    <div className="flex gap-2">
-                        <button className="wp-btn wp-btn-ghost flex-1" onClick={() => shareOrder(detail)}><MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp</button>
-                        <button className="wp-btn wp-btn-primary flex-1" onClick={() => printOrder(detail)}><Printer size={16} /> {t('printPdf')}</button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        {detail.dueAmount > 0 && <button className="wp-btn wp-btn-accent w-full sm:flex-1" onClick={openCollect}><IndianRupee size={16} /> {t('collectPayment')}</button>}
+                        <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareOrder(detail)}><MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp</button>
+                        <button className="wp-btn wp-btn-primary w-full sm:flex-1" onClick={() => printOrder(detail)}><Printer size={16} /> {t('printPdf')}</button>
                     </div>
                 )}>
                 {detail && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                             <span style={{ color: 'var(--text-secondary)' }}>{detail.dealerName}</span>
-                            <span className="wp-chip capitalize" style={statusTone[detail.status]}>{detail.source} · {stLabel(detail.status)}</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="wp-chip" style={payTone[orderPayStatus(detail)]}>{t('pay' + orderPayStatus(detail))}</span>
+                                <span className="wp-chip capitalize" style={statusTone[detail.status]}>{detail.source} · {stLabel(detail.status)}</span>
+                            </div>
                         </div>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(detail.createdAt).toLocaleString('en-IN')}</p>
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
@@ -153,9 +186,41 @@ export default function OrdersPage() {
                             {detail.dueAmount > 0 && <div className="flex justify-between font-semibold" style={{ color: 'var(--accent-600)' }}><span>{t('outstandingWord')}</span><span className="tabular">{inr2(detail.dueAmount)}</span></div>}
                             {detail.deliveredAt && <p className="text-xs pt-1" style={{ color: 'var(--success-600)' }}>Delivered {new Date(detail.deliveredAt).toLocaleDateString('en-IN')}</p>}
                         </div>
+
+                        {/* Inline collect-payment form */}
+                        {collecting && detail.dueAmount > 0 && (
+                            <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('recordPayment')}</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Field label={t('amountReceived')}><input className="wp-input tabular" type="number" value={payAmt} onChange={(e) => setPayAmt(e.target.value)} max={detail.dueAmount} autoFocus /></Field>
+                                    <Field label={t('paymentMode')}><select className="wp-input capitalize" value={payMode} onChange={(e) => setPayMode(e.target.value)}>{PAY_MODES.map((m) => <option key={m} value={m}>{t('mode_' + m)}</option>)}</select></Field>
+                                </div>
+
+                                {/* How the dealer can pay — same details as the Dealers collect flow */}
+                                {payMode === 'upi' && (wsBiz?.upiId || wsBiz?.upiQrImage) && (
+                                    <div className="rounded-lg p-2.5 flex items-center justify-between gap-2" style={{ background: 'var(--card-bg)' }}>
+                                        <span className="text-sm min-w-0 truncate"><span style={{ color: 'var(--text-muted)' }}>{t('payTo')}: </span><b style={{ color: 'var(--text-primary)' }}>{wsBiz.upiId || 'UPI'}</b></span>
+                                        <button type="button" className="wp-btn wp-btn-ghost !py-1.5 shrink-0" onClick={() => setShowQr(true)}><QrCode size={15} /> {t('showQr')}</button>
+                                    </div>
+                                )}
+                                {payMode === 'bank' && wsBiz?.bank?.account && (
+                                    <p className="text-xs rounded-lg p-2.5" style={{ background: 'var(--card-bg)', color: 'var(--text-secondary)' }}>{t('bankName')}: {wsBiz.bank.name || '—'} · A/c {wsBiz.bank.account}{wsBiz.bank.ifsc ? ` · IFSC ${wsBiz.bank.ifsc}` : ''}</p>
+                                )}
+                                {(payMode === 'upi' || payMode === 'bank') && !(wsBiz?.upiId || wsBiz?.upiQrImage || wsBiz?.bank?.account) && (
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('addUpiBankInSettings')}</p>
+                                )}
+                                {payErr && <p className="text-xs" style={{ color: 'var(--danger-500)' }}>{payErr}</p>}
+                                <div className="flex gap-2">
+                                    <button className="wp-btn wp-btn-ghost flex-1" onClick={() => setCollecting(false)}>{t('cancel')}</button>
+                                    <button className="wp-btn wp-btn-primary flex-1" disabled={collect.isPending || !Number(payAmt)} onClick={() => collect.mutate()}><Check size={16} /> {t('confirm')} · {inr2(Number(payAmt) || 0)}</button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </Modal>
+
+            {showQr && detail && <UpiQr amount={Number(payAmt) || detail.dueAmount} upiId={wsBiz?.upiId} qrImage={wsBiz?.upiQrImage} shopName={wsBiz?.name} onClose={() => setShowQr(false)} />}
 
             {/* Create order */}
             <AnimatePresence>

@@ -1,11 +1,145 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, IndianRupee, Download, Boxes, Wallet } from 'lucide-react';
+import { TrendingUp, IndianRupee, Download, Boxes, Wallet, Building2, ShoppingBag, MessageCircle } from 'lucide-react';
 import { api, API_URL } from '@/lib/api';
-import { inr } from '@/lib/cn';
+import { inr, inr2 } from '@/lib/cn';
+import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
+import { paymentsToCsv, downloadFile, buildDealerPaymentText, whatsappLink } from '@/lib/bill';
 
+export default function ReportsPage() {
+    const { user } = useAuth();
+    if (user?.business?.type === 'wholesale') return <WholesaleTally />;
+    return <ShopReports />;
+}
+
+/* ───────────────────────── Wholesaler — account tally ───────────────────────── */
+function WholesaleTally() {
+    const t = useT();
+    const [period, setPeriod] = useState<Period>('month');
+    const periodLabel: Record<Period, string> = { week: t('weekly'), month: t('monthly'), quarter: t('quarterly'), year: t('yearly') };
+    const { data: biz } = useQuery({ queryKey: ['ws-business'], queryFn: async () => (await api.get('/wholesaler/business')).data.data });
+    const { data } = useQuery({ queryKey: ['ws-tally', period], queryFn: async () => (await api.get(`/wholesaler/reports/tally?period=${period}`)).data.data, refetchOnMount: 'always' });
+
+    const remindDealer = (d: any) => {
+        if (!d.mobile) { alert('Add a mobile number for this dealer to send a reminder.'); return; }
+        window.open(whatsappLink(d.mobile, buildDealerPaymentText(d.name, d.outstanding, biz), d.countryCode || '+91'), '_blank');
+    };
+
+    const modes: [string, string][] = [['cash', t('mode_cash')], ['upi', t('mode_upi')], ['bank', t('mode_bank')], ['cheque', t('mode_cheque')], ['other', t('mode_other')]];
+    const byMode = data?.byMode || {};
+
+    const tiles = [
+        { label: t('totalBilled'), value: data?.totalBilled, icon: TrendingUp, tone: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' }, hint: `${data?.orderCount || 0} ${t('ordersWord').toLowerCase()}` },
+        { label: t('collected'), value: data?.totalCollected, icon: IndianRupee, tone: { bg: '#dcfce7', fg: 'var(--success-600)' }, hint: t('received') },
+        { label: t('outstandingWord'), value: data?.outstanding, icon: Wallet, tone: { bg: '#fef3c7', fg: 'var(--accent-600)' }, hint: `${data?.outstandingDealers || 0} ${t('dealersWord')}` },
+        { label: `${t('collected')} · ${periodLabel[period]}`, value: data?.periodCollected, icon: Boxes, tone: { bg: '#e0e7ff', fg: 'var(--brand-700)' }, hint: `${data?.periodPayments || 0} ${t('paymentsWord')}` },
+    ];
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('accountTally')}</h1>
+                <button className="wp-btn wp-btn-ghost" onClick={() => downloadFile('whoply-payments.csv', paymentsToCsv(data?.recentPayments || []))} disabled={!(data?.recentPayments || []).length}><Download size={16} /> {t('exportCsv')}</button>
+            </div>
+
+            {/* Period tabs */}
+            <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-2)' }}>
+                {PERIODS.map((p) => (
+                    <button key={p.k} onClick={() => setPeriod(p.k)} className="px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                        style={period === p.k ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
+                        {periodLabel[p.k]}
+                    </button>
+                ))}
+            </div>
+
+            {/* Tally tiles */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {tiles.map((tile) => (
+                    <div key={tile.label} className="wp-card p-5">
+                        <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: tile.tone.bg, color: tile.tone.fg }}><tile.icon size={18} /></div>
+                        <p className="mt-3 text-xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(tile.value || 0)}</p>
+                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{tile.label}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{tile.hint}</p>
+                    </div>
+                ))}
+            </div>
+
+            {/* Billed = Collected + Outstanding tally bar */}
+            <div className="wp-card p-5">
+                <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Wallet size={17} style={{ color: 'var(--brand-700)' }} /> {t('moneyToCollect')}</h3>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('totalBilled')}</p>
+                        <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--text-primary)' }}>{inr(data?.totalBilled || 0)}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('collected')}</p>
+                        <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--success-600)' }}>{inr(data?.totalCollected || 0)}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('outstandingWord')}</p>
+                        <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--accent-600)' }}>{inr(data?.outstanding || 0)}</p>
+                    </div>
+                </div>
+                <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>{t('tallyFormulaNote')}</p>
+            </div>
+
+            {/* Money in by mode — for the selected period */}
+            <div className="wp-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><IndianRupee size={17} style={{ color: 'var(--brand-700)' }} /> {t('collected')} · {periodLabel[period]}</h3>
+                    <span className="text-sm font-bold tabular" style={{ color: 'var(--brand-700)' }}>{inr(data?.periodCollected || 0)}</span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
+                    {modes.map(([k, label]) => (
+                        <div key={k} className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-2)' }}>
+                            <p className="text-xs capitalize" style={{ color: 'var(--text-muted)' }}>{label}</p>
+                            <p className="text-sm sm:text-base font-extrabold tabular mt-0.5" style={{ color: 'var(--text-primary)' }}>{inr(byMode[k] || 0)}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Top debtors */}
+                <div className="wp-card p-5">
+                    <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Building2 size={16} /> {t('dealersOweYou')}</h3>
+                    {(data?.topDebtors || []).length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('allDealersSettled')}</p>}
+                    {(data?.topDebtors || []).map((d: any, i: number) => (
+                        <div key={d._id} className="flex items-center gap-2 py-2" style={{ borderTop: i ? '1px solid var(--card-border)' : 'none' }}>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{d.name}</p>
+                                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{d.city || '—'}{d.mobile ? ` · ${d.mobile}` : ''}</p>
+                            </div>
+                            <span className="text-sm font-bold tabular shrink-0" style={{ color: 'var(--accent-600)' }}>{inr2(d.outstanding)}</span>
+                            {d.mobile && <button className="wp-btn wp-btn-ghost !p-2 shrink-0" title={t('sendReminderWa')} onClick={() => remindDealer(d)}><MessageCircle size={14} style={{ color: 'var(--success-600)' }} /></button>}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Recent payments */}
+                <div className="wp-card p-5">
+                    <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Wallet size={16} /> {t('recentPayments')}</h3>
+                    {(data?.recentPayments || []).length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('noPayments')}</p>}
+                    {(data?.recentPayments || []).map((p: any, i: number) => (
+                        <div key={p._id} className="flex items-center gap-2 py-2" style={{ borderTop: i ? '1px solid var(--card-border)' : 'none' }}>
+                            <ShoppingBag size={14} className="shrink-0" style={{ color: 'var(--text-muted)' }} />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{p.dealerName || t('dealer')}</p>
+                                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{p.orderNo || t('onAccount')} · {new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · {t('mode_' + p.mode)}</p>
+                            </div>
+                            <span className="text-sm font-bold tabular shrink-0" style={{ color: 'var(--success-600)' }}>{inr2(p.amount)}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ───────────────────────── Shopkeeper — reports (unchanged) ───────────────────────── */
 type Period = 'week' | 'month' | 'quarter' | 'year';
 const PERIODS: { k: Period; label: string }[] = [
     { k: 'week', label: 'Weekly' },
@@ -14,7 +148,7 @@ const PERIODS: { k: Period; label: string }[] = [
     { k: 'year', label: 'Yearly' },
 ];
 
-export default function ReportsPage() {
+function ShopReports() {
     const t = useT();
     const [period, setPeriod] = useState<Period>('month');
     const periodLabel: Record<Period, string> = { week: t('weekly'), month: t('monthly'), quarter: t('quarterly'), year: t('yearly') };
@@ -97,12 +231,12 @@ export default function ReportsPage() {
 
             {/* Tally tiles */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {tiles.map((t) => (
-                    <div key={t.label} className="wp-card p-5">
-                        <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: t.tone.bg, color: t.tone.fg }}><t.icon size={18} /></div>
-                        <p className="mt-3 text-xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(t.value || 0)}</p>
-                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t.label}</p>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.hint}</p>
+                {tiles.map((tile) => (
+                    <div key={tile.label} className="wp-card p-5">
+                        <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: tile.tone.bg, color: tile.tone.fg }}><tile.icon size={18} /></div>
+                        <p className="mt-3 text-xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(tile.value || 0)}</p>
+                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{tile.label}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{tile.hint}</p>
                     </div>
                 ))}
             </div>

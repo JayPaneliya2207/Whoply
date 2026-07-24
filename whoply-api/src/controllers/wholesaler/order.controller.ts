@@ -69,10 +69,7 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
         salesRepId: dealer.assignedRepId,
     });
 
-    if (due > 0) {
-        dealer.outstandingBalance += due;
-        await dealer.save();
-    }
+    // Dealer outstanding is derived from order dues (this new order's due included) — nothing to persist.
     sendCreated(res, order);
 });
 
@@ -119,6 +116,8 @@ export const updateOrderStatus = asyncHandler(async (req: AuthRequest, res: Resp
         order.deliveredAt = new Date();
         if (deliveryNote) order.deliveryNote = deliveryNote;
     }
+    // A cancelled order owes nothing — clear its due so it drops out of dealer outstanding.
+    if (status === 'cancelled') order.dueAmount = 0;
     order.status = status;
     await order.save();
     sendSuccess(res, order, `Order marked ${status}`);

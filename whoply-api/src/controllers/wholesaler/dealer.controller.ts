@@ -5,20 +5,30 @@ import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response.js
 import { businessOf, paginate } from '../../utils/http.js';
 import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
+import Payment, { type PaymentMode } from '../../models/Payment.js';
+import { settleDealerOrders } from './payment.controller.js';
+import { duesByDealer } from '../../utils/wholesaler.js';
+import { Types } from 'mongoose';
 import type { AuthRequest } from '../../interfaces/index.js';
+
+const MODES: PaymentMode[] = ['cash', 'upi', 'bank', 'cheque', 'other'];
 
 export const listDealers = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
+    const bId = new Types.ObjectId(String(businessId));
     const { skip, limit, meta } = paginate(req.query);
     const filter: any = { businessId, isActive: true };
     if (req.query.search) filter.name = { $regex: String(req.query.search), $options: 'i' };
     if (req.query.tier) filter.tier = req.query.tier;
-    if (req.query.hasDue === 'true') filter.outstandingBalance = { $gt: 0 };
-    const [items, total] = await Promise.all([
-        Dealer.find(filter).sort({ outstandingBalance: -1, name: 1 }).skip(skip).limit(limit).lean(),
-        Dealer.countDocuments(filter),
-    ]);
-    sendPaginated(res, items, meta(total));
+
+    // Outstanding is derived from live order dues (source of truth), not the stored counter.
+    const [all, dues] = await Promise.all([Dealer.find(filter).lean(), duesByDealer(bId)]);
+    const dueMap = new Map(dues.map((d) => [String(d._id), d.due]));
+    let rows = all.map((d) => ({ ...d, outstandingBalance: dueMap.get(String(d._id)) || 0 }));
+    if (req.query.hasDue === 'true') rows = rows.filter((d) => d.outstandingBalance > 0);
+    rows.sort((a, b) => b.outstandingBalance - a.outstandingBalance || a.name.localeCompare(b.name));
+    const total = rows.length;
+    sendPaginated(res, rows.slice(skip, skip + limit), meta(total));
 });
 
 export const createDealer = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -54,14 +64,35 @@ export const dealerOrders = asyncHandler(async (req: AuthRequest, res: Response)
     sendSuccess(res, { dealer, orders });
 });
 
-/** POST /dealers/:id/collect — record a payment against outstanding */
+/**
+ * POST /dealers/:id/collect — record a payment against a dealer's outstanding.
+ * The amount is applied across the dealer's unpaid orders (oldest first) so those
+ * orders stop showing as "due", and a Payment is logged for the money-in ledger.
+ */
 export const collectPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
+    const bId = new Types.ObjectId(String(businessId));
     const amount = Number(req.body.amount);
     if (!amount || amount <= 0) throw AppError.badRequest('A positive amount is required');
     const dealer = await Dealer.findOne({ _id: req.params.id, businessId });
     if (!dealer) throw AppError.notFound('Dealer not found');
-    dealer.outstandingBalance = +(dealer.outstandingBalance - amount).toFixed(2);
-    await dealer.save();
-    sendSuccess(res, dealer, 'Payment collected');
+
+    // Clamp to what the dealer actually owes (sum of live order dues) so the money-in
+    // ledger can never exceed what was billed. Advances aren't tracked yet.
+    const dues = await duesByDealer(bId);
+    const owed = dues.find((d) => String(d._id) === String(dealer._id))?.due || 0;
+    const applied = +Math.min(amount, owed).toFixed(2);
+    if (applied <= 0) throw AppError.badRequest('This dealer has no outstanding to collect');
+
+    await settleDealerOrders(bId, dealer._id, applied);
+
+    const payment = await Payment.create({
+        businessId: bId,
+        dealerId: dealer._id,
+        dealerName: dealer.name,
+        amount: applied,
+        mode: (MODES.includes(req.body.mode) ? req.body.mode : 'cash') as PaymentMode,
+        note: req.body.note,
+    });
+    sendSuccess(res, { dealer, payment, applied }, 'Payment collected');
 });
