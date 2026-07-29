@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { mobileSchema, otpSchema, passwordSchema, languageSchema, businessTypeSchema } from './common.validator.js';
+import { mobileSchema, otpSchema, passwordSchema, languageSchema, businessTypeSchema, gstinSchema } from './common.validator.js';
 
 /** Step 1 — request OTP for login */
 export const loginSchema = z.object({
@@ -32,7 +32,7 @@ export const registerSchema = z.object({
 export const onboardingSchema = z.object({
     businessName: z.string().min(2).max(120).trim(),
     type: businessTypeSchema,
-    gstin: z.string().trim().optional(),
+    gstin: gstinSchema.optional(),
     city: z.string().trim().optional(),
     state: z.string().trim().optional(),
 });

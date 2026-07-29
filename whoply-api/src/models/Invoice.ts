@@ -24,6 +24,7 @@ export interface IInvoice {
     customerId?: Types.ObjectId;
     customerName?: string;
     customerMobile?: string;
+    customerGstin?: string; // captured at sale time for B2B invoices (GSTR-1)
     items: IInvoiceItem[];
     subtotal: number;
     totalGst: number;
@@ -63,6 +64,7 @@ const invoiceSchema = new Schema<IInvoiceDocument>(
         customerId: { type: Schema.Types.ObjectId, ref: 'Customer', index: true },
         customerName: String,
         customerMobile: String,
+        customerGstin: String,
         items: { type: [invoiceItemSchema], default: [] },
         subtotal: { type: Number, default: 0 },
         totalGst: { type: Number, default: 0 },

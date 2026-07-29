@@ -1,15 +1,17 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
-    TrendingUp, ShoppingBag, Wallet, AlertTriangle, IndianRupee, Package,
-    ArrowUpRight, Trophy, Receipt, FileText, Users,
+    TrendingUp, ShoppingBag, Wallet, AlertTriangle,
+    Trophy, ReceiptText, Users, Truck, ArrowRight, Boxes,
 } from 'lucide-react';
+import { RupeeIcon } from '@/components/RupeeIcon';
 import { api } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
 import { inr, inr2 } from '@/lib/cn';
 import { useT } from '@/i18n';
+import { NavGrid } from '@/components/NavGrid';
+import { ShopStatusToggle } from '@/components/ShopStatusToggle';
 
 const fetchDash = async (type: string) => {
     const base = type === 'wholesale' ? '/wholesaler/dashboard' : '/shopkeeper/dashboard';
@@ -17,28 +19,21 @@ const fetchDash = async (type: string) => {
     return data.data;
 };
 
-function StatCard({ label, value, icon: Icon, tone, delta, hint }: any) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="wp-card wp-card-hover p-5"
-        >
-            <div className="flex items-start justify-between">
-                <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: tone.bg, color: tone.fg }}>
-                    <Icon size={20} />
-                </div>
-                {delta && (
-                    <span className="wp-chip" style={{ background: 'var(--success-500)', color: '#fff' }}>
-                        <ArrowUpRight size={12} /> {delta}
-                    </span>
-                )}
+/** Premium KPI card — soft tinted icon, compact label, big number, optional alert dot + link. */
+function Kpi({ label, value, icon: Icon, tone, hint, href, alert }: any) {
+    const inner = (
+        <>
+            <div className="flex items-center justify-between">
+                <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: tone.bg, color: tone.fg }}><Icon size={18} /></div>
+                {alert && <span className="h-2.5 w-2.5 rounded-full ring-4" style={{ background: tone.fg, boxShadow: `0 0 0 3px ${tone.bg}` }} />}
             </div>
-            <p className="mt-4 text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{value}</p>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</p>
-            {hint && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{hint}</p>}
-        </motion.div>
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide truncate" style={{ color: 'var(--text-muted)' }}>{label}</p>
+            <p className="text-2xl sm:text-[26px] font-extrabold tabular leading-none mt-1" style={{ color: 'var(--text-primary)' }}>{value}</p>
+            {hint && <p className="text-xs mt-1.5 truncate" style={{ color: 'var(--text-secondary)' }}>{hint}</p>}
+        </>
     );
+    const cls = 'wp-card wp-card-hover p-4 sm:p-5 block h-full';
+    return href ? <Link href={href} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>;
 }
 
 export default function DashboardPage() {
@@ -66,128 +61,165 @@ export default function DashboardPage() {
             delivered: { background: '#dcfce7', color: 'var(--success-600)' },
             cancelled: { background: '#fee2e2', color: 'var(--danger-500)' },
         };
+        const pipeColor: Record<string, string> = { pending: '#94a3b8', confirmed: 'var(--brand-600)', dispatched: 'var(--accent-500)', delivered: 'var(--success-500)', cancelled: 'var(--danger-500)' };
+        const T = {
+            brand: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
+            amber: { bg: '#fef3c7', fg: 'var(--accent-600)' },
+            green: { bg: '#dcfce7', fg: 'var(--success-600)' },
+            red: { bg: '#fee2e2', fg: 'var(--danger-500)' },
+            sky: { bg: '#e0e7ff', fg: 'var(--brand-700)' },
+        };
+        const billed = data.revenue || 0;
+        const outstanding = data.outstandingPayments || 0;
+        const collected = Math.max(0, billed - outstanding);
+        const collectedPct = billed > 0 ? Math.round((collected / billed) * 100) : 0;
+        const pipeTotal = (data.statusBreakdown || []).reduce((s: number, x: any) => s + x.count, 0) || 1;
         return (
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('wholesalerDashboard')}</h1>
-                    <Link href="/orders" className="wp-btn wp-btn-primary"><FileText size={16} /> {t('newOrder')}</Link>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    <StatCard label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} hint={`${inr(data.todaySales || 0)} ${t('billedTodayHint')}`} />
-                    <StatCard label={t('pendingDispatch')} value={data.pendingDispatch} icon={Package} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} hint={t('toShipHint')} />
-                    <StatCard label={t('outstanding')} value={inr(data.outstandingPayments)} icon={Wallet} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} hint={`${data.outstandingDealers || 0} ${t('dealersToCollectHint')}`} />
-                    <StatCard label={t('dealersCount')} value={data.dealerCount} icon={Users} tone={{ bg: '#e0e7ff', fg: 'var(--brand-700)' }} hint={t('activeDealersHint')} />
-                    <StatCard label={t('warehouseUnits')} value={data.warehouseUnits} icon={Package} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} hint={`${data.skuCount || 0} ${t('productsHint')}`} />
-                    <StatCard label={t('totalRevenue')} value={inr(data.revenue)} icon={TrendingUp} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} hint={t('allTimeBilledHint')} />
+            <div className="space-y-5">
+                {/* Header */}
+                <div className="flex items-end justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('wholesalerDashboard')}</p>
+                        <h1 className="text-2xl font-extrabold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>{t('hi')}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0 pb-1">
+                        <ShopStatusToggle />
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                    </div>
                 </div>
 
-                {/* Account tally — money to collect from dealers */}
+                {/* KPI grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <Kpi label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={T.brand} hint={`${inr(data.todaySales || 0)} ${t('billedTodayHint')}`} href="/orders" />
+                    <Kpi label={t('pendingDispatch')} value={data.pendingDispatch} icon={Truck} tone={T.amber} hint={t('toShipHint')} href="/orders?status=pending" alert={data.pendingDispatch > 0} />
+                    <Kpi label={t('outstanding')} value={inr(outstanding)} icon={Wallet} tone={T.amber} hint={`${data.outstandingDealers || 0} ${t('dealersToCollectHint')}`} href="/dealers" alert={outstanding > 0} />
+                    <Kpi label={t('lowStockTitle')} value={data.lowStockCount || 0} icon={AlertTriangle} tone={T.red} hint={t('productsNeedReorder')} href="/products?lowStock=true" alert={(data.lowStockCount || 0) > 0} />
+                    <Kpi label={t('totalRevenue')} value={inr(billed)} icon={TrendingUp} tone={T.green} hint={t('allTimeBilledHint')} />
+                    <Kpi label={t('dealersCount')} value={data.dealerCount} icon={Users} tone={T.sky} hint={t('activeDealersHint')} href="/dealers" />
+                </div>
+
+                {/* Money to collect — collection progress */}
                 <div className="wp-card p-5">
-                    <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Wallet size={17} style={{ color: 'var(--brand-700)' }} /> {t('moneyToCollect')}</h3>
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                        <Link href="/dealers" className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('dealersOweYou')}</p>
-                            <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--accent-600)' }}>{inr(data.outstandingPayments || 0)}</p>
-                            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{data.outstandingDealers || 0} {t('dealersWord')} ⬅</p>
-                        </Link>
-                        <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('collected')}</p>
-                            <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--success-600)' }}>{inr(Math.max(0, (data.revenue || 0) - (data.outstandingPayments || 0)))}</p>
-                            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{t('received')}</p>
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('moneyToCollect')}</p>
+                            <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: 'var(--accent-600)' }}>{inr(outstanding)}</p>
+                            <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{data.outstandingDealers || 0} {t('dealersWord')} · {t('dealersToCollectHint')}</p>
                         </div>
-                        <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('totalBilled')}</p>
-                            <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--text-primary)' }}>{inr(data.revenue || 0)}</p>
-                            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{t('allOrders')}</p>
-                        </div>
+                        <Link href="/dealers" className="wp-btn wp-btn-ghost shrink-0"><Wallet size={15} /> {t('collectPayment')}</Link>
                     </div>
-                    <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>{t('wsTallyNote')}</p>
+                    <div className="mt-4">
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                            <span className="font-medium" style={{ color: 'var(--success-600)' }}>{t('collected')} {inr(collected)}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>{t('totalBilled')} {inr(billed)}</span>
+                        </div>
+                        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                            <div className="h-full rounded-full transition-all" style={{ width: `${collectedPct}%`, background: 'var(--success-500)' }} />
+                        </div>
+                        <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>{collectedPct}% {t('collected').toLowerCase()} · {t('allOrders')}</p>
+                    </div>
                 </div>
 
-                {/* Order pipeline — boxes */}
-                <div>
-                    <h3 className="font-bold mb-3" style={{ color: 'var(--text-primary)' }}>{t('orderPipeline')}</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {data.statusBreakdown.map((s: any) => (
-                            <Link key={s.status} href={`/orders?status=${s.status}`} className="wp-card wp-card-hover p-4">
-                                <p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{s.count}</p>
-                                <span className="wp-chip capitalize mt-1" style={statusTone[s.status]}>{stLabel(s.status)}</span>
-                            </Link>
+                {/* Order pipeline — stacked bar + legend */}
+                <div className="wp-card p-5">
+                    <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Boxes size={17} style={{ color: 'var(--brand-700)' }} /> {t('orderPipeline')}</h3>
+                    <div className="flex h-3 rounded-full overflow-hidden gap-px" style={{ background: 'var(--surface-2)' }}>
+                        {(data.statusBreakdown || []).map((s: any) => (
+                            <div key={s.status} style={{ width: `${(s.count / pipeTotal) * 100}%`, background: pipeColor[s.status] || 'var(--surface-2)' }} title={`${stLabel(s.status)}: ${s.count}`} />
                         ))}
                     </div>
-                </div>
-
-                {/* Recent orders — boxes (latest 4) */}
-                <div>
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('recentOrders')}</h3>
-                        <Link href="/orders" className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} →</Link>
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        {data.recentOrders.length === 0 && <p className="col-span-full text-sm" style={{ color: 'var(--text-muted)' }}>{t('noOrdersYet')}</p>}
-                        {data.recentOrders.slice(0, 4).map((o: any) => (
-                            <Link key={o._id} href="/orders" className="wp-card wp-card-hover p-4 block">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p>
-                                    <span className="wp-chip capitalize shrink-0" style={statusTone[o.status]}>{stLabel(o.status)}</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                        {(data.statusBreakdown || []).map((s: any) => (
+                            <Link key={s.status} href={`/orders?status=${s.status}`} className="flex items-center gap-2.5 rounded-xl p-2.5 wp-card-hover" style={{ background: 'var(--surface-2)' }}>
+                                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: pipeColor[s.status] }} />
+                                <div className="min-w-0">
+                                    <p className="text-lg font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{s.count}</p>
+                                    <p className="text-[11px] capitalize truncate" style={{ color: 'var(--text-muted)' }}>{stLabel(s.status)}</p>
                                 </div>
-                                <p className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p>
-                                <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{o.dealerName}</p>
                             </Link>
                         ))}
                     </div>
                 </div>
+
+                {/* Recent activity — order feed */}
+                <div className="wp-card p-5">
+                    <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('recentOrders')}</h3>
+                        <Link href="/orders" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
+                    </div>
+                    {data.recentOrders.length === 0 && <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>{t('noOrdersYet')}</p>}
+                    <div>
+                        {data.recentOrders.slice(0, 5).map((o: any, idx: number) => (
+                            <Link key={o._id} href="/orders" className="flex items-center gap-3 py-3" style={{ borderTop: idx ? '1px solid var(--card-border)' : 'none' }}>
+                                <div className="h-9 w-9 grid place-items-center rounded-xl shrink-0" style={statusTone[o.status]}><ShoppingBag size={16} /></div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{o.orderNo}</p>
+                                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{o.dealerName} · {new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className="text-sm font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p>
+                                    <span className="wp-chip capitalize" style={statusTone[o.status]}>{stLabel(o.status)}</span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+
+                {/* All features */}
+                <div className="wp-card p-4 sm:p-5"><NavGrid /></div>
             </div>
         );
     }
 
+    const rt = {
+        brand: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
+        amber: { bg: '#fef3c7', fg: 'var(--accent-600)' },
+        green: { bg: '#dcfce7', fg: 'var(--success-600)' },
+        red: { bg: '#fee2e2', fg: 'var(--danger-500)' },
+        sky: { bg: '#e0e7ff', fg: 'var(--brand-700)' },
+    };
+    const invTone = (s: string) => (s === 'paid' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' });
+    const receivable = data.pendingUdhar || 0;
+    const payable = data.supplierPayable || 0;
+    const net = receivable - payable;
+    const settleTotal = receivable + payable || 1;
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('shopkeeperDashboard')}</h1>
-                <Link href="/billing" className="wp-btn wp-btn-primary"><Receipt size={16} /> {t('newBill')}</Link>
+        <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('shopkeeperDashboard')}</p>
+                    <h1 className="text-2xl font-extrabold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>{t('hi')}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
+                </div>
+                <div className="flex flex-col items-end gap-1.5 shrink-0 pb-1">
+                    <ShopStatusToggle />
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                </div>
             </div>
 
-            {/* Stat tiles */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label={t('todaysSales')} value={inr(data.todaySales)} icon={IndianRupee} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} delta="live" />
-                <StatCard label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} />
-                <StatCard label={t('todaysProfitEst')} value={inr(data.todayProfit || 0)} icon={TrendingUp} tone={{ bg: '#e0e7ff', fg: 'var(--brand-700)' }} />
-                <StatCard label={t('pendingUdhar')} value={inr(data.pendingUdhar)} icon={Wallet} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} />
+            {/* KPI grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <Kpi label={t('todaysSales')} value={inr(data.todaySales)} icon={RupeeIcon} tone={rt.green} hint={`${t('todaysProfitEst')} ${inr(data.todayProfit || 0)}`} />
+                <Kpi label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={rt.brand} href="/bills" />
+                <Kpi label={t('todaysProfitEst')} value={inr(data.todayProfit || 0)} icon={TrendingUp} tone={rt.sky} />
+                <Kpi label={t('pendingUdhar')} value={inr(receivable)} icon={Wallet} tone={rt.amber} hint={`${data.udharCustomers || 0} ${t('onUdharSuffix')}`} href="/customers?hasDue=true" alert={receivable > 0} />
+                <Kpi label={t('lowStockTitle')} value={data.lowStockCount} icon={AlertTriangle} tone={rt.red} hint={t('productsNeedReorder')} href="/products?lowStock=true" alert={data.lowStockCount > 0} />
+                <Kpi label={t('youOweSuppliers')} value={inr(payable)} icon={Truck} tone={rt.amber} hint={`${data.supplierPayableCount || 0} ${t('suppliersCount')}`} href="/purchases" alert={payable > 0} />
             </div>
 
-            {/* Low stock + Udhar — two compact boxes on one line */}
-            <div className="grid grid-cols-2 gap-4">
-                <Link href="/products?lowStock=true" className="wp-card wp-card-hover p-4 sm:p-5">
-                    <div className="flex items-center gap-2 mb-1"><AlertTriangle size={17} style={{ color: 'var(--accent-500)' }} /><h3 className="font-bold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>{t('lowStockTitle')}</h3></div>
-                    <p className="text-2xl sm:text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{data.lowStockCount}</p>
-                    <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>{t('productsNeedReorder')}</p>
-                </Link>
-                <Link href="/customers?hasDue=true" className="wp-card wp-card-hover p-4 sm:p-5">
-                    <div className="flex items-center gap-2 mb-1"><Wallet size={17} style={{ color: 'var(--accent-600)' }} /><h3 className="font-bold text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>{t('udharTitle')}</h3></div>
-                    <p className="text-2xl sm:text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{data.udharCustomers}</p>
-                    <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>{t('customersOwe')} {inr(data.pendingUdhar)}</p>
-                </Link>
-            </div>
-
-            {/* Account tally — money owed both ways */}
+            {/* Money to settle — receivable vs payable balance */}
             <div className="wp-card p-5">
-                <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Wallet size={17} style={{ color: 'var(--brand-700)' }} /> {t('moneyToSettle')}</h3>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    <Link href="/customers?hasDue=true" className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('customersOweYou')}</p>
-                        <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--success-600)' }}>{inr(data.pendingUdhar || 0)}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{data.udharCustomers || 0} {t('onUdharSuffix')} ⬅</p>
-                    </Link>
-                    <Link href="/purchases" className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('youOweSuppliers')}</p>
-                        <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--accent-600)' }}>{inr(data.supplierPayable || 0)}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{data.supplierPayableCount || 0} {t('suppliersCount')} ➡</p>
-                    </Link>
-                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('netPosition')}</p>
-                        <p className="text-base sm:text-xl font-extrabold tabular leading-tight mt-1" style={{ color: 'var(--text-primary)' }}>{inr((data.pendingUdhar || 0) - (data.supplierPayable || 0))}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{(data.pendingUdhar || 0) - (data.supplierPayable || 0) >= 0 ? t('inYourFavour') : t('youOweMore')}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('netPosition')}</p>
+                <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: net >= 0 ? 'var(--success-600)' : 'var(--danger-500)' }}>{inr(net)}</p>
+                <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{net >= 0 ? t('inYourFavour') : t('youOweMore')}</p>
+                <div className="mt-4">
+                    <div className="flex h-2.5 rounded-full overflow-hidden gap-px" style={{ background: 'var(--surface-2)' }}>
+                        <div style={{ width: `${(receivable / settleTotal) * 100}%`, background: 'var(--success-500)' }} />
+                        <div style={{ width: `${(payable / settleTotal) * 100}%`, background: 'var(--accent-500)' }} />
+                    </div>
+                    <div className="flex items-center justify-between text-xs mt-2 gap-2">
+                        <Link href="/customers?hasDue=true" className="flex items-center gap-1.5 min-w-0"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--success-500)' }} /><span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('customersOweYou')}</span> <b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(receivable)}</b></Link>
+                        <Link href="/purchases" className="flex items-center gap-1.5 min-w-0"><b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(payable)}</b> <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('youOweSuppliers')}</span><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--accent-500)' }} /></Link>
                     </div>
                 </div>
             </div>
@@ -208,26 +240,32 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Recent bills — 4 boxes */}
-            <div>
-                <div className="flex items-center justify-between mb-3">
+            {/* Recent activity — bills feed */}
+            <div className="wp-card p-5">
+                <div className="flex items-center justify-between mb-1">
                     <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('recentBills')}</h3>
-                    <Link href="/bills" className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} →</Link>
+                    <Link href="/bills" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {data.recentInvoices.length === 0 && <p className="col-span-full text-sm" style={{ color: 'var(--text-muted)' }}>{t('noBillsYet')}</p>}
-                    {data.recentInvoices.slice(0, 4).map((inv: any) => (
-                        <Link key={inv._id} href="/bills" className="wp-card wp-card-hover p-4 block">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{inv.invoiceNo}</p>
-                                <span className="wp-chip shrink-0" style={inv.status === 'paid' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' }}>{inv.status}</span>
+                {data.recentInvoices.length === 0 && <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>{t('noBillsYet')}</p>}
+                <div>
+                    {data.recentInvoices.slice(0, 5).map((inv: any, idx: number) => (
+                        <Link key={inv._id} href="/bills" className="flex items-center gap-3 py-3" style={{ borderTop: idx ? '1px solid var(--card-border)' : 'none' }}>
+                            <div className="h-9 w-9 grid place-items-center rounded-xl shrink-0" style={invTone(inv.status)}><ReceiptText size={16} /></div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{inv.invoiceNo}</p>
+                                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{inv.customerName || t('walkIn')} · {inv.paymentMode}</p>
                             </div>
-                            <p className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(inv.grandTotal)}</p>
-                            <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{inv.customerName || 'Walk-in'} · {inv.paymentMode}</p>
+                            <div className="text-right shrink-0">
+                                <p className="text-sm font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(inv.grandTotal)}</p>
+                                <span className="wp-chip capitalize" style={invTone(inv.status)}>{inv.status}</span>
+                            </div>
                         </Link>
                     ))}
                 </div>
             </div>
+
+            {/* All features */}
+            <div className="wp-card p-4 sm:p-5"><NavGrid /></div>
         </div>
     );
 }

@@ -11,7 +11,11 @@ import Business from '../models/Business.js';
 import Invoice from '../models/Invoice.js';
 import Product from '../models/Product.js';
 import Supplier from '../models/Supplier.js';
+import Customer from '../models/Customer.js';
+import Dealer from '../models/Dealer.js';
 import Notification from '../models/Notification.js';
+import { sendWhatsApp } from '../services/messaging.service.js';
+import { duesByDealer } from '../utils/wholesaler.js';
 
 const todayRange = () => {
     const start = new Date();
@@ -85,6 +89,71 @@ export async function generatePayableReminders(): Promise<number> {
     return made;
 }
 
+/**
+ * Auto payment-reminders to udhar (credit) customers. For each active business that
+ * has `settings.enableUdharReminders` on, every customer with an outstanding balance
+ * is reminded at most once per `settings.udharReminderDays` (default 7). We write an
+ * in-app Notification and fire the WhatsApp channel (a stub today — logs only), then
+ * stamp `lastUdharReminderAt` so the next run respects the configured interval.
+ */
+export async function generateUdharReminders(): Promise<number> {
+    const businesses = await Business.find({ isActive: true }).lean();
+    const now = Date.now();
+    let made = 0;
+
+    for (const b of businesses) {
+        if (b.settings?.enableUdharReminders === false) continue;
+        const bId = new Types.ObjectId(String(b._id));
+        const days = Math.max(1, Number(b.settings?.udharReminderDays) || 7);
+        const cutoff = new Date(now - days * 24 * 60 * 60 * 1000);
+        const overdue = (d?: Date | null) => !d || d.getTime() <= cutoff.getTime();
+        const remind = (name: string, mobile: string | undefined, country: string | undefined, amount: number) => {
+            const amt = Math.round(amount).toLocaleString('en-IN');
+            const notif = Notification.create({
+                businessId: bId,
+                title: '💰 Payment reminder sent',
+                body: `${name} has ₹${amt} pending. A reminder was sent${mobile ? ` to ${mobile}` : ''}.`,
+                type: 'udhar',
+            });
+            if (mobile) {
+                sendWhatsApp(`${country || '+91'}${mobile}`,
+                    `Hi ${name}, this is a gentle reminder from ${b.name}: ₹${amt} is pending on your account. Kindly clear it at your convenience. Thank you! 🙏`);
+            }
+            return notif;
+        };
+
+        if (b.type === 'wholesale') {
+            // Dealers' outstanding is derived from live order dues (source of truth).
+            const dues = await duesByDealer(bId);
+            const dueMap = new Map(dues.filter((d) => d.due > 0).map((d) => [String(d._id), d.due]));
+            if (!dueMap.size) continue;
+            const dealers = await Dealer.find({ businessId: bId, isActive: true, _id: { $in: [...dueMap.keys()].map((id) => new Types.ObjectId(id)) } });
+            for (const d of dealers) {
+                if (!overdue(d.lastReminderAt)) continue;
+                await remind(d.name, d.mobile, d.countryCode, dueMap.get(String(d._id)) || 0);
+                d.lastReminderAt = new Date();
+                await d.save();
+                made++;
+            }
+        } else {
+            const due = await Customer.find({
+                businessId: bId,
+                isActive: true,
+                creditBalance: { $gt: 0 },
+                $or: [{ lastUdharReminderAt: { $exists: false } }, { lastUdharReminderAt: null }, { lastUdharReminderAt: { $lte: cutoff } }],
+            });
+            for (const c of due) {
+                await remind(c.name, c.mobile, c.countryCode, c.creditBalance);
+                c.lastUdharReminderAt = new Date();
+                await c.save();
+                made++;
+            }
+        }
+    }
+    if (made) console.log(`[cron] sent ${made} udhar reminders`);
+    return made;
+}
+
 export function initializeCronJobs(): void {
     // 21:00 every day
     cron.schedule('0 21 * * *', () => {
@@ -96,10 +165,16 @@ export function initializeCronJobs(): void {
         generatePayableReminders().catch((e) => console.error('[cron] payable reminder failed', e));
     });
 
+    // 10:00 every day — auto payment-reminders to due customers (throttled per business setting)
+    cron.schedule('0 10 * * *', () => {
+        generateUdharReminders().catch((e) => console.error('[cron] udhar reminder failed', e));
+    });
+
     // Generate once shortly after boot so the app has notifications to show.
     setTimeout(() => {
         generateDailySummaries().catch(() => { /* ignore on boot */ });
         generatePayableReminders().catch(() => { /* ignore on boot */ });
+        generateUdharReminders().catch(() => { /* ignore on boot */ });
     }, 4000);
 
     console.log('[cron] jobs scheduled');

@@ -10,9 +10,13 @@ export type OrderSource = 'whatsapp' | 'phone' | 'manual' | 'field';
 export interface IOrderItem {
     productId: Types.ObjectId;
     name: string;
+    hsn?: string;
+    unit?: string;
     quantity: number;
-    price: number;
-    lineTotal: number;
+    price: number; // per unit (pre-tax)
+    gstRate: number;
+    gstAmount: number;
+    lineTotal: number; // qty*price + gst
 }
 
 export interface IOrder {
@@ -20,8 +24,11 @@ export interface IOrder {
     orderNo: string;
     dealerId: Types.ObjectId;
     dealerName?: string;
+    dealerGstin?: string;
     items: IOrderItem[];
-    total: number;
+    subtotal: number; // taxable value (pre-GST)
+    totalGst: number;
+    total: number; // grand total = subtotal + totalGst (GST added on top / exclusive)
     paidAmount: number;
     dueAmount: number;
     status: OrderStatus;
@@ -40,8 +47,12 @@ const orderItemSchema = new Schema<IOrderItem>(
     {
         productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
         name: { type: String, required: true },
+        hsn: String,
+        unit: { type: String, default: 'pcs' },
         quantity: { type: Number, required: true },
         price: { type: Number, required: true },
+        gstRate: { type: Number, default: 0 },
+        gstAmount: { type: Number, default: 0 },
         lineTotal: { type: Number, required: true },
     },
     { _id: false }
@@ -53,7 +64,10 @@ const orderSchema = new Schema<IOrderDocument>(
         orderNo: { type: String, required: true },
         dealerId: { type: Schema.Types.ObjectId, ref: 'Dealer', required: true, index: true },
         dealerName: String,
+        dealerGstin: String,
         items: { type: [orderItemSchema], default: [] },
+        subtotal: { type: Number, default: 0 },
+        totalGst: { type: Number, default: 0 },
         total: { type: Number, default: 0 },
         paidAmount: { type: Number, default: 0 },
         dueAmount: { type: Number, default: 0 },

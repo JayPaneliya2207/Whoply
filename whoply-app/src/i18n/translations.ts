@@ -112,7 +112,7 @@ const en: Dict = {
     onUdharSuffix: 'on udhar', suppliersCount: 'suppliers',
     // billing / POS
     searchNameBarcode: 'Search by name, barcode or SKU…', scan: 'Scan', cart: 'Cart', viewCart: 'View cart',
-    completeSale: 'Complete Sale', customerNamePh: 'Customer name', mobileFewDigits: 'Mobile — few digits ok',
+    completeSale: 'Complete Sale', customerNamePh: 'Customer name', mobileFewDigits: 'Mobile — few digits ok', gstinOptionalPh: 'Customer GSTIN (optional, for B2B)',
     existingCustomer: 'Existing customer', owesWord: 'owes', discountPct: 'Discount %', appearsOnBill: 'optional — appears on the bill',
     showUpiQr: 'Show UPI QR', saleRecorded: 'Sale recorded', whatsappBill: 'WhatsApp bill', printPdf: 'Print / PDF',
     cartEmpty: 'Your cart is empty.', enterMobileForCredit: 'Enter a mobile number for udhar (credit) sales.',
@@ -156,6 +156,10 @@ const en: Dict = {
     upiPayment: 'UPI payment', yourUpiId: 'Your UPI ID', uploadQrImage: 'Upload QR image', changeQr: 'Change QR', emailLabel: 'Email',
     // notifications
     noNotifications: 'No notifications yet.', markAllRead: 'Mark all read',
+    notifAll: 'All', notifUnread: 'Unread', notifRead: 'Read',
+    shopOpen: 'Open', shopClosed: 'Closed',
+    paymentReminders: 'Payment reminders', paymentRemindersHint: 'Automatically remind customers & dealers who have pending payments.', enableAutoReminders: 'Auto-remind on pending payments', remindEveryDays: 'Remind every (days)',
+    gstinInvalid: 'Invalid GSTIN. Expected format like 22AAAAA0000A1Z5.', noProductForCode: 'No product for',
     // ── wholesaler ──
     wholesalerDashboard: 'Wholesaler Dashboard', newOrder: 'New Order', pendingDispatch: 'Pending Dispatch',
     outstanding: 'Outstanding', dealersCount: 'Dealers', warehouseUnits: 'Warehouse Units', totalRevenue: 'Total Revenue',
@@ -195,6 +199,18 @@ const en: Dict = {
     wsTallyNote: 'Billed = Collected + Outstanding. Collect on an order or a dealer, and see every payment on the Payments page.',
     billedTodayHint: 'billed today', toShipHint: 'to pack & ship', dealersToCollectHint: 'dealers to collect from',
     activeDealersHint: 'active dealers', productsHint: 'products', allTimeBilledHint: 'all-time billed',
+    // GST returns
+    gstReturns: 'GST Returns', gstr3bSummary: 'GSTR-3B Summary', taxableValue: 'Taxable value', totalTax: 'Total tax',
+    invoiceValue: 'Invoice value', rateWise: 'Rate-wise tax (B2C)', hsnSummary: 'HSN Summary', b2bInvoices: 'B2B (registered) invoices',
+    noB2b: 'No B2B invoices this month. Add a GSTIN on a customer to track B2B sales.', noGstData: 'No sales in this month.',
+    rateWord: 'Rate', qtyWord: 'Qty', description: 'Description', invoicesWord: 'invoices',
+    gstIntraStateNote: 'CGST/SGST split 50/50 (intra-state). Taxable value is before any invoice-level discount. Verify with your accountant before filing.',
+    gstin: 'GSTIN', printSize: 'Print size', printReceipt: 'Receipt',
+    quotations: 'Quotations', newQuote: 'New quote', saveQuote: 'Save quote', noQuotes: 'No quotations yet. Create your first estimate.', openQuote: 'Open', converted: 'Converted', convertToBill: 'Convert to bill', convertToOrder: 'Convert to order',
+    invoiceTemplate: 'Invoice template', invoiceTemplateHint: 'Choose how printed bills, orders & quotes look. Saved on this device.', previewTemplate: 'Preview',
+    returnItems: 'Return items', returnsCreditNotes: 'Returns', returnReasonPh: 'Reason (optional) — damaged, wrong item…', cashRefund: 'Cash refund', adjustUdhar: 'Adjust udhar', recordReturn: 'Record return', selectReturnQty: 'Enter a return quantity for at least one item.', returnRecordedPrint: 'Return recorded. Print the credit note?', noReturns: 'No returns yet.', refundTotal: 'Refund total', againstBill: 'against', totalRefunded: 'Total refunded', creditNotes: 'Credit notes', wsReturnNote: 'Reduces the order value and what the dealer owes. Any overpaid amount is refunded in cash.', returnRecordedRefund: 'Return recorded. Cash to refund:', printCreditNoteQ: 'Print the credit note?', quickAccess: 'Quick Access', inventoryGroup: 'Inventory', moneyReports: 'Money & Reports', moreGroup: 'More', dealersSales: 'Dealers & Sales', home: 'Home', customersShort: 'Customers', billingShort: 'Billing',
+ convertedTo: 'Converted to', estimatedTotal: 'Estimated total', discountRs: 'Discount ₹', deleteQuoteTitle: 'Delete quotation?', noMobileQuote: 'Add a customer mobile to send the quote on WhatsApp.',
+    eInvoiceJson: 'e-Invoice', ewayBill: 'e-Way bill', vehicleNoPh: 'Vehicle no (e.g. GJ01AB1234)', distanceKm: 'Distance (km)', transporterName: 'Transporter name', generateEwayJson: 'Generate e-Way bill', modeRoad: 'Road', modeRail: 'Rail', modeAir: 'Air', modeShip: 'Ship',
 };
 
 const hi: Dict = {
@@ -290,7 +306,7 @@ const hi: Dict = {
     onUdharSuffix: 'उधार पर', suppliersCount: 'सप्लायर',
     // billing / POS
     searchNameBarcode: 'नाम, बारकोड या SKU से खोजें…', scan: 'स्कैन', cart: 'कार्ट', viewCart: 'कार्ट देखें',
-    completeSale: 'बिक्री पूरी करें', customerNamePh: 'ग्राहक का नाम', mobileFewDigits: 'मोबाइल — कुछ अंक भी चलेंगे',
+    completeSale: 'बिक्री पूरी करें', customerNamePh: 'ग्राहक का नाम', mobileFewDigits: 'मोबाइल — कुछ अंक भी चलेंगे', gstinOptionalPh: 'ग्राहक GSTIN (वैकल्पिक, B2B हेतु)',
     existingCustomer: 'पुराना ग्राहक', owesWord: 'बकाया', discountPct: 'छूट %', appearsOnBill: 'वैकल्पिक — बिल पर दिखेगा',
     showUpiQr: 'UPI QR दिखाएँ', saleRecorded: 'बिक्री दर्ज हुई', whatsappBill: 'WhatsApp बिल', printPdf: 'प्रिंट / PDF',
     cartEmpty: 'आपका कार्ट खाली है।', enterMobileForCredit: 'उधार बिक्री के लिए मोबाइल नंबर डालें।',
@@ -334,6 +350,10 @@ const hi: Dict = {
     upiPayment: 'UPI भुगतान', yourUpiId: 'आपकी UPI ID', uploadQrImage: 'QR इमेज अपलोड करें', changeQr: 'QR बदलें', emailLabel: 'ईमेल',
     // notifications
     noNotifications: 'अभी कोई सूचना नहीं।', markAllRead: 'सभी पढ़ा हुआ करें',
+    notifAll: 'सभी', notifUnread: 'अपठित', notifRead: 'पढ़ी हुई',
+    shopOpen: 'खुली', shopClosed: 'बंद',
+    paymentReminders: 'भुगतान रिमाइंडर', paymentRemindersHint: 'बकाया भुगतान वाले ग्राहकों व डीलरों को अपने आप याद दिलाएँ।', enableAutoReminders: 'बकाया पर ऑटो-रिमाइंडर', remindEveryDays: 'हर कितने दिन में याद दिलाएँ',
+    gstinInvalid: 'अमान्य GSTIN। सही रूप जैसे 22AAAAA0000A1Z5।', noProductForCode: 'इस कोड के लिए कोई उत्पाद नहीं',
     // ── wholesaler ──
     wholesalerDashboard: 'थोक विक्रेता डैशबोर्ड', newOrder: 'नया ऑर्डर', pendingDispatch: 'बकाया डिस्पैच',
     outstanding: 'बकाया', dealersCount: 'डीलर', warehouseUnits: 'गोदाम यूनिट', totalRevenue: 'कुल आमदनी',
@@ -373,6 +393,18 @@ const hi: Dict = {
     wsTallyNote: 'बिल = वसूली + बकाया। ऑर्डर या डीलर पर वसूलें, और हर भुगतान भुगतान पेज पर देखें।',
     billedTodayHint: 'आज बिल किया', toShipHint: 'पैक व भेजने हेतु', dealersToCollectHint: 'डीलरों से वसूलना है',
     activeDealersHint: 'सक्रिय डीलर', productsHint: 'उत्पाद', allTimeBilledHint: 'कुल बिल',
+    // GST returns
+    gstReturns: 'GST रिटर्न', gstr3bSummary: 'GSTR-3B सारांश', taxableValue: 'कर योग्य मूल्य', totalTax: 'कुल कर',
+    invoiceValue: 'बिल मूल्य', rateWise: 'दर-अनुसार कर (B2C)', hsnSummary: 'HSN सारांश', b2bInvoices: 'B2B (पंजीकृत) बिल',
+    noB2b: 'इस माह कोई B2B बिल नहीं। B2B बिक्री हेतु ग्राहक पर GSTIN जोड़ें।', noGstData: 'इस माह कोई बिक्री नहीं।',
+    rateWord: 'दर', qtyWord: 'मात्रा', description: 'विवरण', invoicesWord: 'बिल',
+    gstIntraStateNote: 'CGST/SGST 50/50 बँटा (राज्य के भीतर)। कर योग्य मूल्य बिल-स्तर छूट से पहले। फाइल करने से पहले अपने अकाउंटेंट से जाँचें।',
+    gstin: 'GSTIN', printSize: 'प्रिंट आकार', printReceipt: 'रसीद',
+    quotations: 'कोटेशन', newQuote: 'नया कोटेशन', saveQuote: 'कोटेशन सेव करें', noQuotes: 'अभी कोई कोटेशन नहीं। पहला अनुमान बनाएँ।', openQuote: 'खुला', converted: 'परिवर्तित', convertToBill: 'बिल में बदलें', convertToOrder: 'ऑर्डर में बदलें',
+    invoiceTemplate: 'बिल टेम्पलेट', invoiceTemplateHint: 'प्रिंट किए बिल, ऑर्डर व कोटेशन कैसे दिखें चुनें। इस डिवाइस पर सेव।', previewTemplate: 'पूर्वावलोकन',
+    returnItems: 'वापसी करें', returnsCreditNotes: 'वापसी', returnReasonPh: 'कारण (वैकल्पिक) — खराब, गलत सामान…', cashRefund: 'नकद वापसी', adjustUdhar: 'उधार में समायोजन', recordReturn: 'वापसी दर्ज करें', selectReturnQty: 'कम से कम एक सामान की वापसी मात्रा भरें।', returnRecordedPrint: 'वापसी दर्ज हुई। क्रेडिट नोट प्रिंट करें?', noReturns: 'अभी कोई वापसी नहीं।', refundTotal: 'वापसी कुल', againstBill: 'के विरुद्ध', totalRefunded: 'कुल वापस किया', creditNotes: 'क्रेडिट नोट', wsReturnNote: 'ऑर्डर मूल्य और डीलर की बकाया घटाता है। अधिक चुकाई राशि नकद वापस।', returnRecordedRefund: 'वापसी दर्ज। नकद लौटाना:', printCreditNoteQ: 'क्रेडिट नोट प्रिंट करें?', quickAccess: 'त्वरित पहुँच', inventoryGroup: 'इन्वेंटरी', moneyReports: 'पैसा व रिपोर्ट', moreGroup: 'और', dealersSales: 'डीलर व सेल्स', home: 'होम', customersShort: 'ग्राहक', billingShort: 'बिलिंग',
+ convertedTo: 'बदला गया', estimatedTotal: 'अनुमानित कुल', discountRs: 'छूट ₹', deleteQuoteTitle: 'कोटेशन हटाएँ?', noMobileQuote: 'WhatsApp पर कोटेशन भेजने हेतु ग्राहक मोबाइल जोड़ें।',
+    eInvoiceJson: 'e-Invoice', ewayBill: 'e-Way बिल', vehicleNoPh: 'वाहन नं (जैसे GJ01AB1234)', distanceKm: 'दूरी (किमी)', transporterName: 'ट्रांसपोर्टर का नाम', generateEwayJson: 'e-Way बिल बनाएँ', modeRoad: 'सड़क', modeRail: 'रेल', modeAir: 'हवाई', modeShip: 'जहाज',
 };
 
 const gu: Dict = {
@@ -468,7 +500,7 @@ const gu: Dict = {
     onUdharSuffix: 'ઉધાર પર', suppliersCount: 'સપ્લાયર',
     // billing / POS
     searchNameBarcode: 'નામ, બારકોડ કે SKU થી શોધો…', scan: 'સ્કેન', cart: 'કાર્ટ', viewCart: 'કાર્ટ જુઓ',
-    completeSale: 'વેચાણ પૂરું કરો', customerNamePh: 'ગ્રાહકનું નામ', mobileFewDigits: 'મોબાઇલ — થોડા અંક પણ ચાલશે',
+    completeSale: 'વેચાણ પૂરું કરો', customerNamePh: 'ગ્રાહકનું નામ', mobileFewDigits: 'મોબાઇલ — થોડા અંક પણ ચાલશે', gstinOptionalPh: 'ગ્રાહક GSTIN (વૈકલ્પિક, B2B માટે)',
     existingCustomer: 'જૂનો ગ્રાહક', owesWord: 'બાકી', discountPct: 'છૂટ %', appearsOnBill: 'વૈકલ્પિક — બિલ પર દેખાશે',
     showUpiQr: 'UPI QR બતાવો', saleRecorded: 'વેચાણ નોંધાયું', whatsappBill: 'WhatsApp બિલ', printPdf: 'પ્રિન્ટ / PDF',
     cartEmpty: 'તમારું કાર્ટ ખાલી છે.', enterMobileForCredit: 'ઉધાર વેચાણ માટે મોબાઇલ નંબર નાખો.',
@@ -512,6 +544,10 @@ const gu: Dict = {
     upiPayment: 'UPI ચૂકવણી', yourUpiId: 'તમારી UPI ID', uploadQrImage: 'QR ઇમેજ અપલોડ કરો', changeQr: 'QR બદલો', emailLabel: 'ઈમેલ',
     // notifications
     noNotifications: 'હજી કોઈ સૂચના નથી.', markAllRead: 'બધું વાંચ્યું કરો',
+    notifAll: 'બધી', notifUnread: 'વણવાંચેલી', notifRead: 'વાંચેલી',
+    shopOpen: 'ખુલ્લી', shopClosed: 'બંધ',
+    paymentReminders: 'ચુકવણી રિમાઇન્ડર', paymentRemindersHint: 'બાકી ચુકવણી ધરાવતા ગ્રાહકો અને ડીલરોને આપમેળે યાદ કરાવો.', enableAutoReminders: 'બાકી પર ઑટો-રિમાઇન્ડર', remindEveryDays: 'દર કેટલા દિવસે યાદ કરાવો',
+    gstinInvalid: 'અમાન્ય GSTIN. યોગ્ય ફોર્મેટ જેમ કે 22AAAAA0000A1Z5.', noProductForCode: 'આ કોડ માટે કોઈ ઉત્પાદન નથી',
     // ── wholesaler ──
     wholesalerDashboard: 'જથ્થાબંધ ડેશબોર્ડ', newOrder: 'નવો ઓર્ડર', pendingDispatch: 'બાકી ડિસ્પેચ',
     outstanding: 'બાકી', dealersCount: 'ડીલર', warehouseUnits: 'વેરહાઉસ યુનિટ', totalRevenue: 'કુલ આવક',
@@ -551,6 +587,18 @@ const gu: Dict = {
     wsTallyNote: 'બિલ = વસૂલી + બાકી. ઓર્ડર કે ડીલર પર વસૂલો, અને દરેક ચૂકવણી ચૂકવણી પેજ પર જુઓ.',
     billedTodayHint: 'આજે બિલ થયું', toShipHint: 'પેક કરી મોકલવા', dealersToCollectHint: 'ડીલરો પાસેથી વસૂલવું',
     activeDealersHint: 'સક્રિય ડીલર', productsHint: 'પ્રોડક્ટ', allTimeBilledHint: 'કુલ બિલ',
+    // GST returns
+    gstReturns: 'GST રિટર્ન', gstr3bSummary: 'GSTR-3B સારાંશ', taxableValue: 'કરપાત્ર મૂલ્ય', totalTax: 'કુલ કર',
+    invoiceValue: 'બિલ મૂલ્ય', rateWise: 'દર-પ્રમાણે કર (B2C)', hsnSummary: 'HSN સારાંશ', b2bInvoices: 'B2B (નોંધાયેલ) બિલ',
+    noB2b: 'આ મહિને કોઈ B2B બિલ નથી. B2B વેચાણ માટે ગ્રાહક પર GSTIN ઉમેરો.', noGstData: 'આ મહિને કોઈ વેચાણ નથી.',
+    rateWord: 'દર', qtyWord: 'જથ્થો', description: 'વર્ણન', invoicesWord: 'બિલ',
+    gstIntraStateNote: 'CGST/SGST 50/50 વહેંચાયેલ (રાજ્યની અંદર). કરપાત્ર મૂલ્ય બિલ-સ્તર છૂટ પહેલાં. ફાઇલ કરતાં પહેલાં તમારા એકાઉન્ટન્ટ સાથે ચકાસો.',
+    gstin: 'GSTIN', printSize: 'પ્રિન્ટ સાઇઝ', printReceipt: 'રસીદ',
+    quotations: 'ક્વોટેશન', newQuote: 'નવું ક્વોટેશન', saveQuote: 'ક્વોટેશન સેવ કરો', noQuotes: 'હજી કોઈ ક્વોટેશન નથી. પહેલો અંદાજ બનાવો.', openQuote: 'ખુલ્લું', converted: 'રૂપાંતરિત', convertToBill: 'બિલમાં ફેરવો', convertToOrder: 'ઓર્ડરમાં ફેરવો',
+    invoiceTemplate: 'બિલ ટેમ્પલેટ', invoiceTemplateHint: 'પ્રિન્ટ થયેલ બિલ, ઓર્ડર અને ક્વોટ કેવા દેખાય તે પસંદ કરો. આ ડિવાઇસ પર સેવ.', previewTemplate: 'પૂર્વાવલોકન',
+    returnItems: 'પરત કરો', returnsCreditNotes: 'પરત', returnReasonPh: 'કારણ (વૈકલ્પિક) — બગડેલ, ખોટો સામાન…', cashRefund: 'રોકડ પરત', adjustUdhar: 'ઉધારમાં ગોઠવો', recordReturn: 'પરત નોંધો', selectReturnQty: 'ઓછામાં ઓછા એક સામાનની પરત જથ્થો ભરો.', returnRecordedPrint: 'પરત નોંધાઈ. ક્રેડિટ નોટ પ્રિન્ટ કરવી?', noReturns: 'હજી કોઈ પરત નથી.', refundTotal: 'પરત કુલ', againstBill: 'સામે', totalRefunded: 'કુલ પરત કર્યું', creditNotes: 'ક્રેડિટ નોટ', wsReturnNote: 'ઓર્ડર મૂલ્ય અને ડીલરની બાકી ઘટાડે છે. વધુ ચૂકવેલ રકમ રોકડ પરત.', returnRecordedRefund: 'પરત નોંધાઈ. રોકડ પરત કરવી:', printCreditNoteQ: 'ક્રેડિટ નોટ પ્રિન્ટ કરવી?', quickAccess: 'ઝડપી ઍક્સેસ', inventoryGroup: 'ઇન્વેન્ટરી', moneyReports: 'પૈસા અને રિપોર્ટ', moreGroup: 'વધુ', dealersSales: 'ડીલર અને સેલ્સ', home: 'હોમ', customersShort: 'ગ્રાહક', billingShort: 'બિલિંગ',
+ convertedTo: 'ફેરવાયું', estimatedTotal: 'અંદાજિત કુલ', discountRs: 'છૂટ ₹', deleteQuoteTitle: 'ક્વોટેશન કાઢવું?', noMobileQuote: 'WhatsApp પર ક્વોટેશન મોકલવા ગ્રાહક મોબાઇલ ઉમેરો.',
+    eInvoiceJson: 'e-Invoice', ewayBill: 'e-Way બિલ', vehicleNoPh: 'વાહન નં (દા.ત. GJ01AB1234)', distanceKm: 'અંતર (કિમી)', transporterName: 'ટ્રાન્સપોર્ટરનું નામ', generateEwayJson: 'e-Way બિલ બનાવો', modeRoad: 'રોડ', modeRail: 'રેલ', modeAir: 'હવાઈ', modeShip: 'જહાજ',
 };
 
 export const dictionaries: Record<Lang, Dict> = { en, hi, gu };

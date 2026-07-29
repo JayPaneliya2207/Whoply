@@ -66,7 +66,7 @@ export const listBusinesses = asyncHandler(async (req: AuthRequest, res: Respons
 
     // enrich with counts
     const enriched = await Promise.all(
-        items.map(async (b) => {
+        items.map(async (b) => {           
             const [productCount, invoiceCount] = await Promise.all([
                 Product.countDocuments({ businessId: b._id }),
                 Invoice.countDocuments({ businessId: b._id }),

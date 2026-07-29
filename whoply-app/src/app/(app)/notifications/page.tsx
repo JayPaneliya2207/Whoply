@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -8,6 +9,7 @@ import { useT } from '@/i18n';
 import { useAuth } from '@/stores/auth.store';
 
 const typeIcon: Record<string, string> = { summary: '📊', low_stock: '📦', udhar: '💰', expiry: '⏰', order: '🚚', payable: '💸', general: '🔔' };
+type Filter = 'all' | 'unread' | 'read';
 
 export default function NotificationsPage() {
     const t = useT();
@@ -15,10 +17,12 @@ export default function NotificationsPage() {
     const router = useRouter();
     const { user } = useAuth();
     const isWholesale = user?.business?.type === 'wholesale';
+    const base = isWholesale ? '/wholesaler' : '/shopkeeper';
+    const [filter, setFilter] = useState<Filter>('all');
 
-    const { data } = useQuery({ queryKey: ['notifications'], queryFn: async () => (await api.get('/shopkeeper/notifications')).data.data });
-    const readAll = useMutation({ mutationFn: async () => api.post('/shopkeeper/notifications/read-all'), onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }) });
-    const readOne = useMutation({ mutationFn: async (id: string) => api.post(`/shopkeeper/notifications/${id}/read`), onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }) });
+    const { data } = useQuery({ queryKey: ['notifications'], queryFn: async () => (await api.get(`${base}/notifications`)).data.data });
+    const readAll = useMutation({ mutationFn: async () => api.post(`${base}/notifications/read-all`), onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }) });
+    const readOne = useMutation({ mutationFn: async (id: string) => api.post(`${base}/notifications/${id}/read`), onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }) });
 
     // Where each notification type takes the user.
     const routeFor = (type: string): string | null => {
@@ -39,13 +43,38 @@ export default function NotificationsPage() {
         if (to) router.push(to);
     };
 
-    const items = data?.items || [];
+    const allItems = data?.items || [];
+    const unreadCount = data?.unread ?? allItems.filter((n: any) => !n.isRead).length;
+    const items = filter === 'all' ? allItems : allItems.filter((n: any) => (filter === 'unread' ? !n.isRead : n.isRead));
+
+    const filters: { key: Filter; label: string; count?: number }[] = [
+        { key: 'all', label: t('notifAll'), count: allItems.length },
+        { key: 'unread', label: t('notifUnread'), count: unreadCount },
+        { key: 'read', label: t('notifRead') },
+    ];
 
     return (
         <div className="space-y-4 max-w-2xl">
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('notifications')}</h1>
-                {(data?.unread || 0) > 0 && <button className="wp-btn wp-btn-ghost text-sm" onClick={() => readAll.mutate()}><CheckCheck size={15} /> {t('markAllRead')}</button>}
+                {unreadCount > 0 && <button className="wp-btn wp-btn-ghost text-sm" onClick={() => readAll.mutate()}><CheckCheck size={15} /> {t('markAllRead')}</button>}
+            </div>
+
+            {/* Read / Unread filter */}
+            <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-2)' }}>
+                {filters.map((f) => {
+                    const active = filter === f.key;
+                    return (
+                        <button key={f.key} onClick={() => setFilter(f.key)}
+                            className="px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5"
+                            style={active ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-muted)' }}>
+                            {f.label}
+                            {f.count != null && f.count > 0 && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={active ? { background: 'var(--brand-100)', color: 'var(--brand-700)' } : { background: 'var(--card-border)', color: 'var(--text-muted)' }}>{f.count}</span>
+                            )}
+                        </button>
+                    );
+                })}
             </div>
 
             {items.length === 0 && (

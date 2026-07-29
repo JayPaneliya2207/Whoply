@@ -8,6 +8,7 @@ import Order from '../../models/Order.js';
 import Payment, { type PaymentMode } from '../../models/Payment.js';
 import { settleDealerOrders } from './payment.controller.js';
 import { duesByDealer } from '../../utils/wholesaler.js';
+import { cleanGstin } from '../../utils/gstin.js';
 import { Types } from 'mongoose';
 import type { AuthRequest } from '../../interfaces/index.js';
 
@@ -34,7 +35,8 @@ export const listDealers = asyncHandler(async (req: AuthRequest, res: Response) 
 export const createDealer = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     if (!req.body.name) throw AppError.badRequest('name is required');
-    const dealer = await Dealer.create({ ...req.body, businessId });
+    const gstin = cleanGstin(req.body.gstin, (m) => AppError.badRequest(m));
+    const dealer = await Dealer.create({ ...req.body, gstin, businessId });
     sendCreated(res, dealer);
 });
 
@@ -44,6 +46,7 @@ export const updateDealer = asyncHandler(async (req: AuthRequest, res: Response)
     ['name', 'shopName', 'mobile', 'tier', 'city', 'creditLimit', 'assignedRepId'].forEach((k) => {
         if (req.body[k] !== undefined) patch[k] = req.body[k];
     });
+    if (req.body.gstin !== undefined) patch.gstin = cleanGstin(req.body.gstin, (m) => AppError.badRequest(m)) ?? '';
     const dealer = await Dealer.findOneAndUpdate({ _id: req.params.id, businessId }, patch, { new: true });
     if (!dealer) throw AppError.notFound('Dealer not found');
     sendSuccess(res, dealer, 'Dealer updated');

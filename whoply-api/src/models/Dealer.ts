@@ -13,10 +13,12 @@ export interface IDealer {
     shopName?: string;
     mobile?: string;
     countryCode?: string;
+    gstin?: string; // optional — dealers are usually registered (B2B); drives GST returns/e-invoice
     tier: DealerTier;
     city?: string;
     creditLimit: number;
     assignedRepId?: Types.ObjectId;
+    lastReminderAt?: Date; // when the auto payment-reminder was last sent (de-dupe)
     isActive: boolean;
 }
 export interface IDealerDocument extends IDealer, Document {
@@ -31,10 +33,12 @@ const dealerSchema = new Schema<IDealerDocument>(
         shopName: String,
         mobile: { type: String, index: true },
         countryCode: { type: String, default: '+91' },
+        gstin: { type: String, uppercase: true, trim: true },
         tier: { type: String, enum: ['A', 'B', 'C'], default: 'B' },
         city: String,
         creditLimit: { type: Number, default: 50000 },
         assignedRepId: { type: Schema.Types.ObjectId, ref: 'User' },
+        lastReminderAt: { type: Date },
         isActive: { type: Boolean, default: true },
     },
     { timestamps: true, collection: 'dealers' }

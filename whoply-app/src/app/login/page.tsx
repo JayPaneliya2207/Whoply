@@ -7,7 +7,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/effect-creative';
 import 'swiper/css/pagination';
-import { Smartphone, Lock, ArrowRight, ArrowLeft, Receipt, Package, BarChart3, ChevronRight, Loader2 } from 'lucide-react';
+import { Smartphone, Lock, ArrowRight, ArrowLeft, ReceiptText, Package, BarChart3, ChevronRight, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { OTPInput } from '@/components/OTPInput';
 import { PhoneInput } from '@/components/PhoneInput';
@@ -72,7 +72,7 @@ export default function LoginPage() {
     };
 
     const features = [
-        { icon: Receipt, label: t('featBilling'), bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
+        { icon: ReceiptText, label: t('featBilling'), bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
         { icon: Package, label: t('featStock'), bg: '#dcfce7', fg: 'var(--success-600)' },
         { icon: BarChart3, label: t('featInsights'), bg: '#fef3c7', fg: 'var(--accent-600)' },
     ];

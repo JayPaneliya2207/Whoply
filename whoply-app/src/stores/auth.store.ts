@@ -1,4 +1,13 @@
 import { create } from 'zustand';
+import { useLang } from '@/i18n';
+import { dictionaries } from '@/i18n/translations';
+
+/** Apply an account's saved language to the active i18n store (per-account, per-device). */
+const applyUserLang = (lang?: string) => {
+    if (lang && (dictionaries as Record<string, unknown>)[lang]) {
+        useLang.getState().setLang(lang as any);
+    }
+};
 
 export interface Business {
     id: string;
@@ -38,6 +47,7 @@ export const useAuth = create<AuthState>((set) => ({
             localStorage.setItem('whoply_user', JSON.stringify(user));
         }
         set({ token, user });
+        applyUserLang(user?.language); // load this account's language (don't inherit the previous login's)
     },
     setUser: (user) => {
         if (typeof window !== 'undefined') localStorage.setItem('whoply_user', JSON.stringify(user));
@@ -47,7 +57,9 @@ export const useAuth = create<AuthState>((set) => ({
         if (typeof window === 'undefined') return;
         const token = localStorage.getItem('whoply_token');
         const raw = localStorage.getItem('whoply_user');
-        set({ token, user: raw ? JSON.parse(raw) : null, hydrated: true });
+        const user = raw ? JSON.parse(raw) : null;
+        set({ token, user, hydrated: true });
+        applyUserLang(user?.language);
     },
     logout: () => {
         if (typeof window !== 'undefined') {

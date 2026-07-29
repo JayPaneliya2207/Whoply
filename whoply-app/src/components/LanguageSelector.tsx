@@ -4,16 +4,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Globe, Check, ChevronDown } from 'lucide-react';
 import { useLang, LANGS, type Lang } from '@/i18n';
 import { api } from '@/lib/api';
+import { useAuth } from '@/stores/auth.store';
 
 /** Compact language switcher for the header. Persists locally + to the user profile. */
 export function LanguageSelector({ compact = false }: { compact?: boolean }) {
     const { lang, setLang } = useLang();
+    const { user, setUser } = useAuth();
     const [open, setOpen] = useState(false);
     const current = LANGS.find((l) => l.code === lang);
 
     const choose = (code: Lang) => {
         setLang(code);
         setOpen(false);
+        // Keep the stored account in sync so a reload re-applies this choice (not a stale one).
+        if (user) setUser({ ...user, language: code });
         api.patch('/auth/profile', { language: code }).catch(() => { /* best-effort */ });
     };
 

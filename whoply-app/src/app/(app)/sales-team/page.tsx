@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Route, MapPin, IndianRupee, Plus, Pencil, Trash2, IdCard, BadgeCheck, ShieldAlert, ShoppingBag, ChevronRight } from 'lucide-react';
+import { Route, MapPin, Plus, Pencil, Trash2, IdCard, BadgeCheck, ShieldAlert, ShoppingBag, ChevronRight } from 'lucide-react';
+import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
@@ -80,7 +81,7 @@ export default function SalesTeamPage() {
                             <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--success-600)' }}>{inr2(r.commission)}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('commission')}</p></div>
                         </button>
                         <button className="text-sm mt-3 flex items-center gap-1 font-semibold" style={{ color: 'var(--brand-700)' }} onClick={() => { setDetailId(r._id); setDetailTab('orders'); }}>
-                            <IndianRupee size={13} /> {inr2(r.sales)} {t('salesWordLc')} · {t('viewDetail')} <ChevronRight size={14} />
+                            <RupeeIcon size={13} /> {inr2(r.sales)} {t('salesWordLc')} · {t('viewDetail')} <ChevronRight size={14} />
                         </button>
                     </div>
                 ))}

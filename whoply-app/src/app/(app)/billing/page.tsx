@@ -14,6 +14,7 @@ import { usePos } from '@/stores/pos.store';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
 import { buildBillText, whatsappLink, printBill } from '@/lib/bill';
+import { maskGstin, isValidGstin } from '@/lib/gstin';
 
 export default function BillingPage() {
     const qc = useQueryClient();
@@ -32,6 +33,7 @@ export default function BillingPage() {
     const [cartOpen, setCartOpen] = useState(false);
     const [flash, setFlash] = useState('');
     const [billDiscPct, setBillDiscPct] = useState('');
+    const [gstin, setGstin] = useState('');
 
     const { data: prodData } = useQuery({
         queryKey: ['products', search],
@@ -100,11 +102,12 @@ export default function BillingPage() {
                 customerId: matched?._id || undefined,
                 walkInName: !matched ? name || undefined : undefined,
                 walkInMobile: !matched ? mobile || undefined : undefined,
+                customerGstin: gstin.trim() || undefined,
             };
             return (await api.post('/shopkeeper/billing', body)).data.data;
         },
         onSuccess: (inv) => {
-            setDone(inv); clear(); setPayment('cash'); setBillDiscPct(''); setError(''); setCartOpen(false);
+            setDone(inv); clear(); setPayment('cash'); setBillDiscPct(''); setGstin(''); setError(''); setCartOpen(false);
             qc.invalidateQueries({ queryKey: ['dashboard'] });
             qc.invalidateQueries({ queryKey: ['products'] });
             qc.invalidateQueries({ queryKey: ['bills'] });
@@ -120,7 +123,7 @@ export default function BillingPage() {
         window.open(whatsappLink(inv.customerMobile, buildBillText(inv, inv.business), inv.business?.countryCode || '+91'), '_blank');
         api.post(`/shopkeeper/billing/${id}/mark-sent`).then(() => qc.invalidateQueries({ queryKey: ['bills'] })).catch(() => {});
     };
-    const openPrint = async (id: string) => { const inv = await fetchBill(id); printBill(inv, inv.business); };
+    const openPrint = async (id: string, fmt: 'a4' | '80mm' = 'a4') => { const inv = await fetchBill(id); printBill(inv, inv.business, fmt); };
 
     return (
         <div className="pb-24">
@@ -232,6 +235,8 @@ export default function BillingPage() {
                     </div>
                     <input className="wp-input text-sm" inputMode="numeric" placeholder={t('mobileFewDigits')} value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))} />
                 </div>
+                <input className="wp-input text-sm uppercase mb-2" placeholder={t('gstinOptionalPh')} value={gstin} maxLength={15} onChange={(e) => setGstin(maskGstin(e.target.value))} />
+                {gstin.length === 15 && !isValidGstin(gstin) && <p className="text-xs -mt-1 mb-2" style={{ color: 'var(--danger-500)' }}>{t('gstinInvalid')}</p>}
                 {custSuggest.length > 0 && (
                     <div className="mb-2 rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
                         {custSuggest.map((c: any, i: number) => (
@@ -281,7 +286,8 @@ export default function BillingPage() {
                         </div>
                         <div className="flex gap-2 mt-3">
                             <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => shareBill(done._id)}><MessageCircle size={15} style={{ color: 'var(--success-600)' }} /> {t('whatsappBill')}</button>
-                            <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => openPrint(done._id)}><Printer size={15} /> {t('printPdf')}</button>
+                            <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => openPrint(done._id, '80mm')}><Printer size={15} /> {t('printReceipt')}</button>
+                            <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => openPrint(done._id, 'a4')}><Printer size={15} /> {t('printPdf')}</button>
                         </div>
                     </motion.div>
                 )}

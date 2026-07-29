@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Store, Building2 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { api, apiErr } from '@/lib/api';
+import { GSTIN_PLACEHOLDER, maskGstin, isValidGstin } from '@/lib/gstin';
 import { useAuth } from '@/stores/auth.store';
 
 export default function OnboardingPage() {
@@ -44,11 +45,13 @@ export default function OnboardingPage() {
                 <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Business name</label>
                 <input className="wp-input mt-1.5 mb-3" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. Sharma General Store" />
                 <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>GSTIN (optional)</label>
-                <input className="wp-input mt-1.5 mb-1 uppercase" value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" maxLength={15} />
-                <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>15-digit GST Identification Number</p>
+                <input className="wp-input mt-1.5 mb-1 uppercase" value={gstin} onChange={(e) => setGstin(maskGstin(e.target.value))} placeholder={GSTIN_PLACEHOLDER} maxLength={15} />
+                {gstin.length === 15 && !isValidGstin(gstin)
+                    ? <p className="text-xs mb-4" style={{ color: 'var(--danger-500)' }}>Invalid GSTIN. Expected format like {GSTIN_PLACEHOLDER}.</p>
+                    : <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>15-character GSTIN — 2-digit state code + PAN + entity code.</p>}
 
                 {error && <p className="text-sm mb-3" style={{ color: 'var(--danger-500)' }}>{error}</p>}
-                <button className="wp-btn wp-btn-primary w-full" disabled={loading || !businessName} onClick={submit}>Create business</button>
+                <button className="wp-btn wp-btn-primary w-full" disabled={loading || !businessName || (!!gstin && !isValidGstin(gstin))} onClick={submit}>Create business</button>
             </div>
         </div>
     );

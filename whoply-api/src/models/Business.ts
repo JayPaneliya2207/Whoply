@@ -27,6 +27,7 @@ export interface IBusiness {
     settings: {
         lowStockThreshold: number;
         enableUdharReminders: boolean;
+        udharReminderDays: number;
         invoicePrefix: string;
     };
     isActive: boolean;
@@ -65,6 +66,7 @@ const businessSchema = new Schema<IBusinessDocument>(
         settings: {
             lowStockThreshold: { type: Number, default: 10 },
             enableUdharReminders: { type: Boolean, default: true },
+            udharReminderDays: { type: Number, default: 7 }, // how often (in days) a due customer is auto-reminded
             invoicePrefix: { type: String, default: 'INV' },
         },
         isActive: { type: Boolean, default: true, index: true },

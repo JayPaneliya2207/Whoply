@@ -1,7 +1,8 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, IndianRupee, Download, Boxes, Wallet, Building2, ShoppingBag, MessageCircle } from 'lucide-react';
+import { TrendingUp, Download, Boxes, Wallet, Building2, ShoppingBag, MessageCircle } from 'lucide-react';
+import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, API_URL } from '@/lib/api';
 import { inr, inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
@@ -32,7 +33,7 @@ function WholesaleTally() {
 
     const tiles = [
         { label: t('totalBilled'), value: data?.totalBilled, icon: TrendingUp, tone: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' }, hint: `${data?.orderCount || 0} ${t('ordersWord').toLowerCase()}` },
-        { label: t('collected'), value: data?.totalCollected, icon: IndianRupee, tone: { bg: '#dcfce7', fg: 'var(--success-600)' }, hint: t('received') },
+        { label: t('collected'), value: data?.totalCollected, icon: RupeeIcon, tone: { bg: '#dcfce7', fg: 'var(--success-600)' }, hint: t('received') },
         { label: t('outstandingWord'), value: data?.outstanding, icon: Wallet, tone: { bg: '#fef3c7', fg: 'var(--accent-600)' }, hint: `${data?.outstandingDealers || 0} ${t('dealersWord')}` },
         { label: `${t('collected')} · ${periodLabel[period]}`, value: data?.periodCollected, icon: Boxes, tone: { bg: '#e0e7ff', fg: 'var(--brand-700)' }, hint: `${data?.periodPayments || 0} ${t('paymentsWord')}` },
     ];
@@ -89,7 +90,7 @@ function WholesaleTally() {
             {/* Money in by mode — for the selected period */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><IndianRupee size={17} style={{ color: 'var(--brand-700)' }} /> {t('collected')} · {periodLabel[period]}</h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><RupeeIcon size={17} style={{ color: 'var(--brand-700)' }} /> {t('collected')} · {periodLabel[period]}</h3>
                     <span className="text-sm font-bold tabular" style={{ color: 'var(--brand-700)' }}>{inr(data?.periodCollected || 0)}</span>
                 </div>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
@@ -186,7 +187,7 @@ function ShopReports() {
 
     const tiles = [
         { label: t('moneyInStock'), value: summary?.investmentAtCost, icon: Boxes, tone: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' }, hint: 'cash sitting in your stock' },
-        { label: t('salesWord'), value: summary?.revenue, icon: IndianRupee, tone: { bg: '#dcfce7', fg: 'var(--success-600)' }, hint: `${summary?.orders || 0} ${t('bills').toLowerCase()}` },
+        { label: t('salesWord'), value: summary?.revenue, icon: RupeeIcon, tone: { bg: '#dcfce7', fg: 'var(--success-600)' }, hint: `${summary?.orders || 0} ${t('bills').toLowerCase()}` },
         { label: t('profitBeforeExpenses'), value: summary?.grossProfit, icon: TrendingUp, tone: { bg: '#e0e7ff', fg: 'var(--brand-700)' }, hint: 'sales − cost of items' },
         { label: t('finalProfit'), value: summary?.netProfit, icon: TrendingUp, tone: { bg: '#dcfce7', fg: 'var(--success-600)' }, hint: 'after rent, salary, etc.' },
     ];
@@ -251,7 +252,7 @@ function ShopReports() {
             {/* Sales bars — this month */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><IndianRupee size={17} style={{ color: 'var(--brand-700)' }} /> {t('salesThisMonth')}</h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><RupeeIcon size={17} style={{ color: 'var(--brand-700)' }} /> {t('salesThisMonth')}</h3>
                     <span className="text-sm font-bold tabular" style={{ color: 'var(--brand-700)' }}>{inr(monthTotal)}</span>
                 </div>
                 {monthTotal === 0 && <p className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>{t('noSalesThisMonth')}</p>}

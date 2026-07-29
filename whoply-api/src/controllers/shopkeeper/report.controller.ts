@@ -232,3 +232,79 @@ export const exportInvoicesCsv = asyncHandler(async (req: AuthRequest, res: Resp
     res.setHeader('Content-Disposition', `attachment; filename="whoply-invoices-${period}.csv"`);
     res.send(csv);
 });
+
+/**
+ * GET /reports/gst?month=YYYY-MM — GST filing data for one calendar month.
+ * Returns a GSTR-3B summary + GSTR-1 breakups (rate-wise B2C, HSN summary, B2B).
+ * CGST/SGST are split 50/50 (intra-state assumption; Whoply doesn't capture place
+ * of supply yet, so inter-state IGST is not separated). Taxable value is pre-discount.
+ */
+export const gstReport = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const bId = new Types.ObjectId(String(businessOf(req)));
+    const now = new Date();
+    let from: Date, to: Date;
+    if (req.query.month && /^\d{4}-\d{2}$/.test(String(req.query.month))) {
+        const [y, m] = String(req.query.month).split('-').map(Number);
+        from = new Date(y, m - 1, 1);
+        to = new Date(y, m, 0, 23, 59, 59, 999);
+    } else {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+    const match = { businessId: bId, createdAt: { $gte: from, $lte: to } };
+
+    const [summaryAgg, rateAgg, hsnAgg, b2bAgg] = await Promise.all([
+        Invoice.aggregate([
+            { $match: match },
+            { $group: { _id: null, count: { $sum: 1 }, taxable: { $sum: '$subtotal' }, gst: { $sum: '$totalGst' }, discount: { $sum: '$discount' }, total: { $sum: '$grandTotal' } } },
+        ]),
+        Invoice.aggregate([
+            { $match: match },
+            { $unwind: '$items' },
+            { $group: { _id: '$items.gstRate', taxable: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }, gst: { $sum: '$items.gstAmount' } } },
+            { $sort: { _id: 1 } },
+        ]),
+        Invoice.aggregate([
+            { $match: match },
+            { $unwind: '$items' },
+            { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }, gst: { $sum: '$items.gstAmount' } } },
+            { $sort: { taxable: -1 } },
+        ]),
+        Invoice.aggregate([
+            { $match: { ...match, customerGstin: { $exists: true, $nin: [null, ''] } } },
+            { $group: { _id: '$customerGstin', name: { $first: '$customerName' }, count: { $sum: 1 }, taxable: { $sum: '$subtotal' }, gst: { $sum: '$totalGst' }, total: { $sum: '$grandTotal' } } },
+            { $sort: { taxable: -1 } },
+        ]),
+    ]);
+
+    const s = summaryAgg[0] || { count: 0, taxable: 0, gst: 0, discount: 0, total: 0 };
+    const half = (n: number) => +(n / 2).toFixed(2);
+    const rateWise = rateAgg.map((r) => ({ rate: r._id || 0, taxable: +r.taxable.toFixed(2), cgst: half(r.gst), sgst: half(r.gst), gst: +r.gst.toFixed(2) }));
+    const hsnWise = hsnAgg.map((h) => ({ hsn: h._id.hsn, name: h.name, rate: h._id.rate || 0, qty: h.qty, taxable: +h.taxable.toFixed(2), gst: +h.gst.toFixed(2) }));
+    const b2b = b2bAgg.map((b) => ({ gstin: b._id, name: b.name, invoices: b.count, taxable: +b.taxable.toFixed(2), gst: +b.gst.toFixed(2), total: +b.total.toFixed(2) }));
+    const b2bTaxable = b2b.reduce((a, x) => a + x.taxable, 0);
+    const b2bGst = b2b.reduce((a, x) => a + x.gst, 0);
+
+    sendSuccess(res, {
+        month: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}`,
+        from,
+        to,
+        summary: {
+            invoices: s.count,
+            taxableValue: +s.taxable.toFixed(2),
+            cgst: half(s.gst),
+            sgst: half(s.gst),
+            igst: 0,
+            totalTax: +s.gst.toFixed(2),
+            discount: +s.discount.toFixed(2),
+            invoiceValue: +s.total.toFixed(2),
+        },
+        rateWise,
+        hsnWise,
+        b2b,
+        b2bTaxable: +b2bTaxable.toFixed(2),
+        b2bGst: +b2bGst.toFixed(2),
+        b2cTaxable: +(s.taxable - b2bTaxable).toFixed(2),
+        b2cGst: +(s.gst - b2bGst).toFixed(2),
+    });
+});

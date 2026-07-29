@@ -2,7 +2,8 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle, IndianRupee, QrCode } from 'lucide-react';
+import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle, QrCode, FileJson, Truck, RotateCcw } from 'lucide-react';
+import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
@@ -10,7 +11,7 @@ import { useT } from '@/i18n';
 import { Modal, Field } from '@/components/Modal';
 import { UpiQr } from '@/components/UpiQr';
 import { ScanButton, useWedgeScanner } from '@/components/BarcodeScanner';
-import { ordersToCsv, orderPayStatus, printOrder, downloadFile, buildOrderText, whatsappLink } from '@/lib/bill';
+import { ordersToCsv, orderPayStatus, printOrder, printEInvoice, printEwayBill, printCreditNote, downloadFile, buildOrderText, whatsappLink } from '@/lib/bill';
 
 const PAY_MODES = ['cash', 'upi', 'bank', 'cheque', 'other'] as const;
 const payTone: Record<string, any> = {
@@ -51,6 +52,35 @@ export default function OrdersPage() {
     const [payMode, setPayMode] = useState<string>('cash');
     const [payErr, setPayErr] = useState('');
     const [showQr, setShowQr] = useState(false);
+    const [ewayOpen, setEwayOpen] = useState(false);
+    const [eway, setEway] = useState({ vehicleNo: '', distance: '', transMode: '1', transporterName: '' });
+    const [returning, setReturning] = useState(false);
+    const [retQty, setRetQty] = useState<Record<string, string>>({});
+    const [retReason, setRetReason] = useState('');
+    const [retErr, setRetErr] = useState('');
+
+    const openReturn = () => { setRetQty({}); setRetReason(''); setRetErr(''); setReturning(true); setEwayOpen(false); setCollecting(false); };
+    const submitReturn = async (o: any) => {
+        const items = Object.entries(retQty).map(([productId, q]) => ({ productId, quantity: Number(q) || 0 })).filter((x) => x.quantity > 0);
+        if (!items.length) { setRetErr(t('selectReturnQty')); return; }
+        try {
+            const { data } = await api.post(`/wholesaler/orders/${o._id}/return`, { items, reason: retReason || undefined });
+            setReturning(false); setDetail(null);
+            qc.invalidateQueries({ queryKey: ['orders'] }); qc.invalidateQueries({ queryKey: ['dashboard'] });
+            qc.invalidateQueries({ queryKey: ['dealers'] }); qc.invalidateQueries({ queryKey: ['ws-returns'] }); qc.invalidateQueries({ queryKey: ['ws-tally'] });
+            const cr = data.data.cashRefund;
+            if (confirm(cr > 0 ? `${t('returnRecordedRefund')} ${inr2(cr)}. ${t('printCreditNoteQ')}` : t('returnRecordedPrint'))) printCreditNote(data.data.creditNote, wsBiz);
+        } catch (e) { setRetErr(apiErr(e)); }
+    };
+
+    const genEInvoice = async (o: any) => {
+        try { const { data } = await api.get(`/wholesaler/orders/${o._id}/einvoice`); printEInvoice(data.data, wsBiz); }
+        catch (e) { alert(apiErr(e)); }
+    };
+    const genEway = async (o: any) => {
+        try { const { data } = await api.post(`/wholesaler/orders/${o._id}/eway`, { ...eway, distance: Number(eway.distance) || 0 }); printEwayBill(data.data, wsBiz); setEwayOpen(false); }
+        catch (e) { alert(apiErr(e)); }
+    };
 
     const { data: allOrders } = useQuery({
         queryKey: ['orders'],
@@ -154,12 +184,19 @@ export default function OrdersPage() {
             </div>
 
             {/* Order detail */}
-            <Modal open={!!detail} onClose={() => { setDetail(null); setCollecting(false); setShowQr(false); }} title={detail?.orderNo || 'Order'}
+            <Modal open={!!detail} onClose={() => { setDetail(null); setCollecting(false); setShowQr(false); setEwayOpen(false); setReturning(false); }} title={detail?.orderNo || 'Order'}
                 footer={detail && (
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        {detail.dueAmount > 0 && <button className="wp-btn wp-btn-accent w-full sm:flex-1" onClick={openCollect}><IndianRupee size={16} /> {t('collectPayment')}</button>}
-                        <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareOrder(detail)}><MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp</button>
-                        <button className="wp-btn wp-btn-primary w-full sm:flex-1" onClick={() => printOrder(detail)}><Printer size={16} /> {t('printPdf')}</button>
+                    <div className="space-y-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            {detail.dueAmount > 0 && <button className="wp-btn wp-btn-accent w-full sm:flex-1" onClick={openCollect}><RupeeIcon size={16} /> {t('collectPayment')}</button>}
+                            <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareOrder(detail)}><MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp</button>
+                            <button className="wp-btn wp-btn-primary w-full sm:flex-1" onClick={() => printOrder(detail, wsBiz)}><Printer size={16} /> {t('printPdf')}</button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => genEInvoice(detail)}><FileJson size={15} className="shrink-0" /> <span className="truncate">{t('eInvoiceJson')}</span></button>
+                            <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => setEwayOpen((v) => !v)}><Truck size={15} className="shrink-0" /> <span className="truncate">{t('ewayBill')}</span></button>
+                            <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>
+                        </div>
                     </div>
                 )}>
                 {detail && (
@@ -181,11 +218,54 @@ export default function OrdersPage() {
                             ))}
                         </div>
                         <div className="space-y-1 text-sm">
+                            {detail.totalGst != null && <>
+                                <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('subtotal')}</span><span className="tabular">{inr2(detail.subtotal)}</span></div>
+                                <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('gst')}</span><span className="tabular">{inr2(detail.totalGst)}</span></div>
+                            </>}
                             <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}><span>{t('total')}</span><span className="tabular">{inr2(detail.total)}</span></div>
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('paid')}</span><span className="tabular">{inr2(detail.paidAmount)}</span></div>
                             {detail.dueAmount > 0 && <div className="flex justify-between font-semibold" style={{ color: 'var(--accent-600)' }}><span>{t('outstandingWord')}</span><span className="tabular">{inr2(detail.dueAmount)}</span></div>}
                             {detail.deliveredAt && <p className="text-xs pt-1" style={{ color: 'var(--success-600)' }}>Delivered {new Date(detail.deliveredAt).toLocaleDateString('en-IN')}</p>}
                         </div>
+
+                        {/* e-Way bill form */}
+                        {ewayOpen && (
+                            <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><Truck size={15} /> {t('ewayBill')}</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input className="wp-input text-sm uppercase" placeholder={t('vehicleNoPh')} value={eway.vehicleNo} onChange={(e) => setEway({ ...eway, vehicleNo: e.target.value.toUpperCase() })} />
+                                    <input className="wp-input text-sm tabular" type="number" placeholder={t('distanceKm')} value={eway.distance} onChange={(e) => setEway({ ...eway, distance: e.target.value })} />
+                                    <select className="wp-input text-sm" value={eway.transMode} onChange={(e) => setEway({ ...eway, transMode: e.target.value })}>
+                                        <option value="1">{t('modeRoad')}</option><option value="2">{t('modeRail')}</option><option value="3">{t('modeAir')}</option><option value="4">{t('modeShip')}</option>
+                                    </select>
+                                    <input className="wp-input text-sm" placeholder={t('transporterName')} value={eway.transporterName} onChange={(e) => setEway({ ...eway, transporterName: e.target.value })} />
+                                </div>
+                                <button className="wp-btn wp-btn-primary w-full !py-2 text-sm" onClick={() => genEway(detail)}><Download size={15} /> {t('generateEwayJson')}</button>
+                            </div>
+                        )}
+
+                        {/* Return / credit note */}
+                        {returning && (
+                            <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><RotateCcw size={15} /> {t('returnItems')}</p>
+                                <div className="space-y-1.5">
+                                    {detail.items.map((it: any, i: number) => (
+                                        <div key={i} className="flex items-center gap-2">
+                                            <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{it.name} <span className="text-xs" style={{ color: 'var(--text-muted)' }}>({it.quantity})</span></span>
+                                            <input className="wp-input !py-1.5 w-16 text-sm tabular text-right" type="number" min={0} max={it.quantity} placeholder="0"
+                                                value={retQty[it.productId] || ''} onChange={(e) => { const v = Math.min(it.quantity, Math.max(0, Number(e.target.value) || 0)); setRetQty((q) => ({ ...q, [it.productId]: v ? String(v) : '' })); }} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <input className="wp-input text-sm" placeholder={t('returnReasonPh')} value={retReason} onChange={(e) => setRetReason(e.target.value)} />
+                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('wsReturnNote')}</p>
+                                {retErr && <p className="text-xs" style={{ color: 'var(--danger-500)' }}>{retErr}</p>}
+                                <div className="flex gap-2">
+                                    <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => setReturning(false)}>{t('cancel')}</button>
+                                    <button className="wp-btn wp-btn-primary flex-1 !py-2 text-sm" onClick={() => submitReturn(detail)}><RotateCcw size={15} /> {t('recordReturn')}</button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Inline collect-payment form */}
                         {collecting && detail.dueAmount > 0 && (
@@ -315,7 +395,7 @@ export default function OrdersPage() {
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2 mt-3">
                             <button className="wp-btn wp-btn-ghost flex-1 min-w-0 justify-center !py-2 text-sm" onClick={() => shareOrder(done)}><MessageCircle size={15} className="shrink-0" style={{ color: 'var(--success-600)' }} /> <span className="truncate">{t('sendInvoiceWhatsapp')}</span></button>
-                            <button className="wp-btn wp-btn-ghost flex-1 min-w-0 justify-center !py-2 text-sm" onClick={() => printOrder(done)}><Printer size={15} className="shrink-0" /> <span className="truncate">{t('printPdf')}</span></button>
+                            <button className="wp-btn wp-btn-ghost flex-1 min-w-0 justify-center !py-2 text-sm" onClick={() => printOrder(done, wsBiz)}><Printer size={15} className="shrink-0" /> <span className="truncate">{t('printPdf')}</span></button>
                         </div>
                     </motion.div>
                 )}

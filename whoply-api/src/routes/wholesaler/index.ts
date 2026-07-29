@@ -11,8 +11,9 @@ import {
     dealerOrders,
     collectPayment,
 } from '../../controllers/wholesaler/dealer.controller.js';
-import { createOrder, listOrders, updateOrderStatus } from '../../controllers/wholesaler/order.controller.js';
+import { createOrder, listOrders, updateOrderStatus, orderEInvoiceJson, orderEWayJson, wholesalerGstReport, createOrderReturn, listOrderReturns } from '../../controllers/wholesaler/order.controller.js';
 import { recordOrderPayment, listPayments, tallyReport } from '../../controllers/wholesaler/payment.controller.js';
+import { createWsQuote, listWsQuotes, deleteWsQuote, convertWsQuote } from '../../controllers/wholesaler/quotation.controller.js';
 import { getPriceList, setPrice } from '../../controllers/wholesaler/pricelist.controller.js';
 import {
     listReps,
@@ -22,6 +23,8 @@ import {
     listVisits,
     recordVisit,
 } from '../../controllers/wholesaler/salesTeam.controller.js';
+// Notifications are business-scoped & role-agnostic — reuse the shopkeeper insights controller.
+import { listNotifications, markAllRead, markRead } from '../../controllers/shopkeeper/insights.controller.js';
 // Product & category CRUD is identical logic — reuse the shopkeeper controller (scoped by business).
 import {
     listProducts,
@@ -70,10 +73,21 @@ router.get('/orders', listOrders);
 router.post('/orders', createOrder);
 router.patch('/orders/:id/status', updateOrderStatus);
 router.post('/orders/:id/collect', recordOrderPayment);
+router.get('/orders/:id/einvoice', orderEInvoiceJson);
+router.post('/orders/:id/eway', orderEWayJson);
+router.post('/orders/:id/return', createOrderReturn);
+router.get('/returns', listOrderReturns);
 
-// Payments (money-in ledger) + account tally report
+// Payments (money-in ledger) + account tally + GST returns
 router.get('/payments', listPayments);
 router.get('/reports/tally', tallyReport);
+router.get('/reports/gst', wholesalerGstReport);
+
+// Quotations (dealer estimates) → convert to order
+router.get('/quotations', listWsQuotes);
+router.post('/quotations', createWsQuote);
+router.delete('/quotations/:id', deleteWsQuote);
+router.post('/quotations/:id/convert', convertWsQuote);
 
 // Price lists
 router.get('/price-lists', getPriceList);
@@ -86,5 +100,10 @@ router.patch('/sales-team/:id', updateRep);
 router.delete('/sales-team/:id', deleteRep);
 router.get('/sales-team/visits', listVisits);
 router.post('/sales-team/visits', recordVisit);
+
+// Notifications
+router.get('/notifications', listNotifications);
+router.post('/notifications/read-all', markAllRead);
+router.post('/notifications/:id/read', markRead);
 
 export default router;

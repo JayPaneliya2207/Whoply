@@ -1,7 +1,8 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Truck, Plus, Pencil, Trash2, PackageCheck, Search, Minus, Check, ClipboardList, IndianRupee } from 'lucide-react';
+import { Truck, Plus, Pencil, Trash2, PackageCheck, Search, Minus, Check, ClipboardList } from 'lucide-react';
+import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
@@ -135,7 +136,7 @@ export default function PurchasesPage() {
                                 </div>
                                 <div className="flex flex-col gap-1.5 items-stretch shrink-0">
                                     {p.status === 'pending' && <button className="wp-btn wp-btn-primary !py-1.5 !text-xs" disabled={receivePo.isPending} onClick={() => receivePo.mutate(p._id)}><PackageCheck size={13} /> {t('receiveStock')}</button>}
-                                    {p.dueAmount > 0 && <button className="wp-btn wp-btn-ghost !py-1.5 !text-xs" onClick={() => openPay(p)}><IndianRupee size={13} /> {t('recordPaymentBtn')}</button>}
+                                    {p.dueAmount > 0 && <button className="wp-btn wp-btn-ghost !py-1.5 !text-xs" onClick={() => openPay(p)}><RupeeIcon size={13} /> {t('recordPaymentBtn')}</button>}
                                 </div>
                             </div>
                         </div>

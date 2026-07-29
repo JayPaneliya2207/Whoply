@@ -15,7 +15,9 @@ import {
     updateCategory,
     deleteCategory,
 } from '../../controllers/shopkeeper/product.controller.js';
-import { createSale, listInvoices, getInvoice, markBillSent } from '../../controllers/shopkeeper/billing.controller.js';
+import { createSale, listInvoices, getInvoice, markBillSent, getEInvoiceJson, getEWayBillJson } from '../../controllers/shopkeeper/billing.controller.js';
+import { createQuotation, listQuotations, getQuotation, deleteQuotation, convertQuotation } from '../../controllers/shopkeeper/quotation.controller.js';
+import { createReturn, listReturns } from '../../controllers/shopkeeper/return.controller.js';
 import {
     listCustomers,
     createCustomer,
@@ -33,7 +35,7 @@ import {
     payPurchase,
 } from '../../controllers/shopkeeper/supplier.controller.js';
 import { listExpenses, createExpense, updateExpense, deleteExpense } from '../../controllers/shopkeeper/expense.controller.js';
-import { salesReport, productReport, profitReport, summaryReport, exportInvoicesCsv, dayCloseReport } from '../../controllers/shopkeeper/report.controller.js';
+import { salesReport, productReport, profitReport, summaryReport, exportInvoicesCsv, dayCloseReport, gstReport } from '../../controllers/shopkeeper/report.controller.js';
 import { aiReorder, listNotifications, markAllRead, markRead } from '../../controllers/shopkeeper/insights.controller.js';
 
 const router = Router();
@@ -64,6 +66,19 @@ router.post('/billing', createSale);
 router.get('/billing', listInvoices);
 router.get('/billing/:id', getInvoice);
 router.post('/billing/:id/mark-sent', markBillSent);
+router.get('/billing/:id/einvoice', getEInvoiceJson);
+router.post('/billing/:id/eway', getEWayBillJson);
+
+// Quotations / estimates → convert to invoice
+router.get('/quotations', listQuotations);
+router.post('/quotations', createQuotation);
+router.get('/quotations/:id', getQuotation);
+router.delete('/quotations/:id', deleteQuotation);
+router.post('/quotations/:id/convert', convertQuotation);
+
+// Returns / credit notes
+router.get('/returns', listReturns);
+router.post('/returns', createReturn);
 
 // Customers & udhar
 router.get('/customers', listCustomers);
@@ -94,6 +109,7 @@ router.get('/reports/profit', profitReport);
 router.get('/reports/summary', summaryReport);
 router.get('/reports/day-close', dayCloseReport);
 router.get('/reports/export', exportInvoicesCsv);
+router.get('/reports/gst', gstReport);
 
 // AI insights + notifications
 router.get('/ai/reorder', aiReorder);

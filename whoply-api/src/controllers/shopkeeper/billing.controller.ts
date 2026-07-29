@@ -63,25 +63,31 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     let resolvedCustomerId = customerId;
     let customerName: string | undefined;
     let customerMobile: string | undefined;
+    let customerGstin: string | undefined;
+    const bodyGstin = (req.body.customerGstin || req.body.walkInGstin || '').toString().trim().toUpperCase() || undefined;
     if (customerId) {
         const c = await Customer.findOne({ _id: customerId, businessId });
         if (!c) throw AppError.badRequest('Customer not found');
         customerName = c.name;
         customerMobile = c.mobile;
+        customerGstin = c.gstin || bodyGstin;
     } else if (walkInMobile) {
         const mobile = String(walkInMobile).replace(/\D/g, '');
         let c = await Customer.findOne({ businessId, mobile });
         if (!c) {
-            c = await Customer.create({ businessId, name: walkInName?.trim() || 'Walk-in', mobile });
+            c = await Customer.create({ businessId, name: walkInName?.trim() || 'Walk-in', mobile, gstin: bodyGstin });
         } else if (walkInName?.trim() && (!c.name || c.name === 'Walk-in')) {
             c.name = walkInName.trim();
+            if (bodyGstin && !c.gstin) c.gstin = bodyGstin;
             await c.save();
         }
         resolvedCustomerId = c._id;
         customerName = c.name;
         customerMobile = c.mobile;
+        customerGstin = c.gstin || bodyGstin;
     } else if (walkInName) {
         customerName = walkInName.trim();
+        customerGstin = bodyGstin;
     }
 
     if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A mobile number is required for credit (udhar) sales');
@@ -99,6 +105,7 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
         customerId: resolvedCustomerId,
         customerName,
         customerMobile,
+        customerGstin,
         items: lineItems,
         subtotal: +subtotal.toFixed(2),
         totalGst: +totalGst.toFixed(2),
@@ -145,6 +152,35 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     }
 
     sendCreated(res, invoice, 'Sale recorded');
+});
+
+/** GET /billing/:id/einvoice — e-invoice (IRP schema) JSON payload for portal upload. */
+export const getEInvoiceJson = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const [inv, biz] = await Promise.all([
+        Invoice.findOne({ _id: req.params.id, businessId }),
+        Business.findById(businessId),
+    ]);
+    if (!inv) throw AppError.notFound('Invoice not found');
+    if (!biz?.gstin) throw AppError.badRequest('Set your GSTIN in Settings → Shop details before generating an e-invoice');
+    const { buildEInvoiceJson, invoiceToGstDoc } = await import('../../utils/gstJson.js');
+    sendSuccess(res, buildEInvoiceJson(biz, invoiceToGstDoc(inv)));
+});
+
+/** POST /billing/:id/eway — e-way bill JSON. body: { vehicleNo, distance, transMode, transporterName, transporterId } */
+export const getEWayBillJson = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const [inv, biz] = await Promise.all([
+        Invoice.findOne({ _id: req.params.id, businessId }),
+        Business.findById(businessId),
+    ]);
+    if (!inv) throw AppError.notFound('Invoice not found');
+    if (!biz?.gstin) throw AppError.badRequest('Set your GSTIN in Settings → Shop details before generating an e-way bill');
+    const { buildEWayBillJson, invoiceToGstDoc } = await import('../../utils/gstJson.js');
+    sendSuccess(res, buildEWayBillJson(biz, invoiceToGstDoc(inv), {
+        vehicleNo: req.body.vehicleNo, distance: Number(req.body.distance) || 0, transMode: req.body.transMode,
+        transporterName: req.body.transporterName, transporterId: req.body.transporterId,
+    }));
 });
 
 /** GET /billing — list invoices */

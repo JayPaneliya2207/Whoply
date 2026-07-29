@@ -2,12 +2,18 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { Plus, Download, MessageCircle, Printer, CheckCheck } from 'lucide-react';
-import { api } from '@/lib/api';
+import { Plus, Download, MessageCircle, Printer, CheckCheck, FileJson, Truck, RotateCcw } from 'lucide-react';
+import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal } from '@/components/Modal';
 import { useT } from '@/i18n';
-import { buildBillText, whatsappLink, printBill, billsToCsv, downloadFile } from '@/lib/bill';
+import { buildBillText, whatsappLink, printBill, printCreditNote, printEInvoice, printEwayBill, billsToCsv, downloadFile, type PrintFormat } from '@/lib/bill';
+
+const PRINT_FORMATS: { k: PrintFormat; label: string }[] = [
+    { k: 'a4', label: 'A4' },
+    { k: '80mm', label: '80mm' },
+    { k: '58mm', label: '58mm' },
+];
 
 const statusTone: Record<string, any> = {
     paid: { background: '#dcfce7', color: 'var(--success-600)' },
@@ -21,6 +27,36 @@ export default function BillsPage() {
     const t = useT();
     const [status, setStatus] = useState<string>('all');
     const [detailId, setDetailId] = useState<string | null>(null);
+    const [printFmt, setPrintFmt] = useState<PrintFormat>('a4');
+    const [ewayOpen, setEwayOpen] = useState(false);
+    const [eway, setEway] = useState({ vehicleNo: '', distance: '', transMode: '1', transporterName: '' });
+    const [returning, setReturning] = useState(false);
+    const [retQty, setRetQty] = useState<Record<string, string>>({});
+    const [retReason, setRetReason] = useState('');
+    const [retMode, setRetMode] = useState<'cash' | 'udhar_adjust'>('cash');
+    const [retErr, setRetErr] = useState('');
+
+    const openReturn = () => { setRetQty({}); setRetReason(''); setRetMode('cash'); setRetErr(''); setReturning(true); setEwayOpen(false); };
+    const submitReturn = async (inv: any) => {
+        const items = Object.entries(retQty).map(([productId, q]) => ({ productId, quantity: Number(q) || 0 })).filter((x) => x.quantity > 0);
+        if (!items.length) { setRetErr(t('selectReturnQty')); return; }
+        try {
+            const { data } = await api.post('/shopkeeper/returns', { invoiceId: inv._id, items, reason: retReason || undefined, refundMode: retMode });
+            setReturning(false);
+            qc.invalidateQueries({ queryKey: ['bills'] }); qc.invalidateQueries({ queryKey: ['products'] });
+            qc.invalidateQueries({ queryKey: ['customers'] }); qc.invalidateQueries({ queryKey: ['returns'] });
+            if (confirm(t('returnRecordedPrint'))) printCreditNote(data.data.creditNote, inv.business);
+        } catch (e) { setRetErr(apiErr(e)); }
+    };
+
+    const genEInvoice = async (inv: any) => {
+        try { const { data } = await api.get(`/shopkeeper/billing/${inv._id}/einvoice`); printEInvoice(data.data, inv.business); }
+        catch (e) { alert(apiErr(e)); }
+    };
+    const genEway = async (inv: any) => {
+        try { const { data } = await api.post(`/shopkeeper/billing/${inv._id}/eway`, { ...eway, distance: Number(eway.distance) || 0 }); printEwayBill(data.data, inv.business); setEwayOpen(false); }
+        catch (e) { alert(apiErr(e)); }
+    };
 
     const shareOnWhatsapp = (inv: any) => {
         if (!inv.customerMobile) { alert('No customer mobile on this bill.'); return; }
@@ -75,13 +111,37 @@ export default function BillsPage() {
             </div>
 
             {/* Bill detail */}
-            <Modal open={!!detailId} onClose={() => setDetailId(null)} title={detail?.invoiceNo || 'Bill'}
+            <Modal open={!!detailId} onClose={() => { setDetailId(null); setEwayOpen(false); setReturning(false); }} title={detail?.invoiceNo || 'Bill'}
                 footer={detail && (
-                    <div className="flex gap-2">
-                        <button className="wp-btn wp-btn-ghost flex-1" onClick={() => shareOnWhatsapp(detail)}>
-                            <MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp{detail.whatsappSentAt ? ' again' : ''}
-                        </button>
-                        <button className="wp-btn wp-btn-primary flex-1" onClick={() => printBill(detail, detail.business)}><Printer size={16} /> {t('printPdf')}</button>
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>{t('printSize')}</span>
+                            <div className="flex gap-1 p-1 rounded-lg flex-1" style={{ background: 'var(--surface-2)' }}>
+                                {PRINT_FORMATS.map((f) => (
+                                    <button key={f.k} onClick={() => setPrintFmt(f.k)} className="flex-1 py-1.5 rounded-md text-xs font-semibold transition-all"
+                                        style={printFmt === f.k ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>{f.label}</button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button className="wp-btn wp-btn-ghost flex-1" onClick={() => shareOnWhatsapp(detail)}>
+                                <MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp{detail.whatsappSentAt ? ' again' : ''}
+                            </button>
+                            <button className="wp-btn wp-btn-primary flex-1" onClick={() => printBill(detail, detail.business, printFmt)}><Printer size={16} /> {printFmt === 'a4' ? t('printPdf') : t('printReceipt')}</button>
+                        </div>
+                        {/* e-Invoice / e-Way are GST-compliance tools: only relevant for a B2B bill
+                            (customer has a GSTIN) or a high-value consignment (≥ ₹50,000). Hidden otherwise
+                            so an ordinary retail counter sale stays uncluttered. */}
+                        {(() => {
+                            const gstDoc = !!detail.customerGstin || (detail.grandTotal || 0) >= 50000;
+                            return (
+                                <div className={`grid gap-2 ${gstDoc ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                                    {gstDoc && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => genEInvoice(detail)}><FileJson size={15} className="shrink-0" /> <span className="truncate">{t('eInvoiceJson')}</span></button>}
+                                    {gstDoc && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => setEwayOpen((v) => !v)}><Truck size={15} className="shrink-0" /> <span className="truncate">{t('ewayBill')}</span></button>}
+                                    <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}>
                 {detail && (
@@ -90,6 +150,46 @@ export default function BillsPage() {
                             <span style={{ color: 'var(--text-secondary)' }}>{detail.customerName || t('walkIn')}</span>
                             <span className="wp-chip capitalize" style={statusTone[detail.status]}>{detail.paymentMode} · {detail.status}</span>
                         </div>
+                        {ewayOpen && (
+                            <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><Truck size={15} /> {t('ewayBill')}</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <input className="wp-input text-sm uppercase" placeholder={t('vehicleNoPh')} value={eway.vehicleNo} onChange={(e) => setEway({ ...eway, vehicleNo: e.target.value.toUpperCase() })} />
+                                    <input className="wp-input text-sm tabular" type="number" placeholder={t('distanceKm')} value={eway.distance} onChange={(e) => setEway({ ...eway, distance: e.target.value })} />
+                                    <select className="wp-input text-sm" value={eway.transMode} onChange={(e) => setEway({ ...eway, transMode: e.target.value })}>
+                                        <option value="1">{t('modeRoad')}</option><option value="2">{t('modeRail')}</option><option value="3">{t('modeAir')}</option><option value="4">{t('modeShip')}</option>
+                                    </select>
+                                    <input className="wp-input text-sm" placeholder={t('transporterName')} value={eway.transporterName} onChange={(e) => setEway({ ...eway, transporterName: e.target.value })} />
+                                </div>
+                                <button className="wp-btn wp-btn-primary w-full !py-2 text-sm" onClick={() => genEway(detail)}><Download size={15} /> {t('generateEwayJson')}</button>
+                            </div>
+                        )}
+                        {/* Return / credit note */}
+                        {returning && (
+                            <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><RotateCcw size={15} /> {t('returnItems')}</p>
+                                <div className="space-y-1.5">
+                                    {detail.items.map((it: any, i: number) => (
+                                        <div key={i} className="flex items-center gap-2">
+                                            <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{it.name} <span className="text-xs" style={{ color: 'var(--text-muted)' }}>({t('sold')} {it.quantity})</span></span>
+                                            <input className="wp-input !py-1.5 w-16 text-sm tabular text-right" type="number" min={0} max={it.quantity} placeholder="0"
+                                                value={retQty[it.productId] || ''} onChange={(e) => { const v = Math.min(it.quantity, Math.max(0, Number(e.target.value) || 0)); setRetQty((q) => ({ ...q, [it.productId]: v ? String(v) : '' })); }} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <input className="wp-input text-sm" placeholder={t('returnReasonPh')} value={retReason} onChange={(e) => setRetReason(e.target.value)} />
+                                <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--card-bg)' }}>
+                                    {([['cash', t('cashRefund')], ['udhar_adjust', t('adjustUdhar')]] as const).map(([k, label]) => (
+                                        <button key={k} onClick={() => setRetMode(k)} className="flex-1 py-1.5 rounded-md text-xs font-semibold" style={retMode === k ? { background: 'var(--surface-2)', color: 'var(--brand-700)' } : { color: 'var(--text-secondary)' }}>{label}</button>
+                                    ))}
+                                </div>
+                                {retErr && <p className="text-xs" style={{ color: 'var(--danger-500)' }}>{retErr}</p>}
+                                <div className="flex gap-2">
+                                    <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => setReturning(false)}>{t('cancel')}</button>
+                                    <button className="wp-btn wp-btn-primary flex-1 !py-2 text-sm" onClick={() => submitReturn(detail)}><RotateCcw size={15} /> {t('recordReturn')}</button>
+                                </div>
+                            </div>
+                        )}
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(detail.createdAt).toLocaleString('en-IN')}</p>
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
                             {detail.items.map((it: any, i: number) => (

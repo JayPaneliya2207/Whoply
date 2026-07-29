@@ -13,7 +13,7 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
     const bId = new Types.ObjectId(String(businessOf(req)));
     const { start, end } = todayRange();
 
-    const [todayAgg, pendingDispatch, outstanding, warehouse, dealerCount, revenueAgg, recentOrders, statusAgg] =
+    const [todayAgg, pendingDispatch, outstanding, warehouse, lowStock, dealerCount, revenueAgg, recentOrders, statusAgg] =
         await Promise.all([
             Order.aggregate([
                 { $match: { businessId: bId, createdAt: { $gte: start, $lt: end } } },
@@ -29,6 +29,7 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
                 { $match: { businessId: bId } },
                 { $group: { _id: null, units: { $sum: '$currentStock' }, skus: { $sum: 1 } } },
             ]),
+            Product.countDocuments({ businessId: bId, isActive: true, $expr: { $lte: ['$currentStock', '$lowStockThreshold'] } }),
             Dealer.countDocuments({ businessId: bId, isActive: true }),
             Order.aggregate([{ $match: { businessId: bId } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
             Order.find({ businessId: bId }).sort({ createdAt: -1 }).limit(6).lean(),
@@ -43,6 +44,7 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
         outstandingDealers: outstanding.length,
         warehouseUnits: warehouse[0]?.units || 0,
         skuCount: warehouse[0]?.skus || 0,
+        lowStockCount: lowStock,
         dealerCount,
         revenue: revenueAgg[0]?.total || 0,
         recentOrders,

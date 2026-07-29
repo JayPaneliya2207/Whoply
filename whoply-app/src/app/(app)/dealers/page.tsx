@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Building2, IndianRupee, Check, MessageCircle, Plus, Pencil, Trash2, QrCode } from 'lucide-react';
+import { Building2, Check, MessageCircle, Plus, Pencil, Trash2, QrCode } from 'lucide-react';
+import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
@@ -11,6 +12,7 @@ import { PhoneInput } from '@/components/PhoneInput';
 import { useT } from '@/i18n';
 import { UpiQr } from '@/components/UpiQr';
 import { buildDealerPaymentText, whatsappLink } from '@/lib/bill';
+import { GSTIN_PLACEHOLDER, maskGstin, isValidGstin } from '@/lib/gstin';
 
 const tierTone: Record<string, any> = {
     A: { background: '#dcfce7', color: 'var(--success-600)' },
@@ -19,7 +21,7 @@ const tierTone: Record<string, any> = {
 };
 // "tier" renamed to a friendly Price Group for clarity
 const groupKey: Record<string, string> = { A: 'tierPremium', B: 'tierStandard', C: 'tierBasic' };
-const empty = { name: '', shopName: '', mobile: '', country: '+91', tier: 'B', city: '', creditLimit: '100000' };
+const empty = { name: '', shopName: '', mobile: '', country: '+91', gstin: '', tier: 'B', city: '', creditLimit: '100000' };
 
 export default function DealersPage() {
     const qc = useQueryClient();
@@ -45,7 +47,7 @@ export default function DealersPage() {
     const { data } = useQuery({ queryKey: ['dealers'], queryFn: async () => (await api.get('/wholesaler/dealers?limit=100')).data.data.items });
 
     const openNew = () => { setEditing(null); setForm(empty); setFormErr(''); setModal(true); };
-    const openEdit = (d: any) => { setEditing(d); setForm({ name: d.name, shopName: d.shopName || '', mobile: d.mobile || '', country: d.countryCode || '+91', tier: d.tier, city: d.city || '', creditLimit: d.creditLimit }); setFormErr(''); setModal(true); };
+    const openEdit = (d: any) => { setEditing(d); setForm({ name: d.name, shopName: d.shopName || '', mobile: d.mobile || '', country: d.countryCode || '+91', gstin: d.gstin || '', tier: d.tier, city: d.city || '', creditLimit: d.creditLimit }); setFormErr(''); setModal(true); };
 
     const save = useMutation({
         mutationFn: async () => {
@@ -106,7 +108,7 @@ export default function DealersPage() {
                                 {d.outstandingBalance > 0 && (
                                     <>
                                         <button className="wp-btn wp-btn-ghost !p-2" title="Send WhatsApp payment reminder" onClick={() => remindDealer(d)}><MessageCircle size={14} style={{ color: 'var(--success-600)' }} /></button>
-                                        <button className="wp-btn wp-btn-accent !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><IndianRupee size={14} /></button>
+                                        <button className="wp-btn wp-btn-accent !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>
                                     </>
                                 )}
                             </div>
@@ -121,6 +123,10 @@ export default function DealersPage() {
                 <Field label={t('dealerNameLabel')}><input className="wp-input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Ravi Traders" autoFocus /></Field>
                 <Field label={t('shopNameLabel')}><input className="wp-input" value={form.shopName} onChange={(e) => set('shopName', e.target.value)} placeholder="e.g. Ravi Kirana Store" /></Field>
                 <Field label={t('mobile')}><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} /></Field>
+                <Field label={`${t('gstin')} (${t('optionalWord')})`}>
+                    <input className="wp-input uppercase" value={form.gstin} maxLength={15} onChange={(e) => set('gstin', maskGstin(e.target.value))} placeholder={GSTIN_PLACEHOLDER} />
+                    {form.gstin.length === 15 && !isValidGstin(form.gstin) && <p className="text-xs mt-1" style={{ color: 'var(--danger-500)' }}>{t('gstinInvalid')}</p>}
+                </Field>
                 <div className="grid grid-cols-3 gap-3">
                     <Field label={t('priceGroup')}><select className="wp-input" value={form.tier} onChange={(e) => set('tier', e.target.value)}><option value="A">{t('premiumBest')}</option><option value="B">{t('tierStandard')}</option><option value="C">{t('tierBasic')}</option></select></Field>
                     <Field label={t('cityLabel')}><input className="wp-input" value={form.city} onChange={(e) => set('city', e.target.value)} /></Field>

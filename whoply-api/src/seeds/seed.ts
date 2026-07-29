@@ -368,6 +368,7 @@ async function run() {
                 businessId: wholesale._id,
                 ...d,
                 mobile: `97${rand(10000000, 99999999)}`,
+                gstin: `24${['ABCDS', 'PQRST', 'LMNOP', 'WXYZK', 'EFGHJ'][dealers.length % 5]}${rand(1000, 9999)}K1Z${dealers.length % 9}`,
                 creditLimit: 100000,
                 assignedRepId: salesRep?._id,
             })
@@ -391,15 +392,17 @@ async function run() {
 
             const lineCount = rand(2, 5);
             const items: any[] = [];
-            let total = 0;
+            let subtotal = 0, totalGst = 0;
             for (let l = 0; l < lineCount; l++) {
                 const p = pick(wsProducts);
                 const qty = rand(10, 100);
                 const price = priceMap.get(String(p._id)) || p.wholesalePrice || p.sellPrice;
-                const lineTotal = +(price * qty).toFixed(2);
-                total += lineTotal;
-                items.push({ productId: p._id, name: p.name, quantity: qty, price, lineTotal });
+                const base = price * qty;
+                const gstAmount = +((base * (p.gstRate || 0)) / 100).toFixed(2);
+                subtotal += base; totalGst += gstAmount;
+                items.push({ productId: p._id, name: p.name, hsn: p.hsn, unit: p.unit, quantity: qty, price, gstRate: p.gstRate || 0, gstAmount, lineTotal: +(base + gstAmount).toFixed(2) });
             }
+            const total = +(subtotal + totalGst).toFixed(2);
             const status = day > 3 ? pick(['dispatched', 'delivered'] as const) : pick(statuses);
             const paid = status === 'delivered' ? +total.toFixed(2) : pick([0, +(total / 2).toFixed(2)]);
             const due = +(total - paid).toFixed(2);
@@ -414,8 +417,11 @@ async function run() {
                 orderNo,
                 dealerId: dealer._id,
                 dealerName: dealer.name,
+                dealerGstin: dealer.gstin,
                 items,
-                total: +total.toFixed(2),
+                subtotal: +subtotal.toFixed(2),
+                totalGst: +totalGst.toFixed(2),
+                total,
                 paidAmount: paid,
                 dueAmount: due,
                 status,

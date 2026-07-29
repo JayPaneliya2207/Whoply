@@ -4,6 +4,7 @@ import { AppError } from '../../utils/AppError.js';
 import { sendSuccess } from '../../utils/response.js';
 import { businessOf } from '../../utils/http.js';
 import Business from '../../models/Business.js';
+import { cleanGstin } from '../../utils/gstin.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
 /** GET /business — the caller's own shop/business profile. */
@@ -19,11 +20,12 @@ export const updateMyBusiness = asyncHandler(async (req: AuthRequest, res: Respo
     const businessId = businessOf(req);
     const b = req.body || {};
     const patch: any = {};
-    (['name', 'ownerName', 'mobile', 'countryCode', 'email', 'gstin', 'address', 'city', 'state', 'upiId', 'upiQrImage', 'bank'] as const).forEach((k) => {
+    (['name', 'ownerName', 'mobile', 'countryCode', 'email', 'address', 'city', 'state', 'upiId', 'upiQrImage', 'bank'] as const).forEach((k) => {
         if (b[k] !== undefined) patch[k] = b[k];
     });
+    if (b.gstin !== undefined) patch.gstin = cleanGstin(b.gstin, (m) => AppError.badRequest(m)) ?? '';
     if (b.settings && typeof b.settings === 'object') {
-        (['invoicePrefix', 'lowStockThreshold', 'enableUdharReminders'] as const).forEach((k) => {
+        (['invoicePrefix', 'lowStockThreshold', 'enableUdharReminders', 'udharReminderDays'] as const).forEach((k) => {
             if (b.settings[k] !== undefined) patch[`settings.${k}`] = b.settings[k];
         });
     }

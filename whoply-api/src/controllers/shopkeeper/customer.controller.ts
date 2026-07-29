@@ -5,6 +5,7 @@ import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response.js
 import { businessOf, paginate } from '../../utils/http.js';
 import Customer from '../../models/Customer.js';
 import CreditLedger from '../../models/CreditLedger.js';
+import { cleanGstin } from '../../utils/gstin.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
 export const listCustomers = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -23,7 +24,8 @@ export const listCustomers = asyncHandler(async (req: AuthRequest, res: Response
 export const createCustomer = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     if (!req.body.name) throw AppError.badRequest('name is required');
-    const customer = await Customer.create({ ...req.body, businessId });
+    const gstin = cleanGstin(req.body.gstin, (m) => AppError.badRequest(m));
+    const customer = await Customer.create({ ...req.body, gstin, businessId });
     sendCreated(res, customer);
 });
 

@@ -1,7 +1,8 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, IndianRupee, Wallet, ShoppingBag, Building2 } from 'lucide-react';
+import { Download, Wallet, ShoppingBag, Building2 } from 'lucide-react';
+import { RupeeIcon } from '@/components/RupeeIcon';
 import { api } from '@/lib/api';
 import { inr, inr2 } from '@/lib/cn';
 import { useT } from '@/i18n';
@@ -39,7 +40,7 @@ export default function PaymentsPage() {
                     <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('totalCollectedLabel')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(total)}</p></div>
                 </div>
                 <div className="wp-card p-5 flex items-center gap-3">
-                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><IndianRupee size={20} /></div>
+                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><RupeeIcon size={20} /></div>
                     <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('paymentsCountLabel')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{rows.length}</p></div>
                 </div>
             </div>

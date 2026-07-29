@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Wallet, MessageCircle, IndianRupee, X, Check } from 'lucide-react';
+import { Wallet, MessageCircle, X, Check } from 'lucide-react';
+import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
@@ -70,7 +71,7 @@ export default function CustomersPage() {
                                         <MessageCircle size={15} style={{ color: 'var(--success-600)' }} />
                                     </button>
                                     <button className="wp-btn wp-btn-accent !px-2.5 !py-2" onClick={() => { setPayFor(c); setAmount(String(c.creditBalance)); }}>
-                                        <IndianRupee size={15} />
+                                        <RupeeIcon size={15} />
                                     </button>
                                 </div>
                             )}
