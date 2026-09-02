@@ -35,8 +35,9 @@ docker compose up -d        # easiest: no install needed
 # 3. Backend
 cd whoply-api
 npm install
-npm run seed      # seeds the `whoply` database with demo data
-npm run dev       # http://localhost:7000
+npm run seed:reset   # clean database + the 3 demo logins listed below
+# or: npm run seed   # full demo dataset (products, bills, dealers, orders)
+npm run dev          # http://localhost:7000
 
 # 4. Frontends (each in its own terminal)
 cd whoply-front && npm install && npm run dev   # http://localhost:7100
@@ -92,11 +93,13 @@ OTP is always **123456** in dev; password is **whoply123**.
 
 | Role | Mobile | Where |
 |---|---|---|
-| Retail owner (Sharma General Store) | `9000000001` | app (7200) |
-| Retail cashier | `9000000002` | app (7200) |
-| Wholesale owner (Gupta Distributors) | `9000000010` | app (7200) |
-| Warehouse / Sales staff | `9000000011` / `9000000012` | app (7200) |
-| Platform admin | `9000000099` | admin (7300) |
+| **Shopkeeper** (retail owner) | `9000000001` | app (7200) |
+| **Wholesaler** (wholesale owner) | `9000000010` | app (7200) |
+| **Platform admin** | `9000000099` | admin (7300) |
+
+`npm run seed:reset` creates exactly these three on an empty database — start here.
+`npm run seed` instead loads a full demo dataset (products, bills, dealers, orders)
+and adds extra staff accounts you can view under **Staff** in the app.
 
 ## Flow
 
