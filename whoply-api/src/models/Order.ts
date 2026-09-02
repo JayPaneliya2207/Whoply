@@ -81,6 +81,13 @@ const orderSchema = new Schema<IOrderDocument>(
     { timestamps: true, collection: 'orders' }
 );
 orderSchema.index({ businessId: 1, orderNo: 1 }, { unique: true });
+// Orders list / reports sort newest-first, often filtered by status.
+orderSchema.index({ businessId: 1, createdAt: -1 });
+orderSchema.index({ businessId: 1, status: 1, createdAt: -1 });
+// duesByDealer(): outstanding aggregation over unpaid, non-cancelled orders.
+orderSchema.index({ businessId: 1, dueAmount: 1, status: 1 });
+// A dealer's order history + FIFO settlement (oldest first).
+orderSchema.index({ businessId: 1, dealerId: 1, createdAt: 1 });
 
 const Order: Model<IOrderDocument> = mongoose.models.Order || mongoose.model<IOrderDocument>('Order', orderSchema);
 export default Order;

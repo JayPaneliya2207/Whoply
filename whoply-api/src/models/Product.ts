@@ -19,6 +19,13 @@ export interface IProduct {
     gstRate: number; // %
     currentStock: number;
     lowStockThreshold: number;
+    /**
+     * Denormalised `currentStock <= lowStockThreshold`. Kept in sync by
+     * syncLowStock() after every stock mutation. Exists so low-stock queries can
+     * use an index — a `$expr` field-to-field comparison cannot, and would force a
+     * full scan of the tenant's products on every dashboard load and cron run.
+     */
+    isLowStock: boolean;
     trackExpiry: boolean;
     image?: string;
     isActive: boolean;
@@ -45,6 +52,7 @@ const productSchema = new Schema<IProductDocument>(
         gstRate: { type: Number, default: 0 },
         currentStock: { type: Number, default: 0 },
         lowStockThreshold: { type: Number, default: 10 },
+        isLowStock: { type: Boolean, default: false },
         trackExpiry: { type: Boolean, default: false },
         image: String,
         isActive: { type: Boolean, default: true, index: true },
@@ -52,6 +60,11 @@ const productSchema = new Schema<IProductDocument>(
     { timestamps: true, collection: 'products' }
 );
 productSchema.index({ businessId: 1, sku: 1 }, { unique: true });
+// Product list is business-scoped and name-sorted; low-stock filter/count uses the flag.
+productSchema.index({ businessId: 1, isActive: 1, name: 1 });
+productSchema.index({ businessId: 1, isActive: 1, isLowStock: 1 });
+// Barcode / SKU scan-to-add lookups.
+productSchema.index({ businessId: 1, barcode: 1 });
 
 const Product: Model<IProductDocument> =
     mongoose.models.Product || mongoose.model<IProductDocument>('Product', productSchema);

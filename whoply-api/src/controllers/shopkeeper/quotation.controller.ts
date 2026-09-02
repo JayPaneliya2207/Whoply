@@ -8,8 +8,8 @@ import Invoice from '../../models/Invoice.js';
 import Quotation from '../../models/Quotation.js';
 import Customer from '../../models/Customer.js';
 import CreditLedger from '../../models/CreditLedger.js';
-import StockMovement from '../../models/StockMovement.js';
 import Business from '../../models/Business.js';
+import { applyStockChanges } from '../../utils/stock.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
@@ -102,11 +102,15 @@ export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Respo
     if (!quote) throw AppError.notFound('Quotation not found');
     if (quote.status === 'converted') throw AppError.badRequest('This quotation is already converted');
 
-    // Re-validate stock at conversion time.
+    // Re-validate stock at conversion time — one query for the whole quote, not one per line.
+    const stockDocs = await Product.find({ _id: { $in: quote.items.map((li) => li.productId) }, businessId })
+        .select('currentStock')
+        .lean();
+    const stockMap = new Map(stockDocs.map((p) => [String(p._id), p.currentStock]));
     for (const li of quote.items) {
-        const p = await Product.findById(li.productId);
-        if (!p) throw AppError.badRequest(`Product "${li.name}" no longer exists`);
-        if (p.currentStock < li.quantity) throw AppError.badRequest(`Insufficient stock for ${li.name} (have ${p.currentStock})`);
+        const have = stockMap.get(String(li.productId));
+        if (have == null) throw AppError.badRequest(`Product "${li.name}" no longer exists`);
+        if (have < li.quantity) throw AppError.badRequest(`Insufficient stock for ${li.name} (have ${have})`);
     }
 
     // Resolve customer (find-or-create by mobile so udhar & history link).
@@ -135,10 +139,11 @@ export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Respo
         paidAmount: paid, dueAmount: due, paymentMode, status, createdBy: req.user!._id,
     });
 
-    for (const li of quote.items) {
-        await Product.updateOne({ _id: li.productId }, { $inc: { currentStock: -li.quantity } });
-        await StockMovement.create({ businessId, productId: li.productId, reason: 'sale', quantity: -li.quantity, refType: 'Invoice', refId: invoice._id });
-    }
+    await applyStockChanges(
+        businessId,
+        quote.items.map((li) => ({ productId: li.productId, delta: -li.quantity })),
+        { reason: 'sale', refType: 'Invoice', refId: invoice._id }
+    );
     if (due > 0 && resolvedCustomerId) {
         const customer = await Customer.findById(resolvedCustomerId);
         if (customer) {

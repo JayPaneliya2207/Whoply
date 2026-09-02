@@ -25,7 +25,7 @@ export const shopkeeperDashboard = asyncHandler(async (req: AuthRequest, res: Re
             { $match: { businessId: bId, createdAt: { $gte: monthStart() } } },
             { $group: { _id: null, sales: { $sum: '$grandTotal' } } },
         ]),
-        Product.countDocuments({ businessId: bId, isActive: true, $expr: { $lte: ['$currentStock', '$lowStockThreshold'] } }),
+        Product.countDocuments({ businessId: bId, isActive: true, isLowStock: true }),
         Customer.aggregate([
             { $match: { businessId: bId, creditBalance: { $gt: 0 } } },
             { $group: { _id: null, total: { $sum: '$creditBalance' }, count: { $sum: 1 } } },

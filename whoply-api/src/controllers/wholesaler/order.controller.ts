@@ -7,8 +7,8 @@ import Product from '../../models/Product.js';
 import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
 import PriceList from '../../models/PriceList.js';
-import StockMovement from '../../models/StockMovement.js';
 import Business from '../../models/Business.js';
+import { applyStockChanges } from '../../utils/stock.js';
 import CreditNote from '../../models/CreditNote.js';
 import { nextSequence } from '../../models/Counter.js';
 import { buildEInvoiceJson, buildEWayBillJson, orderToGstDoc } from '../../utils/gstJson.js';
@@ -110,17 +110,11 @@ export const updateOrderStatus = asyncHandler(async (req: AuthRequest, res: Resp
     if (!order) throw AppError.notFound('Order not found');
 
     if (status === 'dispatched' && order.status !== 'dispatched') {
-        for (const li of order.items) {
-            await Product.updateOne({ _id: li.productId }, { $inc: { currentStock: -li.quantity } });
-            await StockMovement.create({
-                businessId,
-                productId: li.productId,
-                reason: 'sale',
-                quantity: -li.quantity,
-                refType: 'Order',
-                refId: order._id,
-            });
-        }
+        await applyStockChanges(
+            businessId,
+            order.items.map((li) => ({ productId: li.productId, delta: -li.quantity })),
+            { reason: 'sale', refType: 'Order', refId: order._id }
+        );
         order.dispatchedAt = new Date();
     }
     if (status === 'delivered') {
@@ -240,10 +234,11 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
     // Restore stock only if it was actually decremented (dispatch happened).
     const stockWasReduced = order.status === 'dispatched' || order.status === 'delivered';
     if (stockWasReduced) {
-        for (const li of lineItems) {
-            await Product.updateOne({ _id: li.productId }, { $inc: { currentStock: li.quantity } });
-            await StockMovement.create({ businessId, productId: li.productId, reason: 'return', quantity: li.quantity, refType: 'CreditNote', refId: order._id });
-        }
+        await applyStockChanges(
+            businessId,
+            lineItems.map((li) => ({ productId: li.productId, delta: li.quantity })),
+            { reason: 'return', refType: 'CreditNote', refId: order._id }
+        );
     }
 
     const ym = new Date().toISOString().slice(0, 7).replace('-', '');

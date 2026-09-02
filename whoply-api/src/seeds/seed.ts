@@ -450,6 +450,15 @@ async function run() {
     }
     console.log(`Created ${ordCount} wholesale orders + visits`);
 
+    // Stock moved a lot above — recompute the denormalised low-stock flag that the
+    // dashboards, product filter and cron all read.
+    await Product.updateMany(
+        {},
+        [{ $set: { isLowStock: { $lte: ['$currentStock', '$lowStockThreshold'] } } }] as any,
+        { updatePipeline: true } as any
+    );
+    console.log('Synced low-stock flags');
+
     console.log('\n✅ Seed complete. Demo logins (password: whoply123 / OTP: 123456):');
     console.log('   Retail owner    9000000001  (Sharma General Store)');
     console.log('   Retail cashier  9000000002');

@@ -29,6 +29,12 @@ const notificationSchema = new Schema<INotificationDocument>(
     { timestamps: true, collection: 'notifications' }
 );
 
+// Listing is always business-scoped + newest-first; unread counting adds isRead.
+notificationSchema.index({ businessId: 1, createdAt: -1 });
+notificationSchema.index({ businessId: 1, isRead: 1, createdAt: -1 });
+// Cron de-dup lookups: "has a notification of this type been sent recently?"
+notificationSchema.index({ businessId: 1, type: 1, createdAt: -1 });
+
 const Notification: Model<INotificationDocument> =
     mongoose.models.Notification || mongoose.model<INotificationDocument>('Notification', notificationSchema);
 export default Notification;

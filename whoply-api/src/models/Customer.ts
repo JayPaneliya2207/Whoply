@@ -38,6 +38,10 @@ const customerSchema = new Schema<ICustomerDocument>(
     { timestamps: true, collection: 'customers' }
 );
 
+// "Customers with dues" list + the udhar-reminder cron scan.
+customerSchema.index({ businessId: 1, isActive: 1, creditBalance: -1 });
+customerSchema.index({ businessId: 1, creditBalance: 1, lastUdharReminderAt: 1 });
+
 const Customer: Model<ICustomerDocument> =
     mongoose.models.Customer || mongoose.model<ICustomerDocument>('Customer', customerSchema);
 export default Customer;

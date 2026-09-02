@@ -37,6 +37,9 @@ const creditLedgerSchema = new Schema<ICreditLedgerDocument>(
     { timestamps: true, collection: 'credit_ledger' }
 );
 
+// A customer's udhar ledger is read newest-first, always scoped to the business.
+creditLedgerSchema.index({ businessId: 1, customerId: 1, createdAt: -1 });
+
 const CreditLedger: Model<ICreditLedgerDocument> =
     mongoose.models.CreditLedger || mongoose.model<ICreditLedgerDocument>('CreditLedger', creditLedgerSchema);
 export default CreditLedger;

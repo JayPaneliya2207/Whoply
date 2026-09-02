@@ -37,6 +37,12 @@ const stockMovementSchema = new Schema<IStockMovementDocument>(
     { timestamps: true, collection: 'stock_movements' }
 );
 
+// Fastest-growing collection (one row per line item per sale/purchase/return).
+// Without createdAt in the index, any date-sorted listing does a blocking in-memory
+// sort over the tenant's whole history.
+stockMovementSchema.index({ businessId: 1, createdAt: -1 });
+stockMovementSchema.index({ businessId: 1, productId: 1, createdAt: -1 });
+
 const StockMovement: Model<IStockMovementDocument> =
     mongoose.models.StockMovement || mongoose.model<IStockMovementDocument>('StockMovement', stockMovementSchema);
 export default StockMovement;

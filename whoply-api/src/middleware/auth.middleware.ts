@@ -10,6 +10,9 @@ import Business from '../models/Business.js';
 import Session from '../models/Session.js';
 import type { AuthRequest, AuthUser } from '../interfaces/index.js';
 
+/** How stale `lastActivityAt` may get before we write it again (see authenticate). */
+const ACTIVITY_TOUCH_MS = 5 * 60 * 1000;
+
 async function deactivateSessionByToken(token: string): Promise<void> {
     try {
         await Session.updateOne({ token, isActive: true }, { isActive: false });
@@ -41,14 +44,23 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
         if (!user) throw AppError.unauthorized('User not found');
         if (!user.isActive) throw AppError.unauthorized('Account is deactivated');
 
-        const session = await Session.findOne({ token, userId: user._id, isActive: true });
+        const session = await Session.findOne({ token, userId: user._id, isActive: true })
+            .select('lastActivityAt')
+            .lean();
         if (!session) {
             throw AppError.unauthorized(
                 'Your session has expired or you were logged out from another device. Please login again.'
             );
         }
-        session.lastActivityAt = new Date();
-        await session.save();
+        // `lastActivityAt` is a liveness hint, not an audit trail — writing it on every
+        // request made `sessions` a write hotspot (one write per API call, per user).
+        // Touch it at most once per throttle window, and don't block the response on it.
+        const last = session.lastActivityAt ? new Date(session.lastActivityAt).getTime() : 0;
+        if (Date.now() - last > ACTIVITY_TOUCH_MS) {
+            void Session.updateOne({ _id: session._id }, { $set: { lastActivityAt: new Date() } }).catch(() => {
+                /* best-effort: a missed activity stamp must never fail the request */
+            });
+        }
 
         let businessType;
         if (user.businessId) {

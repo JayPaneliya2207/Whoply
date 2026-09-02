@@ -73,6 +73,8 @@ const creditNoteSchema = new Schema<ICreditNoteDocument>(
     { timestamps: true, collection: 'credit_notes' }
 );
 creditNoteSchema.index({ businessId: 1, creditNoteNo: 1 }, { unique: true });
+// Returns list sorts newest-first per business.
+creditNoteSchema.index({ businessId: 1, createdAt: -1 });
 
 const CreditNote: Model<ICreditNoteDocument> = mongoose.models.CreditNote || mongoose.model<ICreditNoteDocument>('CreditNote', creditNoteSchema);
 export default CreditNote;

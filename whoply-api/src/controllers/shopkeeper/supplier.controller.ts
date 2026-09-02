@@ -6,7 +6,7 @@ import { businessOf, paginate } from '../../utils/http.js';
 import Supplier from '../../models/Supplier.js';
 import Product from '../../models/Product.js';
 import PurchaseOrder from '../../models/PurchaseOrder.js';
-import StockMovement from '../../models/StockMovement.js';
+import { applyStockChanges } from '../../utils/stock.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
@@ -131,17 +131,11 @@ export const receivePurchase = asyncHandler(async (req: AuthRequest, res: Respon
     if (!po) throw AppError.notFound('Purchase order not found');
     if (po.status === 'received') throw AppError.badRequest('Already received');
 
-    for (const li of po.items) {
-        await Product.updateOne({ _id: li.productId }, { $inc: { currentStock: li.quantity } });
-        await StockMovement.create({
-            businessId,
-            productId: li.productId,
-            reason: 'purchase',
-            quantity: li.quantity,
-            refType: 'PurchaseOrder',
-            refId: po._id,
-        });
-    }
+    await applyStockChanges(
+        businessId,
+        po.items.map((li) => ({ productId: li.productId, delta: li.quantity })),
+        { reason: 'purchase', refType: 'PurchaseOrder', refId: po._id }
+    );
     po.status = 'received';
     po.receivedAt = new Date();
     await po.save();

@@ -80,6 +80,11 @@ const invoiceSchema = new Schema<IInvoiceDocument>(
     { timestamps: true, collection: 'invoices' }
 );
 invoiceSchema.index({ businessId: 1, invoiceNo: 1 }, { unique: true });
+// Bills list / reports / GST all filter by business and sort newest-first.
+invoiceSchema.index({ businessId: 1, createdAt: -1 });
+invoiceSchema.index({ businessId: 1, status: 1, createdAt: -1 });
+// B2B (GSTR-1) grouping by customer GSTIN within a period.
+invoiceSchema.index({ businessId: 1, customerGstin: 1, createdAt: -1 });
 
 const Invoice: Model<IInvoiceDocument> =
     mongoose.models.Invoice || mongoose.model<IInvoiceDocument>('Invoice', invoiceSchema);

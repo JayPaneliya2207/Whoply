@@ -3,12 +3,11 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { AppError } from '../../utils/AppError.js';
 import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response.js';
 import { businessOf, paginate } from '../../utils/http.js';
-import Product from '../../models/Product.js';
 import Invoice from '../../models/Invoice.js';
 import Customer from '../../models/Customer.js';
 import CreditLedger from '../../models/CreditLedger.js';
 import CreditNote from '../../models/CreditNote.js';
-import StockMovement from '../../models/StockMovement.js';
+import { applyStockChanges } from '../../utils/stock.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
@@ -59,11 +58,12 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
         items: lineItems, subtotal: +subtotal.toFixed(2), totalGst: +totalGst.toFixed(2), total, reason, refundMode, createdBy: req.user!._id,
     });
 
-    // Restore stock + movements
-    for (const li of lineItems) {
-        await Product.updateOne({ _id: li.productId }, { $inc: { currentStock: li.quantity } });
-        await StockMovement.create({ businessId, productId: li.productId, reason: 'return', quantity: li.quantity, refType: 'CreditNote', refId: note._id });
-    }
+    // Restore stock + movements (batched)
+    await applyStockChanges(
+        businessId,
+        lineItems.map((li) => ({ productId: li.productId, delta: li.quantity })),
+        { reason: 'return', refType: 'CreditNote', refId: note._id }
+    );
 
     // Refund handling
     let refund: any = { mode: refundMode, amount: total };

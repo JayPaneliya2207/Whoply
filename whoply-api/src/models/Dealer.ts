@@ -44,5 +44,9 @@ const dealerSchema = new Schema<IDealerDocument>(
     { timestamps: true, collection: 'dealers' }
 );
 
+// Dealer list (active per business) + the payment-reminder cron scan.
+dealerSchema.index({ businessId: 1, isActive: 1 });
+dealerSchema.index({ businessId: 1, lastReminderAt: 1 });
+
 const Dealer: Model<IDealerDocument> = mongoose.models.Dealer || mongoose.model<IDealerDocument>('Dealer', dealerSchema);
 export default Dealer;

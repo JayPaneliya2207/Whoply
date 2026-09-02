@@ -6,6 +6,7 @@ import { businessOf, paginate } from '../../utils/http.js';
 import Product from '../../models/Product.js';
 import Category from '../../models/Category.js';
 import StockMovement from '../../models/StockMovement.js';
+import { syncLowStock } from '../../utils/stock.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
 /** GET /products — list with search & low-stock filter */
@@ -21,7 +22,7 @@ export const listProducts = asyncHandler(async (req: AuthRequest, res: Response)
     // Exact barcode lookup (used by scan-to-add flows).
     if (req.query.barcode) filter.barcode = String(req.query.barcode).trim();
     if (req.query.categoryId) filter.categoryId = req.query.categoryId;
-    if (req.query.lowStock === 'true') filter.$expr = { $lte: ['$currentStock', '$lowStockThreshold'] };
+    if (req.query.lowStock === 'true') filter.isLowStock = true;
 
     const [items, total] = await Promise.all([
         Product.find(filter).populate('categoryId', 'name').sort({ name: 1 }).skip(skip).limit(limit).lean(),
@@ -54,6 +55,7 @@ export const createProduct = asyncHandler(async (req: AuthRequest, res: Response
             note: 'Opening stock',
         });
     }
+    await syncLowStock([product._id]);
     sendCreated(res, product);
 });
 
@@ -62,6 +64,8 @@ export const updateProduct = asyncHandler(async (req: AuthRequest, res: Response
     const businessId = businessOf(req);
     const product = await Product.findOneAndUpdate({ _id: req.params.id, businessId }, req.body, { new: true });
     if (!product) throw AppError.notFound('Product not found');
+    // stock or threshold may have changed — keep the low-stock flag truthful
+    await syncLowStock([product._id]);
     sendSuccess(res, product, 'Product updated');
 });
 
@@ -76,6 +80,7 @@ export const adjustStock = asyncHandler(async (req: AuthRequest, res: Response) 
     if (!product) throw AppError.notFound('Product not found');
 
     product.currentStock += qty;
+    product.isLowStock = product.currentStock <= product.lowStockThreshold;
     await product.save();
     await StockMovement.create({ businessId, productId: product._id, reason, quantity: qty, note });
     sendSuccess(res, product, 'Stock adjusted');

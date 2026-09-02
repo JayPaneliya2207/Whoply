@@ -7,8 +7,8 @@ import Product from '../../models/Product.js';
 import Invoice from '../../models/Invoice.js';
 import Customer from '../../models/Customer.js';
 import CreditLedger from '../../models/CreditLedger.js';
-import StockMovement from '../../models/StockMovement.js';
 import Business from '../../models/Business.js';
+import { applyStockChanges } from '../../utils/stock.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
@@ -118,18 +118,12 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
         createdBy: req.user!._id,
     });
 
-    // Decrement stock + movements
-    for (const li of lineItems) {
-        await Product.updateOne({ _id: li.productId }, { $inc: { currentStock: -li.quantity } });
-        await StockMovement.create({
-            businessId,
-            productId: li.productId,
-            reason: 'sale',
-            quantity: -li.quantity,
-            refType: 'Invoice',
-            refId: invoice._id,
-        });
-    }
+    // Decrement stock + movements — batched, so a 20-item bill costs 3 round-trips, not 40.
+    await applyStockChanges(
+        businessId,
+        lineItems.map((li) => ({ productId: li.productId, delta: -li.quantity })),
+        { reason: 'sale', refType: 'Invoice', refId: invoice._id }
+    );
 
     // Udhar ledger for the due amount
     if (due > 0 && resolvedCustomerId) {

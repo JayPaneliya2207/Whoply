@@ -29,7 +29,7 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
                 { $match: { businessId: bId } },
                 { $group: { _id: null, units: { $sum: '$currentStock' }, skus: { $sum: 1 } } },
             ]),
-            Product.countDocuments({ businessId: bId, isActive: true, $expr: { $lte: ['$currentStock', '$lowStockThreshold'] } }),
+            Product.countDocuments({ businessId: bId, isActive: true, isLowStock: true }),
             Dealer.countDocuments({ businessId: bId, isActive: true }),
             Order.aggregate([{ $match: { businessId: bId } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
             Order.find({ businessId: bId }).sort({ createdAt: -1 }).limit(6).lean(),
