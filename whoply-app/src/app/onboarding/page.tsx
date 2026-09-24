@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Store, Building2 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -15,6 +15,12 @@ export default function OnboardingPage() {
     const [gstin, setGstin] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Role picked on the marketing site's hero toggle (stored by /login).
+    useEffect(() => {
+        const role = sessionStorage.getItem('whoply_role');
+        if (role === 'retail' || role === 'wholesale') setType(role);
+    }, []);
 
     const submit = async () => {
         setLoading(true); setError('');

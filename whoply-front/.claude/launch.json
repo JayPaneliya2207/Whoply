@@ -1,6 +1,12 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "whoply-front", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 7100 }
+    {
+      "name": "whoply-front",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 7100,
+      "autoPort": false
+    }
   ]
 }

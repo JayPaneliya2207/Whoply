@@ -38,6 +38,18 @@ export default function LoginPage() {
 
     useEffect(() => { hydrate(); if (localStorage.getItem('whoply_token')) router.replace('/dashboard'); }, [hydrate, router]);
 
+    // Deep link from the marketing site: /login?start=1&lang=hi&role=wholesale.
+    // The visitor already saw the pitch there, so skip the intro slide, keep the
+    // language they were reading in, and remember the role for onboarding.
+    useEffect(() => {
+        const q = new URLSearchParams(window.location.search);
+        const l = q.get('lang');
+        if (l && LANGS.some((x) => x.code === l)) setLang(l as Lang);
+        const role = q.get('role');
+        if (role === 'retail' || role === 'wholesale') sessionStorage.setItem('whoply_role', role);
+        if (q.get('start') === '1') swiperRef.current?.slideTo(1, 0);
+    }, [setLang]);
+
     useEffect(() => {
         if (!otpSent || canResend) return;
         const id = setInterval(() => setCooldown((c) => { if (c <= 1) { setCanResend(true); return 0; } return c - 1; }), 1000);

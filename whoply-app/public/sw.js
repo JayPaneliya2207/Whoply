@@ -1,6 +1,6 @@
 /* Whoply service worker — minimal offline app-shell cache.
    Network-first for navigations (fresh data when online), falling back to cache offline. */
-const CACHE = 'whoply-v1';
+const CACHE = 'whoply-v2'; // bump to purge caches written by older versions
 const SHELL = ['/', '/dashboard', '/billing', '/login'];
 
 self.addEventListener('install', (e) => {
@@ -16,14 +16,26 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
     const req = e.request;
     if (req.method !== 'GET') return; // never cache POST (sales etc.)
-    if (req.url.includes('/api/')) return; // let API calls hit the network
+    const url = new URL(req.url);
+    if (url.origin !== self.location.origin) return; // API, fonts, CDNs: straight to network
+    if (url.pathname.startsWith('/api/')) return;
     e.respondWith(
         fetch(req)
             .then((res) => {
-                const copy = res.clone();
-                caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+                // Only keep good responses — caching a 404/500 would replay it offline.
+                if (res.ok && res.type === 'basic') {
+                    const copy = res.clone();
+                    caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+                }
                 return res;
             })
-            .catch(() => caches.match(req).then((m) => m || caches.match('/')))
+            .catch(async () => {
+                const hit = await caches.match(req);
+                if (hit) return hit;
+                // The app shell is only a valid stand-in for a page. Handing HTML to a
+                // script or chunk request is what breaks the app with "Unexpected token '<'".
+                if (req.mode === 'navigate') return (await caches.match('/')) || Response.error();
+                return Response.error();
+            })
     );
 });
