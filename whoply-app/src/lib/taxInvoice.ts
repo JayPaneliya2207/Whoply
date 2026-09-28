@@ -6,6 +6,7 @@
  * Same state or not is decided like the e-invoice JSON (whoply-api
  * utils/gstJson.ts): from the first two digits of the shop's and the buyer's
  * GSTIN. A buyer without a GSTIN is a counter sale — the shop's own state.
+ * Works for bills, credit notes (customerGstin) and wholesale orders (dealerGstin).
  */
 
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -43,7 +44,7 @@ export interface TaxSummaryRow { hsn: string; rate: number; taxable: number; cgs
 
 export function gstBreakup(inv: any, biz?: { gstin?: string; state?: string }) {
     const sellerSt = stateCode(biz?.gstin);
-    const buyerSt = stateCode(inv.customerGstin) || sellerSt;
+    const buyerSt = stateCode(inv.customerGstin || inv.dealerGstin) || sellerSt;
     const inter = !!(sellerSt && buyerSt && sellerSt !== buyerSt);
 
     // Older bills took the discount off the total instead of storing each line's

@@ -208,16 +208,42 @@ function printThermal(inv: any, biz: Biz | undefined, mm: 58 | 80) {
     if (win) { win.document.write(html); win.document.close(); }
 }
 
+const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+const when = (d: any) => new Date(d).toLocaleString('en-IN');
+
+/** Buyer box: name, mobile, and GSTIN or "Unregistered". */
+const partyHtml = (name: string, mobile?: string, gstin?: string) =>
+    `${esc(name)}${mobile ? '<br>' + esc(mobile) : ''}<br>${gstin ? 'GSTIN: ' + esc(gstin) : '<span class="muted">Unregistered</span>'}`;
+
+/** One A4 GST document — tax invoice, credit note or wholesale order. */
+interface GstDoc {
+    docNo: string;
+    title: string;
+    /** "Original for recipient"; empty for a document that isn't a tax document yet. */
+    copyLabel?: string;
+    docHeading: string;
+    /** Number, date and references; place of supply is added under it. */
+    docBox: string;
+    partyHeading: string;
+    party: string;
+    g: ReturnType<typeof gstBreakup>;
+    /** Rows above "Taxable value" (subtotal and discount). */
+    pre?: string;
+    totalLabel: string;
+    total: number;
+    /** Rows under the total (paid, due, refund…). */
+    post?: string;
+    /** Lines under the amount in words (UPI, reason, notes). */
+    notes?: string;
+}
+
 /**
- * Open a printable invoice and trigger the print / save-as-PDF dialog. A4 is a
- * GST tax invoice (rule 46): title, HSN, taxable value per line, CGST + SGST or
+ * The shared A4 layout (CGST Rules 46 and 53): title, document number and
+ * date, supplier and buyer GSTIN, HSN, taxable value per line, CGST + SGST or
  * IGST, an HSN-wise tax summary, place of supply, amount in words, signatory.
- * 58 / 80mm go to the thermal receipt. Supports the 3 A4 templates.
  */
-export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', template: Template = getTemplate()) {
-    if (format === '58mm') return printThermal(inv, biz, 58);
-    if (format === '80mm') return printThermal(inv, biz, 80);
-    const g = gstBreakup(inv, biz);
+function openGstDoc(d: GstDoc, biz: Biz | undefined, template: Template) {
+    const { g } = d;
     const { css, header } = tplBase(template, biz, true);
     const rows = g.lines
         .map(
@@ -229,27 +255,27 @@ export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', templ
     const taxRows = g.summary
         .map((s) => `<tr><td>${esc(s.hsn) || '—'}</td><td class="r">${s.rate}%</td><td class="r">${inr2(s.taxable)}</td>${g.inter ? `<td class="r">${inr2(s.igst)}</td>` : `<td class="r">${inr2(s.cgst)}</td><td class="r">${inr2(s.sgst)}</td>`}<td class="r">${inr2(s.cgst + s.sgst + s.igst)}</td></tr>`)
         .join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(inv.invoiceNo)}</title>
+    const copy = d.copyLabel ?? 'Original for recipient';
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.docNo)}</title>
     <style>${css}.doc{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 10px}.doc h2{margin:0;font-size:16px;letter-spacing:.08em}.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}.box{border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.5}.box h4{margin:0 0 2px;font-size:11px;text-transform:uppercase;color:#666}.words{margin-top:8px;font-size:12px}.sign{margin-top:28px;text-align:right;font-size:13px}.sign .l{margin-top:34px;border-top:1px solid #999;display:inline-block;padding-top:4px;min-width:180px;text-align:center}</style></head><body>
       ${header}
-      <div class="doc"><h2>${g.title}</h2><span class="muted">Original for recipient</span></div>
+      <div class="doc"><h2>${esc(d.title)}</h2>${copy ? `<span class="muted">${esc(copy)}</span>` : ''}</div>
       <div class="cols">
-        <div class="box"><h4>Invoice</h4><b>${esc(inv.invoiceNo)}</b><br>${new Date(inv.createdAt).toLocaleString('en-IN')}<br>Place of supply: ${esc(g.placeOfSupply) || '—'}</div>
-        <div class="box"><h4>Bill to</h4>${esc(inv.customerName || 'Walk-in customer')}${inv.customerMobile ? '<br>' + esc(inv.customerMobile) : ''}<br>${inv.customerGstin ? 'GSTIN: ' + esc(inv.customerGstin) : '<span class="muted">Unregistered</span>'}</div>
+        <div class="box"><h4>${esc(d.docHeading)}</h4>${d.docBox}<br>Place of supply: ${esc(g.placeOfSupply) || '—'}</div>
+        <div class="box"><h4>${esc(d.partyHeading)}</h4>${d.party}</div>
       </div>
       <hr>
       <table><thead><tr><th>#</th><th>Item</th><th>HSN</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
       ${g.summary.some((s) => s.rate > 0) ? `<h4 style="margin:14px 0 4px;font-size:12px">Tax summary</h4><table><thead><tr><th>HSN</th><th class="r">Rate</th><th class="r">Taxable</th>${taxHead}<th class="r">Total tax</th></tr></thead><tbody>${taxRows}</tbody></table>` : ''}
       <div style="margin-top:12px;margin-left:auto;max-width:320px">
-        ${inv.discount > 0 ? `<div class="tot"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div><div class="tot"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
+        ${d.pre || ''}
         <div class="tot"><span>Taxable value</span><span>${inr2(g.taxable)}</span></div>
         ${g.inter ? `<div class="tot"><span>IGST</span><span>${inr2(g.igst)}</span></div>` : `<div class="tot"><span>CGST</span><span>${inr2(g.cgst)}</span></div><div class="tot"><span>SGST</span><span>${inr2(g.sgst)}</span></div>`}
-        <div class="tot grand"><span>Total</span><span>${inr2(inv.grandTotal)}</span></div>
-        <div class="tot"><span>Paid <span class="chip">${esc(payModeLabel(inv))}</span></span><span>${inr2(inv.paidAmount)}</span></div>
-        ${inv.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}
+        <div class="tot grand"><span>${esc(d.totalLabel)}</span><span>${inr2(d.total)}</span></div>
+        ${d.post || ''}
       </div>
-      <p class="words"><b>Amount in words:</b> ${amountInWords(inv.grandTotal)}</p>
-      ${biz?.upiId ? `<p class="muted">Pay by UPI: <b>${esc(biz.upiId)}</b></p>` : ''}
+      <p class="words"><b>Amount in words:</b> ${amountInWords(d.total)}</p>
+      ${d.notes || ''}
       <div class="sign">For ${esc(biz?.name || 'Whoply')}<br><span class="l">Authorised signatory</span></div>
       <hr><p class="muted" style="text-align:center">Thank you! Powered by Whoply</p>
       <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#4338CA;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
@@ -257,6 +283,31 @@ export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', templ
     </body></html>`;
     const w = window.open('', '_blank', 'width=860,height=900');
     if (w) { w.document.write(html); w.document.close(); }
+}
+
+/**
+ * Open a printable invoice and trigger the print / save-as-PDF dialog. A4 is a
+ * GST tax invoice (rule 46, see openGstDoc); 58 / 80mm go to the thermal
+ * receipt. Supports the 3 A4 templates.
+ */
+export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', template: Template = getTemplate()) {
+    if (format === '58mm') return printThermal(inv, biz, 58);
+    if (format === '80mm') return printThermal(inv, biz, 80);
+    const g = gstBreakup(inv, biz);
+    openGstDoc({
+        docNo: inv.invoiceNo,
+        title: g.title,
+        docHeading: 'Invoice',
+        docBox: `<b>${esc(inv.invoiceNo)}</b><br>${when(inv.createdAt)}`,
+        partyHeading: 'Bill to',
+        party: partyHtml(inv.customerName || 'Walk-in customer', inv.customerMobile, inv.customerGstin),
+        g,
+        pre: inv.discount > 0 ? `<div class="tot"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div><div class="tot"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : '',
+        totalLabel: 'Total',
+        total: inv.grandTotal,
+        post: `<div class="tot"><span>Paid <span class="chip">${esc(payModeLabel(inv))}</span></span><span>${inr2(inv.paidAmount)}</span></div>${inv.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}`,
+        notes: biz?.upiId ? `<p class="muted">Pay by UPI: <b>${esc(biz.upiId)}</b></p>` : '',
+    }, biz, template);
 }
 
 /** Build CSV from a list of invoices (client-side, includes customer mobile). */
@@ -309,25 +360,34 @@ export function printQuote(q: any, biz?: Biz, template: Template = getTemplate()
     if (w) { w.document.write(html); w.document.close(); }
 }
 
-/** Printable credit note / sales return (A4). */
+/**
+ * Printable credit note for a return (A4, CGST Rule 53): references the
+ * original bill or order, and shows the GST it takes back — CGST + SGST or
+ * IGST, HSN-wise — plus how the value was settled.
+ */
 export function printCreditNote(cn: any, biz?: Biz, template: Template = getTemplate()) {
-    const { css, header } = tplBase(template, biz);
-    const rows = cn.items.map((it: any) => `<tr><td>${it.name}</td><td class="r">${it.quantity}</td><td class="r">${inr2(it.price)}</td><td class="r">${it.gstRate}%</td><td class="r">${inr2(it.lineTotal)}</td></tr>`).join('');
-    const refundLabel = cn.refundMode === 'udhar_adjust' ? 'Adjusted against udhar' : 'Cash refund';
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${cn.creditNoteNo}</title>
-    <style>${css}</style></head><body>
-      <div class="tag">CREDIT NOTE · RETURN</div>
-      <div style="margin-top:6px">${header}</div>
-      <div><b>Credit Note:</b> ${cn.creditNoteNo}<br><span class="muted">${new Date(cn.createdAt).toLocaleString('en-IN')}${(cn.invoiceNo || cn.orderNo) ? ' · against ' + (cn.invoiceNo || cn.orderNo) : ''}</span></div>
-      ${cn.customerName ? `<div style="margin-top:6px"><b>Customer:</b> ${cn.customerName}${cn.customerMobile ? ' · ' + cn.customerMobile : ''}</div>` : ''}
-      ${cn.reason ? `<div style="margin-top:4px" class="muted">Reason: ${cn.reason}</div>` : ''}<hr>
-      <table><thead><tr><th>Item returned</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-      <div style="margin-top:12px"><div class="tot"><span>Subtotal</span><span>${inr2(cn.subtotal)}</span></div><div class="tot"><span>GST</span><span>${inr2(cn.totalGst)}</span></div><div class="tot grand"><span>Refund total</span><span>${inr2(cn.total)}</span></div><div class="tot"><span>${refundLabel}</span><span></span></div></div>
-      <hr><p class="muted" style="text-align:center">Powered by Whoply</p>
-      <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#4338CA;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
-      <script>setTimeout(()=>window.print(),400)</script></body></html>`;
-    const w = window.open('', '_blank', 'width=520,height=720');
-    if (w) { w.document.write(html); w.document.close(); }
+    const g = gstBreakup(cn, biz);
+    const ref = cn.invoiceNo ? `Against bill <b>${esc(cn.invoiceNo)}</b>` : cn.orderNo ? `Against order <b>${esc(cn.orderNo)}</b>` : '';
+    // How the value went back: dues cleared first, the rest in cash (cashRefund).
+    // Notes made before cashRefund was stored only know the refund mode.
+    const cash = Number(cn.cashRefund) || 0;
+    const adjusted = r2(cn.total - cash);
+    const settled = cn.cashRefund === undefined
+        ? `<div class="tot"><span>${cn.refundMode === 'udhar_adjust' ? 'Adjusted against dues' : 'Cash refund'}</span><span>${inr2(cn.total)}</span></div>`
+        : `${adjusted > 0 ? `<div class="tot"><span>Adjusted against dues</span><span>${inr2(adjusted)}</span></div>` : ''}${cash > 0 ? `<div class="tot"><span>Cash refund</span><span>${inr2(cash)}</span></div>` : ''}`;
+    openGstDoc({
+        docNo: cn.creditNoteNo,
+        title: 'CREDIT NOTE',
+        docHeading: 'Credit note',
+        docBox: `<b>${esc(cn.creditNoteNo)}</b><br>${when(cn.createdAt)}${ref ? `<br>${ref}` : ''}`,
+        partyHeading: 'Issued to',
+        party: partyHtml(cn.customerName || 'Walk-in customer', cn.customerMobile, cn.customerGstin),
+        g,
+        totalLabel: 'Credit note value',
+        total: cn.total,
+        post: settled,
+        notes: cn.reason ? `<p class="muted">Reason for return: ${esc(cn.reason)}</p>` : '',
+    }, biz, template);
 }
 
 const GST_DOC_CSS = `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}body{max-width:640px;margin:20px auto;color:#111;padding:0 16px;font-size:13px}h1{font-size:18px;margin:0 0 2px}.tag{display:inline-block;background:#eef2ff;color:#4338CA;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;margin-bottom:8px}.muted{color:#666;font-size:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}.box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.box h4{margin:0 0 4px;font-size:12px;color:#4338CA;text-transform:uppercase}hr{border:none;border-top:1px dashed #bbb;margin:12px 0}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:6px 4px;text-align:left;border-bottom:1px solid #eee}.r{text-align:right}.tot{display:flex;justify-content:space-between;padding:2px 0}.grand{font-weight:800;font-size:15px;border-top:2px solid #111;padding-top:6px;margin-top:4px}.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:11px;margin-top:10px}.btns{margin:16px 0;display:flex;gap:8px;justify-content:center}.btns button{padding:9px 16px;border:0;border-radius:8px;font-weight:600;cursor:pointer}.pbtn{background:#4338CA;color:#fff}.jbtn{background:#eef2ff;color:#4338CA}@media print{.btns,.warn{display:none}}`;
@@ -405,25 +465,38 @@ export function paymentsToCsv(payments: any[]): string {
     return [header.map(esc).join(','), ...lines].join('\n');
 }
 
-/** Printable purchase/dispatch order (save as PDF). 3 templates. */
+/**
+ * Printable wholesale order (A4, same GST layout as a bill). GST wants the tax
+ * invoice issued when the goods leave, so a dispatched or delivered order
+ * prints as a Tax Invoice, and before that as a Proforma Invoice.
+ */
 export function printOrder(o: any, biz?: Biz, template: Template = getTemplate()) {
-    const { css, header } = tplBase(template, biz);
-    const rows = o.items.map((it: any) => `<tr><td>${it.name}</td><td class="r">${it.quantity}</td><td class="r">${inr2(it.price)}</td><td class="r">${inr2(it.lineTotal)}</td></tr>`).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${o.orderNo}</title>
-    <style>${css}</style></head><body>
-      ${header}
-      <div><b>Order:</b> ${o.orderNo} <span class="muted">(${o.status})</span><br><span class="muted">${new Date(o.createdAt).toLocaleString('en-IN')}</span></div>
-      <div style="margin-top:6px"><b>Dealer:</b> ${o.dealerName}${o.dealerGstin ? ' · GSTIN: ' + o.dealerGstin : ''} · via ${o.source}</div><hr>
-      <table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-      <div style="margin-top:12px">
-      ${o.totalGst != null ? `<div class="tot"><span>Subtotal</span><span>${inr2(o.subtotal)}</span></div><div class="tot"><span>GST</span><span>${inr2(o.totalGst)}</span></div>` : ''}
-      <div class="tot grand"><span>Total</span><span>${inr2(o.total)}</span></div>
-      <div class="tot"><span>Paid</span><span>${inr2(o.paidAmount)}</span></div>${o.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Outstanding</span><span>${inr2(o.dueAmount)}</span></div>` : ''}</div>
-      <hr><p class="muted" style="text-align:center">Powered by Whoply</p>
-      <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#4338CA;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
-      <script>setTimeout(()=>window.print(),400)</script></body></html>`;
-    const w = window.open('', '_blank', 'width=560,height=720');
-    if (w) { w.document.write(html); w.document.close(); }
+    const g = gstBreakup(o, biz);
+    const supplied = o.status === 'dispatched' || o.status === 'delivered';
+    const title = o.status === 'cancelled' ? 'CANCELLED ORDER' : supplied ? g.title : 'PROFORMA INVOICE';
+    // A return lowers the order's total but leaves its lines as sold — show the
+    // invoice as sold, then what the credit notes took off.
+    const asSold = r2(g.taxable + g.cgst + g.sgst + g.igst);
+    const returned = r2(asSold - (o.total || 0));
+    const hasReturns = returned > 0.05;
+    const notes = [
+        !supplied && o.status !== 'cancelled' ? '<p class="muted">Proforma — not a tax invoice. The tax invoice is issued when the goods are dispatched.</p>' : '',
+        biz?.upiId && o.dueAmount > 0 ? `<p class="muted">Pay by UPI: <b>${esc(biz.upiId)}</b></p>` : '',
+    ].join('');
+    openGstDoc({
+        docNo: o.orderNo,
+        title,
+        copyLabel: supplied ? 'Original for recipient' : '',
+        docHeading: 'Order',
+        docBox: `<b>${esc(o.orderNo)}</b><br>${when(o.createdAt)}<br>Status: ${esc(o.status)}${o.dispatchedAt ? ` · dispatched ${new Date(o.dispatchedAt).toLocaleDateString('en-IN')}` : ''}`,
+        partyHeading: 'Bill to',
+        party: partyHtml(o.dealerName || 'Dealer', o.dealerMobile, o.dealerGstin),
+        g,
+        totalLabel: 'Total',
+        total: hasReturns ? asSold : o.total,
+        post: `${hasReturns ? `<div class="tot"><span>Less returns (credit notes)</span><span>- ${inr2(returned)}</span></div><div class="tot"><span><b>Net amount</b></span><span><b>${inr2(o.total)}</b></span></div>` : ''}<div class="tot"><span>Paid</span><span>${inr2(o.paidAmount)}</span></div>${o.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Outstanding</span><span>${inr2(o.dueAmount)}</span></div>` : ''}`,
+        notes,
+    }, biz, template);
 }
 
 export function downloadFile(filename: string, content: string, mime = 'text/csv;charset=utf-8') {

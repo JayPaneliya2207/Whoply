@@ -15,7 +15,9 @@ export default function ReturnsPage() {
     const t = useT();
     const { user } = useAuth();
     const isWholesale = user?.business?.type === 'wholesale';
-    const biz = user?.business ? { name: user.business.name, gstin: user.business.gstin } : undefined;
+    // Full shop profile (address, state, GSTIN) — the credit note prints it and works out place of supply from it.
+    const base = isWholesale ? '/wholesaler' : '/shopkeeper';
+    const { data: biz } = useQuery({ queryKey: ['my-business', base], queryFn: async () => (await api.get(`${base}/business`)).data.data });
     const [detail, setDetail] = useState<any>(null);
 
     const { data: notes } = useQuery({ queryKey: isWholesale ? ['ws-returns'] : ['returns'], queryFn: async () => (await api.get(`/${isWholesale ? 'wholesaler' : 'shopkeeper'}/returns?limit=100`)).data.data.items });
