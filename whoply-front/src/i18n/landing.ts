@@ -616,7 +616,7 @@ const en: LandingCopy = {
             },
             {
                 title: 'Separate staff logins',
-                body: 'Owner, manager, cashier, warehouse, sales staff — each with their own login.',
+                body: 'Owner, manager, cashier, warehouse, sales staff — each login sees only its own work.',
             },
         ],
         ui: {
@@ -1164,7 +1164,7 @@ const hi: LandingCopy = {
             },
             {
                 title: 'हर स्टाफ़ का अलग लॉगिन',
-                body: 'मालिक, मैनेजर, कैशियर, गोदाम, सेल्स स्टाफ़ — हर किसी का अपना लॉगिन।',
+                body: 'मालिक, मैनेजर, कैशियर, गोदाम, सेल्स स्टाफ़ — हर लॉगिन में सिर्फ़ उसका अपना काम।',
             },
         ],
         ui: {
@@ -1712,7 +1712,7 @@ const gu: LandingCopy = {
             },
             {
                 title: 'દરેક સ્ટાફનું અલગ લોગિન',
-                body: 'માલિક, મેનેજર, કેશિયર, ગોદામ, સેલ્સ સ્ટાફ — દરેકનું પોતાનું લોગિન.',
+                body: 'માલિક, મેનેજર, કેશિયર, ગોદામ, સેલ્સ સ્ટાફ — દરેક લોગિનમાં ફક્ત પોતાનું કામ.',
             },
         ],
         ui: {

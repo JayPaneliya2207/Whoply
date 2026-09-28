@@ -212,10 +212,10 @@ much, and how many days you have left. No black box — you can see the maths.
 
 **H2:** Your cashier bills. Your cashier never sees your profit.
 **Body:** Every person gets their own login and sees only their own work. Cashiers get billing
-and today's sales. Warehouse gets stock and dispatch. Sales staff get their own dealers and
-route. Your margins, expenses and reports stay yours.
+and today's sales. Warehouse gets stock and dispatch. Sales staff get dealers, orders and
+collections. Your margins, expenses and reports stay with you, your manager and your accountant.
 
-**Sub-point:** One login can't be shared across five phones — device limits are enforced per role.
+**Sub-point:** Staff logins and salaries are owner-only — a manager can't add a login or change pay.
 
 ---
 
@@ -297,7 +297,7 @@ rather have a bigger screen.
 | **Do I need a computer?** | No. Any Android phone is enough. Whoply installs from your browser — no Play Store, no laptop. |
 | **Is it really in Hindi?** | Yes — the entire app, not just the menus. Switch between English and हिंदी any time from settings. |
 | **Will my CA get what he needs?** | Yes. GSTR-ready reports plus a Tally export, so he keeps working the way he already does. |
-| **Can my staff see my profit?** | Only if you allow it. A cashier sees billing and today's sales — nothing about margins, expenses or reports. |
+| **Can my staff see my profit?** | Only your manager and accountant. A cashier sees billing and today's sales — nothing about margins, cost prices, expenses or reports. |
 | **Can I move my existing product list in?** | Yes, import it. You don't retype your catalogue. |
 | **What happens if I stop paying?** | Your data stays yours and you can export it. You're never locked out of your own records. |
 | **Does it work without internet?** | You can open the app without a signal, but billing needs a connection today. Offline billing is on the way. |
@@ -382,7 +382,7 @@ Monday 9 AM payables (in-app notifications).
 | Expiry / batch alerts | The Batch model is never used and no expiry alert is created. | "Low-stock alerts". |
 | "Import your product list" | No import endpoint or file upload for products. | "Type them in or scan the barcode." |
 | Visit logging / route tracking / commission | No screen logs a visit; reps aren't assigned to dealers, so commission is 0. | "Each rep has their own login to take orders and record collections." |
-| "Your cashier never sees your profit" / device limits | Nav and API don't restrict by role; no device limits exist. | "Separate staff logins." |
+| Device limits per role / "sales staff get their own dealers" | No device limits exist. Roles are enforced (`whoply-api/src/utils/permissions.ts`), but every rep sees all dealers — reps aren't assigned to dealers. | "Each login sees only its own work." "Your cashier never sees your profit" is fine to say. |
 | Credit limits enforced / driver assigned / out for delivery | Credit limit is stored but never checked; orders have no driver field or that status. | "Outstanding by dealer"; statuses pending → confirmed → dispatched → delivered. |
 
 ### 🔌 Wire these up
