@@ -11,6 +11,7 @@ import CreditLedger from '../../models/CreditLedger.js';
 import Business from '../../models/Business.js';
 import { applyStockChanges } from '../../utils/stock.js';
 import { priceLines, round2 } from '../../utils/tax.js';
+import { resolvePayments } from '../../utils/payments.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
@@ -99,11 +100,11 @@ export const deleteQuotation = asyncHandler(async (req: AuthRequest, res: Respon
 
 /**
  * POST /quotations/:id/convert — turn an open quote into a real Invoice.
- * body: { paymentMode?, paidAmount? }. Validates stock, decrements it, posts udhar for any due.
+ * body: { payments?: [{ mode, amount }] } (or the older { paymentMode, paidAmount }).
+ * Validates stock, decrements it, posts udhar for any due.
  */
 export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { paymentMode = 'cash', paidAmount } = req.body;
     const quote = await Quotation.findOne({ _id: req.params.id, businessId });
     if (!quote) throw AppError.notFound('Quotation not found');
     if (quote.status === 'converted') throw AppError.badRequest('This quotation is already converted');
@@ -128,10 +129,7 @@ export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Respo
     }
 
     const grandTotal = quote.grandTotal;
-    const asked = paymentMode === 'credit' ? Number(paidAmount || 0) : paidAmount != null ? Number(paidAmount) : grandTotal;
-    const paid = round2(Math.min(grandTotal, Math.max(0, asked || 0)));
-    const due = round2(grandTotal - paid);
-    const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'credit';
+    const { payments, paid, due, status, paymentMode } = resolvePayments(req.body, grandTotal);
     if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A customer mobile is required for a credit (udhar) sale');
 
     const ym = new Date().toISOString().slice(0, 7).replace('-', '');
@@ -143,7 +141,7 @@ export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Respo
         businessId, invoiceNo, customerId: resolvedCustomerId, customerName: quote.customerName,
         customerMobile: quote.customerMobile, customerGstin: quote.customerGstin, items: quote.items,
         subtotal: quote.subtotal, totalGst: quote.totalGst, discount: quote.discount, grandTotal,
-        paidAmount: paid, dueAmount: due, paymentMode, status, createdBy: req.user!._id,
+        paidAmount: paid, dueAmount: due, paymentMode, payments, status, createdBy: req.user!._id,
     });
 
     await applyStockChanges(

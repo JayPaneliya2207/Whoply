@@ -17,6 +17,10 @@ import { buildBillText, whatsappLink, printBill } from '@/lib/bill';
 import { maskGstin, isValidGstin } from '@/lib/gstin';
 import { priceLines, round2 } from '@/lib/tax';
 
+const SPLIT_MODES = ['cash', 'upi', 'card'] as const;
+type SplitMode = (typeof SPLIT_MODES)[number];
+const NO_SPLIT: Record<SplitMode, string> = { cash: '', upi: '', card: '' };
+
 export default function BillingPage() {
     const qc = useQueryClient();
     const { user } = useAuth();
@@ -27,7 +31,8 @@ export default function BillingPage() {
     const bizId = user?.business?.id;
     useEffect(() => { if (bizId) ensureBusiness(bizId); }, [bizId, ensureBusiness]);
     const [search, setSearch] = useState('');
-    const [payment, setPayment] = useState<'cash' | 'upi' | 'card' | 'credit'>('cash');
+    const [payment, setPayment] = useState<'cash' | 'upi' | 'card' | 'split' | 'credit'>('cash');
+    const [split, setSplit] = useState<Record<SplitMode, string>>(NO_SPLIT);
     const [done, setDone] = useState<any>(null);
     const [error, setError] = useState('');
     const [showQr, setShowQr] = useState(false);
@@ -95,13 +100,19 @@ export default function BillingPage() {
     }, [cart, billDiscPct]);
     const count = useMemo(() => cart.reduce((s, r) => s + r.qty, 0), [cart]);
     const inCart = useMemo(() => new Map(cart.map((r) => [r.productId, r.qty])), [cart]);
-    const creditBlocked = payment === 'credit' && !matched && mobile.length < 10;
+    // Split bill: what's been entered per mode, and what's left (that part goes on udhar).
+    const splitPaid = round2(SPLIT_MODES.reduce((s, m) => s + (Number(split[m]) || 0), 0));
+    const splitDue = round2(totals.grand - splitPaid);
+    const splitOver = payment === 'split' && splitDue < -0.005;
+    const creditBlocked = (payment === 'credit' || (payment === 'split' && splitDue > 0.005)) && !matched && mobile.length < 10;
 
     const checkout = useMutation({
         mutationFn: async () => {
             const body = {
                 items: cart.map((r) => ({ productId: r.productId, quantity: r.qty })), // the server prices each item from the product
-                paymentMode: payment,
+                ...(payment === 'split'
+                    ? { payments: SPLIT_MODES.map((m) => ({ mode: m, amount: Number(split[m]) || 0 })).filter((p) => p.amount > 0) }
+                    : { paymentMode: payment }),
                 discount: totals.disc || undefined,
                 customerId: matched?._id || undefined,
                 walkInName: !matched ? name || undefined : undefined,
@@ -111,7 +122,7 @@ export default function BillingPage() {
             return (await api.post('/shopkeeper/billing', body)).data.data;
         },
         onSuccess: (inv) => {
-            setDone(inv); clear(); setPayment('cash'); setBillDiscPct(''); setGstin(''); setError(''); setCartOpen(false);
+            setDone(inv); clear(); setPayment('cash'); setSplit(NO_SPLIT); setBillDiscPct(''); setGstin(''); setError(''); setCartOpen(false);
             qc.invalidateQueries({ queryKey: ['dashboard'] });
             qc.invalidateQueries({ queryKey: ['products'] });
             qc.invalidateQueries({ queryKey: ['bills'] });
@@ -197,10 +208,10 @@ export default function BillingPage() {
             <Modal open={cartOpen} onClose={() => setCartOpen(false)} title={`${t('cart')} (${count})`}
                 footer={
                     <div className="space-y-2">
-                        {payment === 'upi' && <button className="wp-btn wp-btn-ghost w-full" onClick={() => setShowQr(true)}><QrCode size={16} /> {t('showUpiQr')}</button>}
+                        {(payment === 'upi' || (payment === 'split' && Number(split.upi) > 0)) && <button className="wp-btn wp-btn-ghost w-full" onClick={() => setShowQr(true)}><QrCode size={16} /> {t('showUpiQr')}</button>}
                         {error && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{error}</p>}
                         {creditBlocked && <p className="text-xs" style={{ color: 'var(--accent-600)' }}>{t('enterMobileForCredit')}</p>}
-                        <button className="wp-btn wp-btn-primary w-full" disabled={cart.length === 0 || checkout.isPending || creditBlocked} onClick={() => checkout.mutate()}>
+                        <button className="wp-btn wp-btn-primary w-full" disabled={cart.length === 0 || checkout.isPending || creditBlocked || splitOver} onClick={() => checkout.mutate()}>
                             <Check size={18} /> {t('completeSale')} · {inr2(totals.grand)}
                         </button>
                     </div>
@@ -253,12 +264,31 @@ export default function BillingPage() {
                 )}
                 {matched && <p className="text-xs mb-2 flex items-center gap-1.5" style={{ color: 'var(--success-600)' }}><BadgeCheck size={13} /> {t('existingCustomer')}{matched.creditBalance > 0 ? ` · owes ${inr2(matched.creditBalance)}` : ''}</p>}
 
-                <div className="grid grid-cols-4 gap-1.5 mb-2">
-                    {(['cash', 'upi', 'card', 'credit'] as const).map((m) => (
+                <div className="grid grid-cols-5 gap-1.5 mb-2">
+                    {(['cash', 'upi', 'card', 'split', 'credit'] as const).map((m) => (
                         <button key={m} onClick={() => setPayment(m)} className="py-2 rounded-lg text-xs font-semibold capitalize transition-all"
-                            style={payment === m ? { background: 'var(--brand-700)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{m}</button>
+                            style={payment === m ? { background: 'var(--brand-700)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{m === 'split' ? t('splitPay') : m}</button>
                     ))}
                 </div>
+
+                {/* Split bill — one amount per mode; the rest goes on udhar */}
+                {payment === 'split' && (
+                    <div className="mb-2 rounded-xl p-2.5 space-y-1.5" style={{ background: 'var(--surface-2)' }}>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('splitHint')}</p>
+                        {SPLIT_MODES.map((m) => (
+                            <div key={m} className="flex items-center gap-2">
+                                <label htmlFor={`split-${m}`} className="w-12 text-xs font-semibold capitalize" style={{ color: 'var(--text-secondary)' }}>{m}</label>
+                                <input id={`split-${m}`} className="wp-input !py-1.5 text-sm tabular flex-1" type="number" inputMode="decimal" min="0" placeholder="0"
+                                    value={split[m]} onChange={(e) => setSplit((s) => ({ ...s, [m]: e.target.value }))} />
+                                <button type="button" className="text-xs font-semibold px-2.5 py-1.5 rounded-md shrink-0 disabled:opacity-40" style={{ background: 'var(--card-bg)', color: 'var(--brand-700)' }}
+                                    disabled={splitDue <= 0.005} onClick={() => setSplit((s) => ({ ...s, [m]: String(round2((Number(s[m]) || 0) + splitDue)) }))}>{t('payRest')}</button>
+                            </div>
+                        ))}
+                        <p className="text-xs font-semibold" style={{ color: splitOver ? 'var(--danger-500)' : splitDue > 0.005 ? 'var(--accent-600)' : 'var(--success-600)' }}>
+                            {splitOver ? t('overBill') : splitDue > 0.005 ? `${inr2(splitDue)} ${t('onUdhar')}` : `✓ ${inr2(splitPaid)}`}
+                        </p>
+                    </div>
+                )}
 
                 {/* Optional discount % */}
                 <div className="flex items-center gap-2 mb-3">
@@ -297,7 +327,7 @@ export default function BillingPage() {
                 )}
             </AnimatePresence>
 
-            {showQr && <UpiQr amount={totals.grand} upiId={shopBiz?.upiId} qrImage={shopBiz?.upiQrImage} shopName={shopBiz?.name} onClose={() => setShowQr(false)} />}
+            {showQr && <UpiQr amount={payment === 'split' ? Number(split.upi) || 0 : totals.grand} upiId={shopBiz?.upiId} qrImage={shopBiz?.upiQrImage} shopName={shopBiz?.name} onClose={() => setShowQr(false)} />}
         </div>
     );
 }

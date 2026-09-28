@@ -197,7 +197,22 @@ export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Respons
     const [byMode, totals, ledgerAgg, expAgg, refundAgg] = await Promise.all([
         Invoice.aggregate([
             { $match: { businessId: bId, createdAt: { $gte: start, $lt: end } } },
-            { $group: { _id: '$paymentMode', collected: { $sum: '$paidAmount' }, sales: { $sum: '$grandTotal' }, count: { $sum: 1 } } },
+            // Money in by mode, from each bill's payments (a split bill counts in several
+            // modes). Bills made before split payment only have paymentMode + paidAmount;
+            // for an old udhar bill with a part payment, that part came in cash.
+            {
+                $project: {
+                    pays: {
+                        $cond: [
+                            { $gt: [{ $size: { $ifNull: ['$payments', []] } }, 0] },
+                            '$payments',
+                            [{ mode: { $cond: [{ $eq: ['$paymentMode', 'credit'] }, 'cash', '$paymentMode'] }, amount: '$paidAmount' }],
+                        ],
+                    },
+                },
+            },
+            { $unwind: '$pays' },
+            { $group: { _id: '$pays.mode', collected: { $sum: '$pays.amount' } } },
         ]),
         Invoice.aggregate([
             { $match: { businessId: bId, createdAt: { $gte: start, $lt: end } } },
@@ -257,7 +272,7 @@ export const exportInvoicesCsv = asyncHandler(async (req: AuthRequest, res: Resp
             new Date(i.createdAt).toLocaleString('en-IN'),
             i.customerName || 'Walk-in',
             i.customerMobile || '',
-            i.paymentMode,
+            i.payments && i.payments.length > 1 ? i.payments.map((p) => `${p.mode} ${p.amount}`).join(' + ') : i.paymentMode,
             i.subtotal,
             i.totalGst,
             i.discount,

@@ -1,5 +1,9 @@
 import { inr2 } from './cn';
 
+/** How a bill was paid: "cash", or for a split bill "cash ₹400 + upi ₹600". */
+export const payModeLabel = (inv: { paymentMode?: string; payments?: { mode: string; amount: number }[] }) =>
+    inv.payments && inv.payments.length > 1 ? inv.payments.map((p) => `${p.mode} ${inr2(p.amount)}`).join(' + ') : inv.paymentMode || '';
+
 interface Biz {
     name?: string;
     ownerName?: string;
@@ -57,7 +61,7 @@ export function buildBillText(inv: any, biz?: Biz): string {
     if (inv.discount > 0) L.push(`Discount: -${inr2(inv.discount)}`);
     L.push(`GST: ${inr2(inv.totalGst)}`);
     L.push(`*Total: ${inr2(inv.grandTotal)}*`);
-    L.push(`Paid (${inv.paymentMode}): ${inr2(inv.paidAmount)}`);
+    L.push(`Paid (${payModeLabel(inv)}): ${inr2(inv.paidAmount)}`);
     if (inv.dueAmount > 0) L.push(`Due (udhar): ${inr2(inv.dueAmount)}`);
     L.push('--------------------------------');
     L.push('Thank you! 🙏 — powered by Whoply');
@@ -179,7 +183,7 @@ function printThermal(inv: any, biz: Biz | undefined, mm: 58 | 80) {
       ${inv.discount > 0 ? `<div class="row"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
       <div class="row"><span>GST</span><span>${inr2(inv.totalGst)}</span></div>
       <div class="row grand"><span>TOTAL</span><span>${inr2(inv.grandTotal)}</span></div>
-      <div class="row"><span>Paid (${inv.paymentMode})</span><span>${inr2(inv.paidAmount)}</span></div>
+      <div class="row"><span>Paid (${payModeLabel(inv)})</span><span>${inr2(inv.paidAmount)}</span></div>
       ${inv.dueAmount > 0 ? `<div class="row"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}
       ${biz?.upiId ? `<div class="sep">${line}</div><div class="c">Pay UPI: ${biz.upiId}</div>` : ''}
       <div class="sep">${line}</div>
@@ -215,7 +219,7 @@ export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', templ
         ${inv.discount > 0 ? `<div class="tot"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
         <div class="tot"><span>GST</span><span>${inr2(inv.totalGst)}</span></div>
         <div class="tot grand"><span>Total</span><span>${inr2(inv.grandTotal)}</span></div>
-        <div class="tot"><span>Paid <span class="chip">${inv.paymentMode}</span></span><span>${inr2(inv.paidAmount)}</span></div>
+        <div class="tot"><span>Paid <span class="chip">${payModeLabel(inv)}</span></span><span>${inr2(inv.paidAmount)}</span></div>
         ${inv.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}
       </div>
       <hr><p class="muted" style="text-align:center">Thank you! Powered by Whoply</p>
@@ -231,7 +235,7 @@ export function billsToCsv(bills: any[]): string {
     const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const header = ['Invoice No', 'Date', 'Customer', 'Mobile', 'Payment', 'Subtotal', 'GST', 'Discount', 'Total', 'Paid', 'Due', 'Status'];
     const lines = bills.map((i) =>
-        [i.invoiceNo, new Date(i.createdAt).toLocaleString('en-IN'), i.customerName || 'Walk-in', i.customerMobile || '', i.paymentMode, i.subtotal, i.totalGst, i.discount, i.grandTotal, i.paidAmount, i.dueAmount, i.status].map(esc).join(',')
+        [i.invoiceNo, new Date(i.createdAt).toLocaleString('en-IN'), i.customerName || 'Walk-in', i.customerMobile || '', payModeLabel(i), i.subtotal, i.totalGst, i.discount, i.grandTotal, i.paidAmount, i.dueAmount, i.status].map(esc).join(',')
     );
     return [header.map(esc).join(','), ...lines].join('\n');
 }

@@ -7,7 +7,7 @@ import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal } from '@/components/Modal';
 import { useT } from '@/i18n';
-import { buildBillText, whatsappLink, printBill, printCreditNote, printEInvoice, printEwayBill, billsToCsv, downloadFile, type PrintFormat } from '@/lib/bill';
+import { buildBillText, whatsappLink, printBill, printCreditNote, printEInvoice, printEwayBill, billsToCsv, downloadFile, payModeLabel, type PrintFormat } from '@/lib/bill';
 
 const PRINT_FORMATS: { k: PrintFormat; label: string }[] = [
     { k: 'a4', label: 'A4' },
@@ -104,7 +104,7 @@ export default function BillsPage() {
                         </div>
                         <p className="text-xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(inv.grandTotal)}</p>
                         <div className="flex items-center justify-between mt-1.5">
-                            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{inv.customerName || t('walkIn')} · <span className="capitalize">{inv.paymentMode}</span></p>
+                            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{inv.customerName || t('walkIn')} · <span className="capitalize">{payModeLabel(inv)}</span></p>
                             <p className="text-xs shrink-0 ml-2" style={{ color: 'var(--text-muted)' }}>{new Date(inv.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                         </div>
                         {inv.whatsappSentAt && <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: 'var(--success-600)' }}><CheckCheck size={12} /> {t('sentOnWhatsapp')}</p>}
@@ -150,7 +150,7 @@ export default function BillsPage() {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                             <span style={{ color: 'var(--text-secondary)' }}>{detail.customerName || t('walkIn')}</span>
-                            <span className="wp-chip capitalize" style={statusTone[detail.status]}>{detail.paymentMode} · {detail.status}</span>
+                            <span className="wp-chip capitalize" style={statusTone[detail.status]}>{payModeLabel(detail)} · {detail.status}</span>
                         </div>
                         {ewayOpen && (
                             <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--surface-2)' }}>

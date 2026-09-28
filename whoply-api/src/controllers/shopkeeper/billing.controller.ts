@@ -10,12 +10,15 @@ import CreditLedger from '../../models/CreditLedger.js';
 import Business from '../../models/Business.js';
 import { applyStockChanges } from '../../utils/stock.js';
 import { priceLines, round2 } from '../../utils/tax.js';
+import { resolvePayments } from '../../utils/payments.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
 /**
  * POST /billing — create a POS sale.
- * body: { items: [{ productId, quantity }], customerId?, discount?, paymentMode, paidAmount? }
+ * body: { items: [{ productId, quantity }], customerId?, discount?, payments?: [{ mode, amount }] }
+ * `payments` is the money received by mode (several = a split bill); anything
+ * unpaid goes on udhar. Older clients send { paymentMode, paidAmount } instead.
  * `discount` is rupees off the amount payable; it is taken off before GST (utils/tax.ts).
  * Unit prices always come from the product (sell price less its own discount %) —
  * a price sent by the client is ignored, so a stale cart can't bill an old price.
@@ -23,7 +26,7 @@ import type { AuthRequest } from '../../interfaces/index.js';
  */
 export const createSale = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { items = [], customerId, discount = 0, paymentMode = 'cash', paidAmount, walkInName, walkInMobile } = req.body;
+    const { items = [], customerId, discount = 0, walkInName, walkInMobile } = req.body;
     if (!Array.isArray(items) || items.length === 0) throw AppError.badRequest('At least one item is required');
     if (!(Number(discount) >= 0)) throw AppError.badRequest('Discount cannot be negative');
 
@@ -54,10 +57,7 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
         ...priced.lines[k],
     }));
     const { subtotal, totalGst, grandTotal } = priced;
-    const asked = paymentMode === 'credit' ? Number(paidAmount || 0) : paidAmount != null ? Number(paidAmount) : grandTotal;
-    const paid = round2(Math.min(grandTotal, Math.max(0, asked || 0))); // never more than the bill, never negative
-    const due = round2(grandTotal - paid);
-    const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'credit';
+    const { payments, paid, due, status, paymentMode } = resolvePayments(req.body, grandTotal);
 
     // Resolve the customer. A walk-in with a mobile is auto-matched to an existing
     // customer (fetch) or saved as a new one (add), so udhar & history stay linked.
@@ -115,6 +115,7 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
         paidAmount: paid,
         dueAmount: due,
         paymentMode,
+        payments,
         status,
         createdBy: req.user!._id,
     });

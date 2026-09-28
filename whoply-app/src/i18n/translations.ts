@@ -123,6 +123,7 @@ const en: Dict = {
     scanOrType: 'Scan or type the barcode', unitLabel: 'Unit', hsnCode: 'HSN code', costRs: 'Cost ₹', sellRs: 'Sell ₹',
     gstPct: 'GST %', discountPctOptional: 'Discount % (optional)', wholesaleRs: 'Wholesale ₹', lowStockAt: 'Low-stock at',
     priceInclGst: 'Price includes GST (MRP)', priceInclGstHint: 'On: the customer pays exactly this price. Off: GST is added on top at billing.', loadMore: 'Load more', cashRefunds: 'Cash refunds', stockEditHint: 'Stock changes through sales, purchases and returns — not by editing.',
+    splitPay: 'Split', splitHint: 'Enter what the customer pays in each mode. Anything left goes on udhar.', onUdhar: 'on udhar', payRest: 'Rest', overBill: 'Payments are more than the bill',
     allCategories: 'All categories', addCategory: 'Add category', editCategory: 'Edit category', categoryNameLabel: 'Category name',
     deleteProductTitle: 'Delete product?', noProductsAdd: 'No products. Tap “Product” to add one.', searchProducts: 'Search products…',
     // bills
@@ -318,6 +319,7 @@ const hi: Dict = {
     scanOrType: 'बारकोड स्कैन या टाइप करें', unitLabel: 'यूनिट', hsnCode: 'HSN कोड', costRs: 'लागत ₹', sellRs: 'बिक्री ₹',
     gstPct: 'GST %', discountPctOptional: 'छूट % (वैकल्पिक)', wholesaleRs: 'थोक ₹', lowStockAt: 'कम स्टॉक पर',
     priceInclGst: 'कीमत में GST शामिल (MRP)', priceInclGstHint: 'चालू: ग्राहक ठीक यही कीमत देगा। बंद: बिल में GST ऊपर से जुड़ेगा।', loadMore: 'और दिखाएँ', cashRefunds: 'नकद वापसी', stockEditHint: 'स्टॉक बिक्री, खरीद और वापसी से बदलता है — एडिट करके नहीं।',
+    splitPay: 'बाँटें', splitHint: 'हर तरीके से मिली रकम डालें। बाकी रकम उधार में जाएगी।', onUdhar: 'उधार में', payRest: 'बाकी', overBill: 'भुगतान बिल से ज़्यादा है',
     allCategories: 'सभी श्रेणियाँ', addCategory: 'श्रेणी जोड़ें', editCategory: 'श्रेणी संपादित करें', categoryNameLabel: 'श्रेणी का नाम',
     deleteProductTitle: 'उत्पाद हटाएँ?', noProductsAdd: 'कोई उत्पाद नहीं। जोड़ने के लिए “उत्पाद” दबाएँ।', searchProducts: 'उत्पाद खोजें…',
     // bills
@@ -513,6 +515,7 @@ const gu: Dict = {
     scanOrType: 'બારકોડ સ્કેન કે ટાઇપ કરો', unitLabel: 'યુનિટ', hsnCode: 'HSN કોડ', costRs: 'ખર્ચ ₹', sellRs: 'વેચાણ ₹',
     gstPct: 'GST %', discountPctOptional: 'છૂટ % (વૈકલ્પિક)', wholesaleRs: 'જથ્થાબંધ ₹', lowStockAt: 'ઓછો સ્ટોક પર',
     priceInclGst: 'કિંમતમાં GST સામેલ (MRP)', priceInclGstHint: 'ચાલુ: ગ્રાહક બરાબર આ જ કિંમત ચૂકવશે. બંધ: બિલમાં GST ઉપરથી ઉમેરાશે.', loadMore: 'વધુ બતાવો', cashRefunds: 'રોકડ પરત', stockEditHint: 'સ્ટોક વેચાણ, ખરીદી અને પરતથી બદલાય છે — એડિટ કરીને નહીં.',
+    splitPay: 'વહેંચો', splitHint: 'દરેક રીતે મળેલી રકમ લખો. બાકી રકમ ઉધારમાં જશે.', onUdhar: 'ઉધારમાં', payRest: 'બાકી', overBill: 'ચુકવણી બિલ કરતાં વધુ છે',
     allCategories: 'બધી શ્રેણીઓ', addCategory: 'શ્રેણી ઉમેરો', editCategory: 'શ્રેણી ફેરફાર', categoryNameLabel: 'શ્રેણીનું નામ',
     deleteProductTitle: 'ઉત્પાદન કાઢવું?', noProductsAdd: 'કોઈ ઉત્પાદન નથી. ઉમેરવા “ઉત્પાદન” દબાવો.', searchProducts: 'ઉત્પાદનો શોધો…',
     // bills

@@ -9,6 +9,7 @@ import { RupeeIcon } from '@/components/RupeeIcon';
 import { api } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
 import { inr, inr2 } from '@/lib/cn';
+import { payModeLabel } from '@/lib/bill';
 import { useT } from '@/i18n';
 import { NavGrid } from '@/components/NavGrid';
 import { ShopStatusToggle } from '@/components/ShopStatusToggle';
@@ -253,7 +254,7 @@ export default function DashboardPage() {
                             <div className="h-9 w-9 grid place-items-center rounded-xl shrink-0" style={invTone(inv.status)}><ReceiptText size={16} /></div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{inv.invoiceNo}</p>
-                                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{inv.customerName || t('walkIn')} · {inv.paymentMode}</p>
+                                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{inv.customerName || t('walkIn')} · {payModeLabel(inv)}</p>
                             </div>
                             <div className="text-right shrink-0">
                                 <p className="text-sm font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(inv.grandTotal)}</p>
