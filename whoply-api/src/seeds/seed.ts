@@ -33,6 +33,7 @@ import Order from '../models/Order.js';
 import Visit from '../models/Visit.js';
 import Notification from '../models/Notification.js';
 import Plan from '../models/Plan.js';
+import { DEFAULT_PLANS } from './plans.js';
 
 const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 const pick = <T>(arr: readonly T[]): T => arr[rand(0, arr.length - 1)];
@@ -63,11 +64,7 @@ async function run() {
     ]);
 
     /* ---------------- Subscription plans ---------------- */
-    await Plan.insertMany([
-        { key: 'free', name: 'Free', price: 0, period: 'month', order: 1, highlight: false, features: ['1 shop', 'Unlimited billing', 'Basic inventory', 'Udhar tracking'] },
-        { key: 'pro', name: 'Pro', price: 299, period: 'month', order: 2, highlight: true, features: ['Everything in Free', 'WhatsApp reminders', 'GST reports', 'Barcode scanning', '3 staff logins'] },
-        { key: 'business', name: 'Business', price: 799, period: 'month', order: 3, highlight: false, features: ['Everything in Pro', 'Wholesale suite', 'Dealers & price-lists', 'Dispatch & sales-team', 'AI reorder'] },
-    ]);
+    await Plan.insertMany(DEFAULT_PLANS);
     console.log('Created 3 subscription plans');
     console.log('Cleared old data');
 
