@@ -198,7 +198,7 @@ export const getInvoice = asyncHandler(async (req: AuthRequest, res: Response) =
     const invoice = await Invoice.findOne({ _id: req.params.id, businessId }).lean();
     if (!invoice) throw AppError.notFound('Invoice not found');
     const business = await Business.findById(businessId)
-        .select('name ownerName mobile countryCode gstin address city state')
+        .select('name ownerName mobile countryCode gstin address city state pincode upiId') // upiId: "Pay UPI" on the printed bill
         .lean();
     sendSuccess(res, { ...invoice, business });
 });

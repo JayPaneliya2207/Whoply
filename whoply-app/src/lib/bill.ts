@@ -1,4 +1,5 @@
 import { inr2 } from './cn';
+import { amountInWords, esc, gstBreakup } from './taxInvoice';
 
 /** How a bill was paid: "cash", or for a split bill "cash ₹400 + upi ₹600". */
 export const payModeLabel = (inv: { paymentMode?: string; payments?: { mode: string; amount: number }[] }) =>
@@ -13,6 +14,7 @@ interface Biz {
     address?: string;
     city?: string;
     state?: string;
+    pincode?: string;
     upiId?: string;
     bank?: { name?: string; holder?: string; account?: string; ifsc?: string };
 }
@@ -135,57 +137,67 @@ export function getTemplate(): Template {
     const t = localStorage.getItem('whoply_invoice_template');
     return t === 'modern' || t === 'compact' ? t : 'classic';
 }
-/** Shared <style> + document header for the chosen A4 template. */
-function tplBase(template: Template, biz: Biz | undefined) {
+/** Shared <style> + document header for the chosen A4 template. `wide` = a full A4 page (tax invoice). */
+function tplBase(template: Template, biz: Biz | undefined, wide = false) {
     const T = TPL[template];
-    const addr = [biz?.address, biz?.city, biz?.state].filter(Boolean).join(', ');
-    const contact = `${biz?.gstin ? 'GSTIN: ' + biz.gstin : ''}${biz?.gstin && biz?.mobile ? ' · ' : ''}${biz?.mobile ? 'Ph: ' + (biz.countryCode || '') + ' ' + biz.mobile : ''}`;
-    const css = `*{font-family:${T.font};box-sizing:border-box}body{max-width:480px;margin:24px auto;color:#111;padding:0 16px}h1{font-size:${T.hfs};margin:0}.muted{color:#666;font-size:12px}hr{border:none;border-top:1px dashed #bbb;margin:12px 0}table{width:100%;border-collapse:collapse;font-size:${T.tfs}}th,td{padding:${T.pad};text-align:left;border-bottom:1px solid #eee}.r{text-align:right}.tot{display:flex;justify-content:space-between;font-size:14px;padding:3px 0}.grand{font-weight:800;font-size:18px;border-top:2px solid ${T.accent};padding-top:8px;margin-top:6px;color:${T.accent}}.chip{display:inline-block;background:#eef;color:#334;border-radius:6px;padding:2px 8px;font-size:12px}.tag{display:inline-block;background:#eef2ff;color:#4338CA;border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700}.band{background:${T.accent};color:#fff;margin:-24px -16px 12px;padding:18px 16px}.band h1{color:#fff}.band .muted{color:#dfe3ff}@media print{button{display:none}.band{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+    const addr = esc([biz?.address, biz?.city, biz?.state, biz?.pincode].filter(Boolean).join(', '));
+    const contact = esc(`${biz?.gstin ? 'GSTIN: ' + biz.gstin : ''}${biz?.gstin && biz?.mobile ? ' · ' : ''}${biz?.mobile ? 'Ph: ' + (biz.countryCode || '') + ' ' + biz.mobile : ''}`);
+    const css = `*{font-family:${T.font};box-sizing:border-box}body{max-width:${wide ? 760 : 480}px;margin:24px auto;color:#111;padding:0 16px}h1{font-size:${T.hfs};margin:0}.muted{color:#666;font-size:12px}hr{border:none;border-top:1px dashed #bbb;margin:12px 0}table{width:100%;border-collapse:collapse;font-size:${T.tfs}}th,td{padding:${T.pad};text-align:left;border-bottom:1px solid #eee}.r{text-align:right}.tot{display:flex;justify-content:space-between;font-size:14px;padding:3px 0}.grand{font-weight:800;font-size:18px;border-top:2px solid ${T.accent};padding-top:8px;margin-top:6px;color:${T.accent}}.chip{display:inline-block;background:#eef;color:#334;border-radius:6px;padding:2px 8px;font-size:12px}.tag{display:inline-block;background:#eef2ff;color:#4338CA;border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700}.band{background:${T.accent};color:#fff;margin:-24px -16px 12px;padding:18px 16px}.band h1{color:#fff}.band .muted{color:#dfe3ff}@media print{button{display:none}.band{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
     const header = T.band
-        ? `<div class="band"><h1>${biz?.name || 'Whoply'}</h1>${addr || contact ? `<p class="muted">${addr}${addr && contact ? '<br>' : ''}${contact}</p>` : ''}</div>`
-        : `<h1>${biz?.name || 'Whoply'}</h1>${addr || contact ? `<p class="muted">${addr}${addr && contact ? '<br>' : ''}${contact}</p>` : ''}<hr>`;
+        ? `<div class="band"><h1>${esc(biz?.name || 'Whoply')}</h1>${addr || contact ? `<p class="muted">${addr}${addr && contact ? '<br>' : ''}${contact}</p>` : ''}</div>`
+        : `<h1>${esc(biz?.name || 'Whoply')}</h1>${addr || contact ? `<p class="muted">${addr}${addr && contact ? '<br>' : ''}${contact}</p>` : ''}<hr>`;
     return { css, header };
 }
 
 /** Thermal-printer receipt (58mm / 80mm rolls). Narrow, monospace, no borders. */
 function printThermal(inv: any, biz: Biz | undefined, mm: 58 | 80) {
-    const w = mm; // paper width in mm
+    const g = gstBreakup(inv, biz);
     const line = '--------------------------------';
-    const items = inv.items
-        .map((it: any) => `<div class="it"><span class="nm">${it.name}</span><span class="am">${inr2(it.lineTotal)}</span></div><div class="sub">${it.quantity} × ${inr2(it.price)}${it.gstRate ? ` · GST ${it.gstRate}%` : ''}</div>`)
+    const items = g.lines
+        .map((l) => `<div class="it"><span class="nm">${esc(l.name)}</span><span class="am">${inr2(l.total)}</span></div><div class="sub">${l.quantity} ${esc(l.unit)} × ${inr2(l.price)}${l.hsn ? ` · HSN ${esc(l.hsn)}` : ''}${l.rate ? ` · GST ${l.rate}%` : ''}</div>`)
         .join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${inv.invoiceNo}</title>
+    // One line pair per GST rate: taxable value, then how the tax splits.
+    const taxRows = g.summary
+        .filter((s) => s.rate > 0)
+        .map((s) => `<div class="row"><span>GST ${s.rate}% on ${inr2(s.taxable)}</span></div><div class="row sub"><span>${g.inter ? `IGST ${inr2(s.igst)}` : `CGST ${s.rate / 2}% ${inr2(s.cgst)} · SGST ${s.rate / 2}% ${inr2(s.sgst)}`}</span></div>`)
+        .join('');
+    const addr = [biz?.address, biz?.city, biz?.state].filter(Boolean).join(', ');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(inv.invoiceNo)}</title>
     <style>
-      @page{size:${w}mm auto;margin:2mm}
+      @page{size:${mm}mm auto;margin:2mm}
       *{font-family:'Courier New',monospace;box-sizing:border-box}
-      body{width:${w}mm;margin:0 auto;color:#000;font-size:${mm === 58 ? 11 : 12}px;line-height:1.35}
-      .c{text-align:center}.b{font-weight:700}.big{font-size:${mm === 58 ? 14 : 16}px}
-      .row{display:flex;justify-content:space-between;gap:6px}
-      .it{display:flex;justify-content:space-between;gap:6px;margin-top:3px}
-      .nm{flex:1;word-break:break-word}.am{white-space:nowrap}
-      .sub{color:#333;font-size:${mm === 58 ? 10 : 11}px;padding-left:2px}
+      body{width:${mm - 4}mm;margin:0 auto;color:#000;font-size:${mm === 58 ? 10 : 12}px;line-height:1.35}
+      .c{text-align:center}.b{font-weight:700}.big{font-size:${mm === 58 ? 13 : 16}px}
+      .row{display:flex;justify-content:space-between;gap:4px}
+      .it{display:flex;justify-content:space-between;gap:4px;margin-top:3px}
+      .nm{flex:1;min-width:0;word-break:break-word}.am{white-space:nowrap}
+      .sub{color:#333;font-size:${mm === 58 ? 9 : 11}px;padding-left:2px}
       .sep{white-space:nowrap;overflow:hidden;margin:5px 0}
-      .grand{font-size:${mm === 58 ? 14 : 16}px;font-weight:700;margin-top:4px}
+      .grand{font-size:${mm === 58 ? 13 : 16}px;font-weight:700;margin-top:4px}
       @media print{button{display:none}}
     </style></head><body>
-      <div class="c b big">${biz?.name || 'Whoply Store'}</div>
-      ${[biz?.address, biz?.city, biz?.state].filter(Boolean).length ? `<div class="c">${[biz?.address, biz?.city, biz?.state].filter(Boolean).join(', ')}</div>` : ''}
-      ${biz?.gstin ? `<div class="c">GSTIN: ${biz.gstin}</div>` : ''}
-      ${biz?.mobile ? `<div class="c">Ph: ${(biz.countryCode || '')} ${biz.mobile}</div>` : ''}
+      <div class="c b big">${esc(biz?.name || 'Whoply Store')}</div>
+      ${addr ? `<div class="c">${esc(addr)}</div>` : ''}
+      ${biz?.gstin ? `<div class="c">GSTIN: ${esc(biz.gstin)}</div>` : ''}
+      ${biz?.mobile ? `<div class="c">Ph: ${esc(biz.countryCode || '')} ${esc(biz.mobile)}</div>` : ''}
       <div class="sep">${line}</div>
-      <div class="row"><span>${inv.invoiceNo}</span></div>
+      <div class="c b">${g.title}</div>
+      <div class="row"><span>${esc(inv.invoiceNo)}</span></div>
       <div class="row"><span>${new Date(inv.createdAt).toLocaleString('en-IN')}</span></div>
-      ${inv.customerName ? `<div class="row"><span>To: ${inv.customerName}${inv.customerMobile ? ' · ' + inv.customerMobile : ''}</span></div>` : ''}
+      ${inv.customerName ? `<div class="row"><span>To: ${esc(inv.customerName)}${inv.customerMobile ? ' · ' + esc(inv.customerMobile) : ''}</span></div>` : ''}
+      ${inv.customerGstin ? `<div class="row"><span>GSTIN: ${esc(inv.customerGstin)}</span></div><div class="row"><span>Place of supply: ${esc(g.placeOfSupply)}</span></div>` : ''}
       <div class="sep">${line}</div>
       ${items}
       <div class="sep">${line}</div>
-      <div class="row"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div>
-      ${inv.discount > 0 ? `<div class="row"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
-      <div class="row"><span>GST</span><span>${inr2(inv.totalGst)}</span></div>
+      ${inv.discount > 0 ? `<div class="row"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div><div class="row"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
+      <div class="row"><span>Taxable value</span><span>${inr2(g.taxable)}</span></div>
+      ${taxRows}
+      <div class="row"><span>Total GST</span><span>${inr2(inv.totalGst)}</span></div>
       <div class="row grand"><span>TOTAL</span><span>${inr2(inv.grandTotal)}</span></div>
-      <div class="row"><span>Paid (${payModeLabel(inv)})</span><span>${inr2(inv.paidAmount)}</span></div>
+      <div class="sub">${amountInWords(inv.grandTotal)}</div>
+      <div class="row"><span>Paid (${esc(payModeLabel(inv))})</span><span>${inr2(inv.paidAmount)}</span></div>
       ${inv.dueAmount > 0 ? `<div class="row"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}
-      ${biz?.upiId ? `<div class="sep">${line}</div><div class="c">Pay UPI: ${biz.upiId}</div>` : ''}
+      ${biz?.upiId ? `<div class="sep">${line}</div><div class="c">Pay UPI: ${esc(biz.upiId)}</div>` : ''}
       <div class="sep">${line}</div>
       <div class="c">Thank you! 🙏</div>
       <div class="c">Powered by Whoply</div>
@@ -196,37 +208,54 @@ function printThermal(inv: any, biz: Biz | undefined, mm: 58 | 80) {
     if (win) { win.document.write(html); win.document.close(); }
 }
 
-/** Open a clean printable invoice and trigger the print/save-as-PDF dialog. Supports A4 + thermal 58/80mm and 3 templates. */
+/**
+ * Open a printable invoice and trigger the print / save-as-PDF dialog. A4 is a
+ * GST tax invoice (rule 46): title, HSN, taxable value per line, CGST + SGST or
+ * IGST, an HSN-wise tax summary, place of supply, amount in words, signatory.
+ * 58 / 80mm go to the thermal receipt. Supports the 3 A4 templates.
+ */
 export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', template: Template = getTemplate()) {
     if (format === '58mm') return printThermal(inv, biz, 58);
     if (format === '80mm') return printThermal(inv, biz, 80);
-    const { css, header } = tplBase(template, biz);
-    const rows = inv.items
+    const g = gstBreakup(inv, biz);
+    const { css, header } = tplBase(template, biz, true);
+    const rows = g.lines
         .map(
-            (it: any) =>
-                `<tr><td>${it.name}</td><td class="r">${it.quantity}</td><td class="r">${inr2(it.price)}</td><td class="r">${it.gstRate}%</td><td class="r">${inr2(it.lineTotal)}</td></tr>`
+            (l, i) =>
+                `<tr><td>${i + 1}</td><td>${esc(l.name)}</td><td>${esc(l.hsn) || '—'}</td><td class="r">${l.quantity} ${esc(l.unit)}</td><td class="r">${inr2(l.price)}</td><td class="r">${inr2(l.taxable)}</td><td class="r">${l.rate}%</td><td class="r">${inr2(l.total)}</td></tr>`
         )
         .join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${inv.invoiceNo}</title>
-    <style>${css}</style></head><body>
+    const taxHead = g.inter ? '<th class="r">IGST</th>' : '<th class="r">CGST</th><th class="r">SGST</th>';
+    const taxRows = g.summary
+        .map((s) => `<tr><td>${esc(s.hsn) || '—'}</td><td class="r">${s.rate}%</td><td class="r">${inr2(s.taxable)}</td>${g.inter ? `<td class="r">${inr2(s.igst)}</td>` : `<td class="r">${inr2(s.cgst)}</td><td class="r">${inr2(s.sgst)}</td>`}<td class="r">${inr2(s.cgst + s.sgst + s.igst)}</td></tr>`)
+        .join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(inv.invoiceNo)}</title>
+    <style>${css}.doc{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 10px}.doc h2{margin:0;font-size:16px;letter-spacing:.08em}.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}.box{border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.5}.box h4{margin:0 0 2px;font-size:11px;text-transform:uppercase;color:#666}.words{margin-top:8px;font-size:12px}.sign{margin-top:28px;text-align:right;font-size:13px}.sign .l{margin-top:34px;border-top:1px solid #999;display:inline-block;padding-top:4px;min-width:180px;text-align:center}</style></head><body>
       ${header}
-      <div><b>Invoice:</b> ${inv.invoiceNo}<br><span class="muted">${new Date(inv.createdAt).toLocaleString('en-IN')}</span></div>
-      ${inv.customerName ? `<div style="margin-top:6px"><b>Bill to:</b> ${inv.customerName}${inv.customerMobile ? ' · ' + inv.customerMobile : ''}${inv.customerGstin ? '<br>GSTIN: ' + inv.customerGstin : ''}</div>` : ''}
+      <div class="doc"><h2>${g.title}</h2><span class="muted">Original for recipient</span></div>
+      <div class="cols">
+        <div class="box"><h4>Invoice</h4><b>${esc(inv.invoiceNo)}</b><br>${new Date(inv.createdAt).toLocaleString('en-IN')}<br>Place of supply: ${esc(g.placeOfSupply) || '—'}</div>
+        <div class="box"><h4>Bill to</h4>${esc(inv.customerName || 'Walk-in customer')}${inv.customerMobile ? '<br>' + esc(inv.customerMobile) : ''}<br>${inv.customerGstin ? 'GSTIN: ' + esc(inv.customerGstin) : '<span class="muted">Unregistered</span>'}</div>
+      </div>
       <hr>
-      <table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-      <div style="margin-top:12px">
-        <div class="tot"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div>
-        ${inv.discount > 0 ? `<div class="tot"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
-        <div class="tot"><span>GST</span><span>${inr2(inv.totalGst)}</span></div>
+      <table><thead><tr><th>#</th><th>Item</th><th>HSN</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+      ${g.summary.some((s) => s.rate > 0) ? `<h4 style="margin:14px 0 4px;font-size:12px">Tax summary</h4><table><thead><tr><th>HSN</th><th class="r">Rate</th><th class="r">Taxable</th>${taxHead}<th class="r">Total tax</th></tr></thead><tbody>${taxRows}</tbody></table>` : ''}
+      <div style="margin-top:12px;margin-left:auto;max-width:320px">
+        ${inv.discount > 0 ? `<div class="tot"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div><div class="tot"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
+        <div class="tot"><span>Taxable value</span><span>${inr2(g.taxable)}</span></div>
+        ${g.inter ? `<div class="tot"><span>IGST</span><span>${inr2(g.igst)}</span></div>` : `<div class="tot"><span>CGST</span><span>${inr2(g.cgst)}</span></div><div class="tot"><span>SGST</span><span>${inr2(g.sgst)}</span></div>`}
         <div class="tot grand"><span>Total</span><span>${inr2(inv.grandTotal)}</span></div>
-        <div class="tot"><span>Paid <span class="chip">${payModeLabel(inv)}</span></span><span>${inr2(inv.paidAmount)}</span></div>
+        <div class="tot"><span>Paid <span class="chip">${esc(payModeLabel(inv))}</span></span><span>${inr2(inv.paidAmount)}</span></div>
         ${inv.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}
       </div>
+      <p class="words"><b>Amount in words:</b> ${amountInWords(inv.grandTotal)}</p>
+      ${biz?.upiId ? `<p class="muted">Pay by UPI: <b>${esc(biz.upiId)}</b></p>` : ''}
+      <div class="sign">For ${esc(biz?.name || 'Whoply')}<br><span class="l">Authorised signatory</span></div>
       <hr><p class="muted" style="text-align:center">Thank you! Powered by Whoply</p>
       <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#4338CA;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
       <script>setTimeout(()=>window.print(),400)</script>
     </body></html>`;
-    const w = window.open('', '_blank', 'width=520,height=720');
+    const w = window.open('', '_blank', 'width=860,height=900');
     if (w) { w.document.write(html); w.document.close(); }
 }
 
