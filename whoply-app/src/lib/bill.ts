@@ -54,8 +54,8 @@ export function buildBillText(inv: any, biz?: Biz): string {
     });
     L.push('--------------------------------');
     L.push(`Subtotal: ${inr2(inv.subtotal)}`);
-    L.push(`GST: ${inr2(inv.totalGst)}`);
     if (inv.discount > 0) L.push(`Discount: -${inr2(inv.discount)}`);
+    L.push(`GST: ${inr2(inv.totalGst)}`);
     L.push(`*Total: ${inr2(inv.grandTotal)}*`);
     L.push(`Paid (${inv.paymentMode}): ${inr2(inv.paidAmount)}`);
     if (inv.dueAmount > 0) L.push(`Due (udhar): ${inr2(inv.dueAmount)}`);
@@ -176,8 +176,8 @@ function printThermal(inv: any, biz: Biz | undefined, mm: 58 | 80) {
       ${items}
       <div class="sep">${line}</div>
       <div class="row"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div>
-      <div class="row"><span>GST</span><span>${inr2(inv.totalGst)}</span></div>
       ${inv.discount > 0 ? `<div class="row"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
+      <div class="row"><span>GST</span><span>${inr2(inv.totalGst)}</span></div>
       <div class="row grand"><span>TOTAL</span><span>${inr2(inv.grandTotal)}</span></div>
       <div class="row"><span>Paid (${inv.paymentMode})</span><span>${inr2(inv.paidAmount)}</span></div>
       ${inv.dueAmount > 0 ? `<div class="row"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}
@@ -212,8 +212,8 @@ export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', templ
       <table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
       <div style="margin-top:12px">
         <div class="tot"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div>
-        <div class="tot"><span>GST</span><span>${inr2(inv.totalGst)}</span></div>
         ${inv.discount > 0 ? `<div class="tot"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : ''}
+        <div class="tot"><span>GST</span><span>${inr2(inv.totalGst)}</span></div>
         <div class="tot grand"><span>Total</span><span>${inr2(inv.grandTotal)}</span></div>
         <div class="tot"><span>Paid <span class="chip">${inv.paymentMode}</span></span><span>${inr2(inv.paidAmount)}</span></div>
         ${inv.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}
@@ -268,7 +268,7 @@ export function printQuote(q: any, biz?: Biz, template: Template = getTemplate()
       <div><b>Quote:</b> ${q.quoteNo}<br><span class="muted">${new Date(q.createdAt).toLocaleString('en-IN')}${q.validUntil ? ' · valid till ' + new Date(q.validUntil).toLocaleDateString('en-IN') : ''}</span></div>
       ${q.customerName ? `<div style="margin-top:6px"><b>For:</b> ${q.customerName}${q.customerMobile ? ' · ' + q.customerMobile : ''}${q.customerGstin ? '<br>GSTIN: ' + q.customerGstin : ''}</div>` : ''}<hr>
       <table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-      <div style="margin-top:12px"><div class="tot"><span>Subtotal</span><span>${inr2(q.subtotal)}</span></div><div class="tot"><span>GST</span><span>${inr2(q.totalGst)}</span></div>${q.discount > 0 ? `<div class="tot"><span>Discount</span><span>- ${inr2(q.discount)}</span></div>` : ''}<div class="tot grand"><span>Estimated total</span><span>${inr2(q.grandTotal)}</span></div></div>
+      <div style="margin-top:12px"><div class="tot"><span>Subtotal</span><span>${inr2(q.subtotal)}</span></div>${q.discount > 0 ? `<div class="tot"><span>Discount</span><span>- ${inr2(q.discount)}</span></div>` : ''}<div class="tot"><span>GST</span><span>${inr2(q.totalGst)}</span></div><div class="tot grand"><span>Estimated total</span><span>${inr2(q.grandTotal)}</span></div></div>
       <hr><p class="muted" style="text-align:center">This is an estimate, not a tax invoice. Powered by Whoply</p>
       <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#4338CA;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
       <script>setTimeout(()=>window.print(),400)</script></body></html>`;

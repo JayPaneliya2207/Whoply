@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle, QrCode, FileJson, Truck, RotateCcw } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
@@ -82,16 +82,20 @@ export default function OrdersPage() {
         catch (e) { alert(apiErr(e)); }
     };
 
-    const { data: allOrders } = useQuery({
-        queryKey: ['orders'],
-        queryFn: async () => (await api.get('/wholesaler/orders?limit=100')).data.data.items,
+    // Filter on the server (the API returns at most 100 per request), and get each
+    // tab's true count from a 1-row query — so older orders never silently drop out.
+    const statusQs = (f: string) => (f === 'all' ? '' : `&status=${f}`);
+    const { data: orders } = useQuery({
+        queryKey: ['orders', statusFilter],
+        queryFn: async () => (await api.get(`/wholesaler/orders?limit=100${statusQs(statusFilter)}`)).data.data.items,
     });
-    const orders = useMemo(() => (statusFilter === 'all' ? (allOrders || []) : (allOrders || []).filter((o: any) => o.status === statusFilter)), [allOrders, statusFilter]);
-    const counts = useMemo(() => {
-        const c: Record<string, number> = { all: (allOrders || []).length };
-        (allOrders || []).forEach((o: any) => { c[o.status] = (c[o.status] || 0) + 1; });
-        return c;
-    }, [allOrders]);
+    const countQueries = useQueries({
+        queries: FILTERS.map((f) => ({
+            queryKey: ['orders', 'count', f],
+            queryFn: async () => (await api.get(`/wholesaler/orders?limit=1${statusQs(f)}`)).data.data.meta.total as number,
+        })),
+    });
+    const counts: Record<string, number> = Object.fromEntries(FILTERS.map((f, i) => [f, countQueries[i]?.data ?? 0]));
     const { data: dealers } = useQuery({ queryKey: ['dealers-all'], queryFn: async () => (await api.get('/wholesaler/dealers?limit=100')).data.data.items });
     const { data: wsBiz } = useQuery({ queryKey: ['ws-business'], queryFn: async () => (await api.get('/wholesaler/business')).data.data });
     const { data: products } = useQuery({ queryKey: ['ws-products', search], queryFn: async () => (await api.get(`/wholesaler/products?limit=50&search=${encodeURIComponent(search)}`)).data.data.items });

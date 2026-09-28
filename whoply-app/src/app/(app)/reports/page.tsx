@@ -223,9 +223,15 @@ function ShopReports() {
                     <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('udharCollected')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--success-600)' }}>{inr(dayClose?.udharCollected || 0)}</p></div>
                     <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('expensesTodayLabel')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.expenses || 0)}</p></div>
                 </div>
+                {(dayClose?.refunds || 0) > 0 && (
+                    <div className="mt-3 flex items-center justify-between text-sm" style={{ color: 'var(--danger-500)' }}>
+                        <span>{t('cashRefunds')}</span>
+                        <span className="font-bold tabular">− {inr(dayClose.refunds)}</span>
+                    </div>
+                )}
                 <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid var(--card-border)' }}>
                     <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{t('cashCollectedToday')}</span>
-                    <span className="text-xl font-extrabold tabular" style={{ color: 'var(--success-600)' }}>{inr((dayClose?.cash || 0) + (dayClose?.udharCollected || 0))}</span>
+                    <span className="text-xl font-extrabold tabular" style={{ color: 'var(--success-600)' }}>{inr((dayClose?.cash || 0) + (dayClose?.udharCollected || 0) - (dayClose?.refunds || 0))}</span>
                 </div>
                 <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>Cash sales + udhar collected today. All figures are for <b>today only</b>. Any expenses you paid from the cash box, subtract separately.</p>
             </div>

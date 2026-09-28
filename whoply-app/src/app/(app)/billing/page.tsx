@@ -15,12 +15,13 @@ import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
 import { buildBillText, whatsappLink, printBill } from '@/lib/bill';
 import { maskGstin, isValidGstin } from '@/lib/gstin';
+import { priceLines, round2 } from '@/lib/tax';
 
 export default function BillingPage() {
     const qc = useQueryClient();
     const { user } = useAuth();
     const t = useT();
-    const { cart, name, mobile, setName, setMobile, add, setQty, remove, clear, ensureBusiness } = usePos();
+    const { cart, name, mobile, setName, setMobile, add, refresh, setQty, remove, clear, ensureBusiness } = usePos();
 
     // Scope the cart to this shop — a different/fresh business starts empty.
     const bizId = user?.business?.id;
@@ -81,13 +82,16 @@ export default function BillingPage() {
 
     useWedgeScanner(scanAdd);
 
+    // A cart saved earlier may hold old prices — sync the rows whenever products (re)load.
+    useEffect(() => { if (prodData?.length) refresh(prodData); }, [prodData, refresh]);
+
+    // Same maths as the server (lib/tax.ts): the bill discount comes off before GST.
     const totals = useMemo(() => {
-        let sub = 0, gst = 0;
-        cart.forEach((r) => { const base = r.price * r.qty; sub += base; gst += (base * r.gstRate) / 100; });
-        const gross = sub + gst;
+        const inputs = cart.map((r) => ({ unitPrice: r.price, quantity: r.qty, gstRate: r.gstRate || 0, inclusive: !!r.inclusive }));
         const pct = Math.min(100, Math.max(0, Number(billDiscPct) || 0));
-        const disc = +(gross * pct / 100).toFixed(2);
-        return { sub, gst, gross, disc, pct, grand: +(gross - disc).toFixed(2) };
+        const disc = round2((priceLines(inputs).grandTotal * pct) / 100); // ₹ off the payable — what the server receives
+        const p = priceLines(inputs, disc);
+        return { sub: p.subtotal, preTaxDisc: p.discount, gst: p.totalGst, disc, pct, grand: p.grandTotal };
     }, [cart, billDiscPct]);
     const count = useMemo(() => cart.reduce((s, r) => s + r.qty, 0), [cart]);
     const inCart = useMemo(() => new Map(cart.map((r) => [r.productId, r.qty])), [cart]);
@@ -96,7 +100,7 @@ export default function BillingPage() {
     const checkout = useMutation({
         mutationFn: async () => {
             const body = {
-                items: cart.map((r) => ({ productId: r.productId, quantity: r.qty, price: r.price })), // price = after per-product discount
+                items: cart.map((r) => ({ productId: r.productId, quantity: r.qty })), // the server prices each item from the product
                 paymentMode: payment,
                 discount: totals.disc || undefined,
                 customerId: matched?._id || undefined,
@@ -265,8 +269,8 @@ export default function BillingPage() {
 
                 <div className="space-y-1 text-sm">
                     <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('subtotal')}</span><span className="tabular">{inr2(totals.sub)}</span></div>
+                    {totals.disc > 0 && <div className="flex justify-between" style={{ color: 'var(--success-600)' }}><span>Discount ({totals.pct}%)</span><span className="tabular">− {inr2(totals.preTaxDisc)}</span></div>}
                     <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('gst')}</span><span className="tabular">{inr2(totals.gst)}</span></div>
-                    {totals.disc > 0 && <div className="flex justify-between" style={{ color: 'var(--success-600)' }}><span>Discount ({totals.pct}%)</span><span className="tabular">− {inr2(totals.disc)}</span></div>}
                     <div className="flex justify-between text-lg font-extrabold pt-1" style={{ color: 'var(--text-primary)', borderTop: '1px solid var(--card-border)' }}><span>{t('total')}</span><span className="tabular">{inr2(totals.grand)}</span></div>
                 </div>
             </Modal>

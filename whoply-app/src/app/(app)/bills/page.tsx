@@ -36,14 +36,16 @@ export default function BillsPage() {
     const [retMode, setRetMode] = useState<'cash' | 'udhar_adjust'>('cash');
     const [retErr, setRetErr] = useState('');
 
-    const openReturn = () => { setRetQty({}); setRetReason(''); setRetMode('cash'); setRetErr(''); setReturning(true); setEwayOpen(false); };
+    // On an udhar bill the natural choice is to take the return off what they owe (the
+    // server always clears this bill's own due first, whichever mode is picked).
+    const openReturn = () => { setRetQty({}); setRetReason(''); setRetMode(detail?.dueAmount > 0 ? 'udhar_adjust' : 'cash'); setRetErr(''); setReturning(true); setEwayOpen(false); };
     const submitReturn = async (inv: any) => {
         const items = Object.entries(retQty).map(([productId, q]) => ({ productId, quantity: Number(q) || 0 })).filter((x) => x.quantity > 0);
         if (!items.length) { setRetErr(t('selectReturnQty')); return; }
         try {
             const { data } = await api.post('/shopkeeper/returns', { invoiceId: inv._id, items, reason: retReason || undefined, refundMode: retMode });
             setReturning(false);
-            qc.invalidateQueries({ queryKey: ['bills'] }); qc.invalidateQueries({ queryKey: ['products'] });
+            qc.invalidateQueries({ queryKey: ['bills'] }); qc.invalidateQueries({ queryKey: ['bill'] }); qc.invalidateQueries({ queryKey: ['products'] });
             qc.invalidateQueries({ queryKey: ['customers'] }); qc.invalidateQueries({ queryKey: ['returns'] });
             if (confirm(t('returnRecordedPrint'))) printCreditNote(data.data.creditNote, inv.business);
         } catch (e) { setRetErr(apiErr(e)); }
@@ -201,8 +203,8 @@ export default function BillsPage() {
                         </div>
                         <div className="space-y-1 text-sm">
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('subtotal')}</span><span className="tabular">{inr2(detail.subtotal)}</span></div>
-                            <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('gst')}</span><span className="tabular">{inr2(detail.totalGst)}</span></div>
                             {detail.discount > 0 && <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>Discount</span><span className="tabular">- {inr2(detail.discount)}</span></div>}
+                            <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('gst')}</span><span className="tabular">{inr2(detail.totalGst)}</span></div>
                             <div className="flex justify-between text-lg font-extrabold pt-1" style={{ color: 'var(--text-primary)', borderTop: '1px solid var(--card-border)' }}><span>{t('total')}</span><span className="tabular">{inr2(detail.grandTotal)}</span></div>
                             {detail.dueAmount > 0 && <div className="flex justify-between font-semibold" style={{ color: 'var(--accent-600)' }}><span>{t('due')} (udhar)</span><span className="tabular">{inr2(detail.dueAmount)}</span></div>}
                         </div>

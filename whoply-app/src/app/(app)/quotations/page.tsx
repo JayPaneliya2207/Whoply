@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Trash2, Check, X, Search, FileText, Printer, MessageCircle, ArrowRightCircle } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
+import { priceLines, round2 } from '@/lib/tax';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
 import { Modal } from '@/components/Modal';
@@ -41,10 +42,11 @@ function RetailQuotes() {
     const { data: quotes } = useQuery({ queryKey: ['quotations'], queryFn: async () => (await api.get('/shopkeeper/quotations?limit=100')).data.data.items });
     const { data: products } = useQuery({ queryKey: ['q-products', search], queryFn: async () => (await api.get(`/shopkeeper/products?limit=40&search=${encodeURIComponent(search)}`)).data.data.items });
 
-    const add = (p: any) => setCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c.map((r) => r.productId === p._id ? { ...r, qty: r.qty + 1 } : r); return [...c, { productId: p._id, name: p.name, price: p.sellPrice, qty: 1 }]; });
+    const add = (p: any) => setCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c.map((r) => r.productId === p._id ? { ...r, qty: r.qty + 1 } : r); return [...c, { productId: p._id, name: p.name, price: round2(p.sellPrice * (1 - (Number(p.discountPct) || 0) / 100)), gstRate: p.gstRate || 0, inclusive: p.priceIncludesGst === true, qty: 1 }]; });
     const setQty = (id: string, d: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: Math.max(1, r.qty + d) } : r));
     const inCart = useMemo(() => new Map(cart.map((r) => [r.productId, r.qty])), [cart]);
-    const total = useMemo(() => Math.max(0, cart.reduce((s, r) => s + r.price * r.qty, 0) - (Number(disc) || 0)), [cart, disc]);
+    // Priced like the server prices the quote: GST per product, discount before tax.
+    const total = useMemo(() => priceLines(cart.map((r) => ({ unitPrice: r.price, quantity: r.qty, gstRate: r.gstRate || 0, inclusive: !!r.inclusive })), Number(disc) || 0).grandTotal, [cart, disc]);
 
     // Barcode scan (camera / USB wedge) — add the matching product to the quote cart.
     const scanAdd = useCallback(async (code: string) => {
@@ -299,6 +301,7 @@ function WholesaleQuotes() {
                         </div>
                         <div className="space-y-1 text-sm">
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('subtotal')}</span><span className="tabular">{inr2(detail.subtotal)}</span></div>
+                            {detail.discount > 0 && <div className="flex justify-between" style={{ color: 'var(--success-600)' }}><span>{t('discountRs')}</span><span className="tabular">− {inr2(detail.discount)}</span></div>}
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('gst')}</span><span className="tabular">{inr2(detail.totalGst)}</span></div>
                             <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}><span>{t('estimatedTotal')}</span><span className="tabular">{inr2(detail.grandTotal)}</span></div>
                         </div>

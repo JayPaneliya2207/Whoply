@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Plus, Pencil, Trash2, FolderPlus, Boxes, ChevronDown } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
@@ -12,7 +12,8 @@ import { SearchInput } from '@/components/SearchInput';
 import { ScanButton } from '@/components/BarcodeScanner';
 import { useT } from '@/i18n';
 
-const emptyProduct = { name: '', categoryId: '', sku: '', barcode: '', hsn: '', unit: 'pcs', costPrice: '', sellPrice: '', wholesalePrice: '', discountPct: '', gstRate: '0', currentStock: '0', lowStockThreshold: '10', trackExpiry: false };
+// New products: shop prices are MRP (GST included), wholesale prices have GST added on top.
+const emptyProduct = (isWholesale: boolean) => ({ name: '', categoryId: '', sku: '', barcode: '', hsn: '', unit: 'pcs', costPrice: '', sellPrice: '', wholesalePrice: '', discountPct: '', gstRate: '0', priceIncludesGst: !isWholesale, currentStock: '0', lowStockThreshold: '10', trackExpiry: false });
 
 export default function ProductsPage() {
     const { user } = useAuth();
@@ -27,7 +28,7 @@ export default function ProductsPage() {
 
     const [prodModal, setProdModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
-    const [form, setForm] = useState<any>(emptyProduct);
+    const [form, setForm] = useState<any>(() => emptyProduct(isWholesale));
     const [formErr, setFormErr] = useState('');
 
     const [catModal, setCatModal] = useState(false);
@@ -38,17 +39,21 @@ export default function ProductsPage() {
     const [del, setDel] = useState<any>(null);
 
     const { data: cats } = useQuery({ queryKey: ['categories', base], queryFn: async () => (await api.get(`${base}/categories`)).data.data });
-    const { data, isLoading } = useQuery({
+    // The API returns at most 100 per page — page through instead of silently stopping there.
+    const { data: pages, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
         queryKey: ['products-page', base, search, catFilter, lowOnly],
-        queryFn: async () => (await api.get(`${base}/products?limit=200&search=${encodeURIComponent(search)}${catFilter ? `&categoryId=${catFilter}` : ''}${lowOnly ? '&lowStock=true' : ''}`)).data.data.items,
+        queryFn: async ({ pageParam }) => (await api.get(`${base}/products?limit=100&page=${pageParam}&search=${encodeURIComponent(search)}${catFilter ? `&categoryId=${catFilter}` : ''}${lowOnly ? '&lowStock=true' : ''}`)).data.data,
+        initialPageParam: 1,
+        getNextPageParam: (last: any) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
     });
+    const data = pages?.pages.flatMap((p: any) => p.items);
 
     const activeCat = (cats || []).find((c: any) => c._id === catFilter) || null;
 
-    const openNew = () => { setEditing(null); setForm({ ...emptyProduct, categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); };
+    const openNew = () => { setEditing(null); setForm({ ...emptyProduct(isWholesale), categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); };
     const openEdit = (p: any) => {
         setEditing(p);
-        setForm({ name: p.name, categoryId: p.categoryId?._id || p.categoryId || '', sku: p.sku, barcode: p.barcode || '', hsn: p.hsn || '', unit: p.unit, costPrice: p.costPrice, sellPrice: p.sellPrice, wholesalePrice: p.wholesalePrice || '', discountPct: p.discountPct || '', gstRate: p.gstRate, currentStock: p.currentStock, lowStockThreshold: p.lowStockThreshold, trackExpiry: p.trackExpiry });
+        setForm({ name: p.name, categoryId: p.categoryId?._id || p.categoryId || '', sku: p.sku, barcode: p.barcode || '', hsn: p.hsn || '', unit: p.unit, costPrice: p.costPrice, sellPrice: p.sellPrice, wholesalePrice: p.wholesalePrice || '', discountPct: p.discountPct || '', gstRate: p.gstRate, priceIncludesGst: p.priceIncludesGst === true, currentStock: p.currentStock, lowStockThreshold: p.lowStockThreshold, trackExpiry: p.trackExpiry });
         setFormErr(''); setProdModal(true);
     };
 
@@ -56,13 +61,14 @@ export default function ProductsPage() {
     const scanLookup = async (code: string) => {
         const items = (await api.get(`${base}/products?barcode=${encodeURIComponent(code)}`)).data.data.items;
         if (items[0]) { openEdit(items[0]); }
-        else { setEditing(null); setForm({ ...emptyProduct, barcode: code, categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); }
+        else { setEditing(null); setForm({ ...emptyProduct(isWholesale), barcode: code, categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); }
     };
 
     const saveProduct = useMutation({
         mutationFn: async () => {
             const body: any = { ...form, costPrice: +form.costPrice || 0, sellPrice: +form.sellPrice || 0, wholesalePrice: +form.wholesalePrice || 0, discountPct: +form.discountPct || 0, gstRate: +form.gstRate || 0, currentStock: +form.currentStock || 0, lowStockThreshold: +form.lowStockThreshold || 0 };
             if (!body.categoryId) delete body.categoryId;
+            if (editing) delete body.currentStock; // stock only changes through sales/purchases/returns
             if (editing) return (await api.patch(`${base}/products/${editing._id}`, body)).data.data;
             return (await api.post(`${base}/products`, body)).data.data;
         },
@@ -140,6 +146,9 @@ export default function ProductsPage() {
                     );
                 })}
             </div>
+            {hasNextPage && (
+                <button className="wp-btn wp-btn-ghost w-full" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>{t('loadMore')}</button>
+            )}
 
             {/* Product modal */}
             <Modal open={prodModal} onClose={() => setProdModal(false)} title={editing ? t('editProductTitle') : t('addProduct')}
@@ -164,13 +173,20 @@ export default function ProductsPage() {
                     <Field label={t('sellRs')}><input className="wp-input tabular" type="number" value={form.sellPrice} onChange={(e) => set('sellPrice', e.target.value)} /></Field>
                     <Field label={t('gstPct')}><input className="wp-input tabular" type="number" value={form.gstRate} onChange={(e) => set('gstRate', e.target.value)} /></Field>
                 </div>
+                <label className="flex items-start gap-3 mb-3 cursor-pointer">
+                    <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={!!form.priceIncludesGst} onChange={(e) => set('priceIncludesGst', e.target.checked)} />
+                    <span>
+                        <span className="block text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('priceInclGst')}</span>
+                        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{t('priceInclGstHint')}</span>
+                    </span>
+                </label>
                 <Field label={t('discountPctOptional')}><input className="wp-input tabular" type="number" value={form.discountPct} onChange={(e) => set('discountPct', e.target.value)} placeholder="0 — auto-applies at billing" /></Field>
                 <div className="grid grid-cols-3 gap-3">
                     {isWholesale && <Field label={t('wholesaleRs')}><input className="wp-input tabular" type="number" value={form.wholesalePrice} onChange={(e) => set('wholesalePrice', e.target.value)} /></Field>}
                     <Field label={t('stock')}><input className="wp-input tabular" type="number" value={form.currentStock} onChange={(e) => set('currentStock', e.target.value)} disabled={!!editing} /></Field>
                     <Field label={t('lowStockAt')}><input className="wp-input tabular" type="number" value={form.lowStockThreshold} onChange={(e) => set('lowStockThreshold', e.target.value)} /></Field>
                 </div>
-                {editing && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Stock is changed via sales/purchases, not edited directly.</p>}
+                {editing && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{t('stockEditHint')}</p>}
                 {formErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{formErr}</p>}
             </Modal>
 
