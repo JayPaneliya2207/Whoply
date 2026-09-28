@@ -9,6 +9,7 @@ import StockMovement from '../../models/StockMovement.js';
 import { syncLowStock } from '../../utils/stock.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { can } from '../../utils/permissions.js';
+import { containsText } from '../../utils/search.js';
 
 /** Cost price shows the margin, so only roles allowed to see it get it (not a cashier or sales rep). */
 function hideCost<T extends { costPrice?: number }>(req: AuthRequest, p: T): T {
@@ -24,7 +25,7 @@ export const listProducts = asyncHandler(async (req: AuthRequest, res: Response)
     const filter: any = { businessId, isActive: true };
     // Search matches name, barcode or SKU — lets a scanned barcode resolve to its product.
     if (req.query.search) {
-        const rx = { $regex: String(req.query.search).trim(), $options: 'i' };
+        const rx = containsText(req.query.search);
         filter.$or = [{ name: rx }, { barcode: rx }, { sku: rx }];
     }
     // Exact barcode lookup (used by scan-to-add flows).

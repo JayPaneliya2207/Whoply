@@ -10,6 +10,7 @@ import Invoice from '../../models/Invoice.js';
 import Product from '../../models/Product.js';
 import Plan from '../../models/Plan.js';
 import { STAFF_ROLES, type AuthRequest } from '../../interfaces/index.js';
+import { containsText } from '../../utils/search.js';
 
 /** GET /admin/stats — platform-wide KPIs + account tally (MRR from subscriptions) */
 export const platformStats = asyncHandler(async (_req: AuthRequest, res: Response) => {
@@ -57,7 +58,7 @@ export const listBusinesses = asyncHandler(async (req: AuthRequest, res: Respons
     const { skip, limit, meta } = paginate(req.query);
     const filter: any = {};
     if (req.query.type) filter.type = req.query.type;
-    if (req.query.search) filter.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) filter.name = containsText(req.query.search);
 
     const [items, total] = await Promise.all([
         Business.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),

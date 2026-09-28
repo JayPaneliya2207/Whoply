@@ -11,6 +11,7 @@ import { duesByDealer } from '../../utils/wholesaler.js';
 import { cleanGstin } from '../../utils/gstin.js';
 import { Types } from 'mongoose';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { containsText } from '../../utils/search.js';
 
 const MODES: PaymentMode[] = ['cash', 'upi', 'bank', 'cheque', 'other'];
 
@@ -19,7 +20,7 @@ export const listDealers = asyncHandler(async (req: AuthRequest, res: Response) 
     const bId = new Types.ObjectId(String(businessId));
     const { skip, limit, meta } = paginate(req.query);
     const filter: any = { businessId, isActive: true };
-    if (req.query.search) filter.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) filter.name = containsText(req.query.search);
     if (req.query.tier) filter.tier = req.query.tier;
 
     // Outstanding is derived from live order dues (source of truth), not the stored counter.
