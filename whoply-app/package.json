@@ -6,7 +6,8 @@
     "dev": "next dev --port 7200",
     "build": "next build",
     "start": "next start --port 7200",
-    "lint": "eslint"
+    "lint": "eslint",
+    "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
