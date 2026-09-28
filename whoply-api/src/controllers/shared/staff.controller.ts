@@ -4,6 +4,7 @@ import { AppError } from '../../utils/AppError.js';
 import { sendSuccess, sendCreated } from '../../utils/response.js';
 import { businessOf } from '../../utils/http.js';
 import { normalizePhone } from '../../utils/phone.js';
+import { passwordSchema } from '../../validators/common.validator.js';
 import User from '../../models/User.js';
 import { STAFF_ROLES, type AuthRequest, type roles } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
@@ -26,6 +27,7 @@ export const createStaff = asyncHandler(async (req: AuthRequest, res: Response) 
     const { name, mobile, role, salary, kyc, password } = req.body;
     if (!name || !mobile || !role) throw AppError.badRequest('name, mobile and role are required');
     if (!STAFF_ROLES.includes(role as roles)) throw AppError.badRequest('Invalid staff role');
+    if (password) passwordSchema.parse(password); // same rule as every other password — else they could never log in
 
     const normalized = normalizePhone(mobile);
     const exists = await User.findOne({ mobile: normalized });

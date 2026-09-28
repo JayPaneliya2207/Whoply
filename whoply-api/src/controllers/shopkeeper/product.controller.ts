@@ -39,13 +39,46 @@ export const getProduct = asyncHandler(async (req: AuthRequest, res: Response) =
     sendSuccess(res, product);
 });
 
+const TEXT_FIELDS = ['name', 'sku', 'barcode', 'hsn', 'unit', 'image'] as const;
+const MONEY_FIELDS = ['costPrice', 'sellPrice', 'wholesalePrice'] as const;
+
+/**
+ * The product fields a client may set, validated. `currentStock` is only
+ * accepted on create (opening stock) — after that stock changes only through
+ * sales, purchases, returns and POST /adjust-stock, each with a StockMovement,
+ * so an edit made from an out-of-date screen can't overwrite live stock.
+ */
+function productFields(b: any, opts: { create: boolean }): Record<string, any> {
+    const out: Record<string, any> = {};
+    const num = (k: string, min: number, max = Infinity) => {
+        if (b[k] === undefined || b[k] === '') return;
+        const n = Number(b[k]);
+        if (!Number.isFinite(n) || n < min || n > max) {
+            throw AppError.badRequest(`${k} must be a number${max === Infinity ? ` of at least ${min}` : ` between ${min} and ${max}`}`);
+        }
+        out[k] = n;
+    };
+    for (const k of TEXT_FIELDS) if (b[k] !== undefined) out[k] = typeof b[k] === 'string' ? b[k].trim() : b[k];
+    for (const k of MONEY_FIELDS) num(k, 0);
+    num('discountPct', 0, 100);
+    num('gstRate', 0, 100);
+    num('lowStockThreshold', 0);
+    if (opts.create) num('currentStock', 0);
+    if (b.priceIncludesGst !== undefined) out.priceIncludesGst = b.priceIncludesGst === true || b.priceIncludesGst === 'true';
+    if (b.trackExpiry !== undefined) out.trackExpiry = !!b.trackExpiry;
+    if (b.categoryId !== undefined) out.categoryId = b.categoryId || null; // '' clears it
+    return out;
+}
+
 /** POST /products */
 export const createProduct = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const b = req.body;
-    if (!b.name || !b.sku) throw AppError.badRequest('name and sku are required');
+    const fields = productFields(req.body, { create: true });
+    if (!fields.name || !fields.sku) throw AppError.badRequest('name and sku are required');
+    // MRP-style (GST included) for shops, GST on top for wholesalers — unless the client says otherwise.
+    if (fields.priceIncludesGst === undefined) fields.priceIncludesGst = req.user?.businessType === 'retail';
 
-    const product = await Product.create({ ...b, businessId });
+    const product = await Product.create({ ...fields, businessId });
     if (product.currentStock > 0) {
         await StockMovement.create({
             businessId,
@@ -59,12 +92,14 @@ export const createProduct = asyncHandler(async (req: AuthRequest, res: Response
     sendCreated(res, product);
 });
 
-/** PATCH /products/:id */
+/** PATCH /products/:id — edits details and prices; stock is ignored here (see productFields). */
 export const updateProduct = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const product = await Product.findOneAndUpdate({ _id: req.params.id, businessId }, req.body, { new: true });
+    const fields = productFields(req.body, { create: false });
+    if (fields.name === '' || fields.sku === '') throw AppError.badRequest('name and sku cannot be empty');
+    const product = await Product.findOneAndUpdate({ _id: req.params.id, businessId }, { $set: fields }, { new: true });
     if (!product) throw AppError.notFound('Product not found');
-    // stock or threshold may have changed — keep the low-stock flag truthful
+    // the threshold may have changed — keep the low-stock flag truthful
     await syncLowStock([product._id]);
     sendSuccess(res, product, 'Product updated');
 });
@@ -72,12 +107,16 @@ export const updateProduct = asyncHandler(async (req: AuthRequest, res: Response
 /** POST /products/:id/adjust-stock — manual adjustment/damage */
 export const adjustStock = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { quantity, reason = 'adjustment', note } = req.body;
+    const { quantity, note } = req.body;
+    const reason = req.body.reason === 'damage' ? 'damage' : 'adjustment';
     const qty = Number(quantity);
-    if (!qty) throw AppError.badRequest('quantity is required');
+    if (!qty || !Number.isFinite(qty)) throw AppError.badRequest('quantity is required');
 
     const product = await Product.findOne({ _id: req.params.id, businessId });
     if (!product) throw AppError.notFound('Product not found');
+    if (product.currentStock + qty < 0) {
+        throw AppError.badRequest(`Only ${product.currentStock} ${product.unit || 'pcs'} in stock — can't remove ${-qty}`);
+    }
 
     product.currentStock += qty;
     product.isLowStock = product.currentStock <= product.lowStockThreshold;

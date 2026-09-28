@@ -13,6 +13,7 @@ export interface IInvoiceItem {
     price: number; // per unit (pre-tax)
     gstRate: number;
     gstAmount: number;
+    taxableValue?: number; // after bill discount; absent on documents created before it existed
     lineTotal: number; // qty*price + gst
 }
 
@@ -52,6 +53,7 @@ const invoiceItemSchema = new Schema<IInvoiceItem>(
         price: { type: Number, required: true },
         gstRate: { type: Number, default: 0 },
         gstAmount: { type: Number, default: 0 },
+        taxableValue: Number, // line value after its share of the bill discount (absent on old docs)
         lineTotal: { type: Number, required: true },
     },
     { _id: false }

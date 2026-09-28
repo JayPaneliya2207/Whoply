@@ -8,6 +8,7 @@ import Customer from '../../models/Customer.js';
 import CreditLedger from '../../models/CreditLedger.js';
 import CreditNote from '../../models/CreditNote.js';
 import { applyStockChanges } from '../../utils/stock.js';
+import { netLineValue, round2 } from '../../utils/tax.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
@@ -15,7 +16,12 @@ import { Types } from 'mongoose';
 /**
  * POST /returns — record a sales return (credit note) against an invoice.
  * body: { invoiceId, items:[{ productId, quantity }], reason?, refundMode: 'cash'|'udhar_adjust' }
- * Restores stock; udhar_adjust reduces the customer's credit balance by the return value.
+ * Restores stock. The return is valued at what was charged (after the bill
+ * discount) and settled in this order:
+ *   1. it cancels what is still unpaid on THIS bill (no cash for unpaid goods);
+ *   2. udhar_adjust: the rest reduces the customer's other udhar;
+ *   3. anything left is paid back in cash (`cashRefund`, subtracted in day-close).
+ * Udhar reductions are ledger type 'return', so they never count as money collected.
  */
 export const createReturn = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
@@ -40,13 +46,15 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
         if (qty <= 0) throw AppError.badRequest('Return quantity must be positive');
         const maxReturnable = src.quantity - (alreadyReturned.get(String(i.productId)) || 0);
         if (qty > maxReturnable) throw AppError.badRequest(`Only ${maxReturnable} of "${src.name}" can be returned`);
-        const base = +(src.price * qty).toFixed(2);
-        const gstAmount = +((base * src.gstRate) / 100).toFixed(2);
+        // Value the units at what the customer was charged — bill discount included.
+        const net = netLineValue(invoice, src);
+        const base = round2((net.taxable * qty) / src.quantity);
+        const gstAmount = round2((net.gst * qty) / src.quantity);
         subtotal += base;
         totalGst += gstAmount;
-        return { productId: src.productId, name: src.name, hsn: src.hsn, unit: src.unit, quantity: qty, price: src.price, gstRate: src.gstRate, gstAmount, lineTotal: +(base + gstAmount).toFixed(2) };
+        return { productId: src.productId, name: src.name, hsn: src.hsn, unit: src.unit, quantity: qty, price: src.price, gstRate: src.gstRate, gstAmount, taxableValue: base, lineTotal: round2(base + gstAmount) };
     });
-    const total = +(subtotal + totalGst).toFixed(2);
+    const total = round2(subtotal + totalGst);
 
     const ym = new Date().toISOString().slice(0, 7).replace('-', '');
     const seq = await nextSequence(`creditnote:${businessId}:${ym}`);
@@ -65,21 +73,36 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
         { reason: 'return', refType: 'CreditNote', refId: note._id }
     );
 
-    // Refund handling
-    let refund: any = { mode: refundMode, amount: total };
-    if (refundMode === 'udhar_adjust' && invoice.customerId) {
-        const customer = await Customer.findById(invoice.customerId);
-        if (customer) {
-            const applied = +Math.min(total, customer.creditBalance).toFixed(2);
-            customer.creditBalance = +(customer.creditBalance - applied).toFixed(2);
-            await customer.save();
-            if (applied > 0) {
-                await CreditLedger.create({ businessId, customerId: customer._id, type: 'repayment', amount: applied, balanceAfter: customer.creditBalance, refType: 'CreditNote', refId: note._id, note: `Return ${creditNoteNo}` });
-            }
-            refund = { mode: 'udhar_adjust', amount: applied, cashPortion: +(total - applied).toFixed(2) };
-        }
+    // Settle the return value: this bill's due first, then (udhar_adjust) other udhar, then cash.
+    let remaining = total;
+    let billAdjusted = 0;
+    let udharAdjusted = 0;
+    const customer = invoice.customerId ? await Customer.findById(invoice.customerId) : null;
+
+    if (invoice.dueAmount > 0) {
+        billAdjusted = round2(Math.min(remaining, invoice.dueAmount));
+        invoice.dueAmount = round2(invoice.dueAmount - billAdjusted);
+        invoice.status = invoice.dueAmount <= 0 ? 'paid' : invoice.paidAmount > 0 ? 'partial' : 'credit';
+        await invoice.save();
+        remaining = round2(remaining - billAdjusted);
+    }
+    if (refundMode === 'udhar_adjust' && customer && remaining > 0) {
+        udharAdjusted = round2(Math.min(remaining, Math.max(0, customer.creditBalance - billAdjusted)));
+        remaining = round2(remaining - udharAdjusted);
+    }
+    const fromUdhar = round2(billAdjusted + udharAdjusted);
+    if (customer && fromUdhar > 0) {
+        customer.creditBalance = round2(Math.max(0, customer.creditBalance - fromUdhar));
+        await customer.save();
+        await CreditLedger.create({ businessId, customerId: customer._id, type: 'return', amount: fromUdhar, balanceAfter: customer.creditBalance, refType: 'CreditNote', refId: note._id, note: `Return ${creditNoteNo}` });
+    }
+    const cashRefund = remaining;
+    if (cashRefund > 0) {
+        note.cashRefund = cashRefund;
+        await note.save();
     }
 
+    const refund = { mode: refundMode, amount: total, billAdjusted, udharAdjusted, cashRefund };
     sendCreated(res, { creditNote: note, refund }, 'Return recorded');
 });
 

@@ -3,65 +3,40 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { AppError } from '../../utils/AppError.js';
 import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response.js';
 import { businessOf, paginate } from '../../utils/http.js';
-import Product from '../../models/Product.js';
 import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
-import PriceList from '../../models/PriceList.js';
 import Business from '../../models/Business.js';
-import { applyStockChanges } from '../../utils/stock.js';
+import { applyStockChanges, takeStock } from '../../utils/stock.js';
+import { priceDealerItems, recordAdvancePayment } from '../../utils/wholesaler.js';
+import { netLineValue, round2 } from '../../utils/tax.js';
 import CreditNote from '../../models/CreditNote.js';
 import { nextSequence } from '../../models/Counter.js';
 import { buildEInvoiceJson, buildEWayBillJson, orderToGstDoc } from '../../utils/gstJson.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
 
-/** resolve tier price for a product, falling back to wholesalePrice/sellPrice */
-const tierPrice = (priceRows: any[], productId: string, tier: string, p: any): number => {
-    const row = priceRows.find((r) => String(r.productId) === String(productId) && r.tier === tier);
-    return row ? row.price : p.wholesalePrice || p.sellPrice;
-};
-
 /**
  * POST /orders — create a wholesale bulk order.
- * body: { dealerId, items:[{productId, quantity}], source?, paidAmount? }
- * Prices auto-resolve from the dealer's tier price-list.
+ * body: { dealerId, items:[{productId, quantity}], source?, paidAmount?, paymentMode? }
+ * Prices auto-resolve from the dealer's tier price-list. Stock is not taken here —
+ * orders can be booked ahead of stock; it is checked and taken at dispatch.
  */
 export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { dealerId, items = [], source = 'manual', paidAmount = 0 } = req.body;
+    const { dealerId, items = [], source = 'manual' } = req.body;
     if (!dealerId) throw AppError.badRequest('dealerId is required');
     if (!Array.isArray(items) || !items.length) throw AppError.badRequest('At least one item is required');
 
     const dealer = await Dealer.findOne({ _id: dealerId, businessId });
     if (!dealer) throw AppError.badRequest('Dealer not found');
 
-    const ids = items.map((i: any) => i.productId);
-    const [products, priceRows] = await Promise.all([
-        Product.find({ _id: { $in: ids }, businessId }),
-        PriceList.find({ businessId, productId: { $in: ids }, tier: dealer.tier }).lean(),
-    ]);
-    const map = new Map(products.map((p) => [String(p._id), p]));
-
-    let subtotal = 0;
-    let totalGst = 0;
-    const lineItems = items.map((i: any) => {
-        const p = map.get(String(i.productId));
-        if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
-        const qty = Number(i.quantity);
-        if (qty <= 0) throw AppError.badRequest('Quantity must be positive');
-        const price = tierPrice(priceRows, String(p._id), dealer.tier, p);
-        const base = price * qty;
-        const gstAmount = +((base * (p.gstRate || 0)) / 100).toFixed(2); // GST added on top (exclusive)
-        subtotal += base;
-        totalGst += gstAmount;
-        return { productId: p._id, name: p.name, hsn: p.hsn, unit: p.unit, quantity: qty, price, gstRate: p.gstRate || 0, gstAmount, lineTotal: +(base + gstAmount).toFixed(2) };
-    });
-    const total = +(subtotal + totalGst).toFixed(2);
+    const { lineItems, subtotal, totalGst, grandTotal: total } = await priceDealerItems(businessId, dealer, items);
 
     const ym = new Date().toISOString().slice(0, 7).replace('-', '');
     const seq = await nextSequence(`order:${businessId}:${ym}`);
     const orderNo = `ORD/${ym}/${String(seq).padStart(4, '0')}`;
-    const due = +(total - Number(paidAmount)).toFixed(2);
+    const paidAmount = round2(Math.min(total, Math.max(0, Number(req.body.paidAmount) || 0)));
+    const due = round2(total - paidAmount);
 
     const order = await Order.create({
         businessId,
@@ -70,19 +45,33 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
         dealerName: dealer.name,
         dealerGstin: dealer.gstin,
         items: lineItems,
-        subtotal: +subtotal.toFixed(2),
-        totalGst: +totalGst.toFixed(2),
+        subtotal,
+        totalGst,
         total,
-        paidAmount: Number(paidAmount),
+        paidAmount,
         dueAmount: due,
         status: 'pending',
         source,
         salesRepId: dealer.assignedRepId,
     });
+    await recordAdvancePayment(order, paidAmount, req.body.paymentMode ?? req.body.mode);
 
     // Dealer outstanding is derived from order dues (this new order's due included) — nothing to persist.
     sendCreated(res, order);
 });
+
+/**
+ * Allowed status moves. Skipping ahead is fine (a counter pickup can go straight
+ * from pending to delivered — stock is taken on the way); going backwards is
+ * not, and a delivered order is closed — goods coming back are a return.
+ */
+const NEXT_STATUS: Record<string, string[]> = {
+    pending: ['confirmed', 'dispatched', 'delivered', 'cancelled'],
+    confirmed: ['dispatched', 'delivered', 'cancelled'],
+    dispatched: ['delivered', 'cancelled'],
+    delivered: [],
+    cancelled: [],
+};
 
 export const listOrders = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
@@ -97,22 +86,34 @@ export const listOrders = asyncHandler(async (req: AuthRequest, res: Response) =
 });
 
 /**
- * PATCH /orders/:id/status — advance the order lifecycle.
- * confirmed → dispatched decrements stock; delivered stamps deliveredAt.
+ * PATCH /orders/:id/status — move the order along its lifecycle (see NEXT_STATUS).
+ * Leaving pending/confirmed for dispatched or delivered takes the stock — and
+ * refuses if there isn't enough. Cancelling a dispatched order puts it back.
  */
 export const updateOrderStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const { status, deliveryNote } = req.body;
-    const valid = ['confirmed', 'dispatched', 'delivered', 'cancelled'];
-    if (!valid.includes(status)) throw AppError.badRequest('Invalid status');
+    if (!(status in NEXT_STATUS) || status === 'pending') throw AppError.badRequest('Invalid status');
 
     const order = await Order.findOne({ _id: req.params.id, businessId });
     if (!order) throw AppError.notFound('Order not found');
+    if (status === order.status) {
+        sendSuccess(res, order, `Order already ${status}`);
+        return;
+    }
+    if (!NEXT_STATUS[order.status]?.includes(status)) {
+        throw AppError.badRequest(
+            order.status === 'delivered' && status === 'cancelled'
+                ? 'A delivered order cannot be cancelled — record a return instead'
+                : `Cannot move an order from ${order.status} to ${status}`
+        );
+    }
 
-    if (status === 'dispatched' && order.status !== 'dispatched') {
-        await applyStockChanges(
+    const stockTaken = order.status === 'dispatched';
+    if (!stockTaken && (status === 'dispatched' || status === 'delivered')) {
+        await takeStock(
             businessId,
-            order.items.map((li) => ({ productId: li.productId, delta: -li.quantity })),
+            order.items.map((li) => ({ productId: li.productId, quantity: li.quantity, name: li.name })),
             { reason: 'sale', refType: 'Order', refId: order._id }
         );
         order.dispatchedAt = new Date();
@@ -121,8 +122,18 @@ export const updateOrderStatus = asyncHandler(async (req: AuthRequest, res: Resp
         order.deliveredAt = new Date();
         if (deliveryNote) order.deliveryNote = deliveryNote;
     }
-    // A cancelled order owes nothing — clear its due so it drops out of dealer outstanding.
-    if (status === 'cancelled') order.dueAmount = 0;
+    if (status === 'cancelled') {
+        if (stockTaken) {
+            await applyStockChanges(
+                businessId,
+                order.items.map((li) => ({ productId: li.productId, delta: li.quantity })),
+                { reason: 'return', refType: 'Order', refId: order._id, note: `Cancelled ${order.orderNo}` }
+            );
+        }
+        // A cancelled order owes nothing — clear its due so it drops out of dealer outstanding.
+        // Anything already paid stays recorded as paid (a refund is settled outside the app).
+        order.dueAmount = 0;
+    }
     order.status = status;
     await order.save();
     sendSuccess(res, order, `Order marked ${status}`);
@@ -153,6 +164,9 @@ export const orderEWayJson = asyncHandler(async (req: AuthRequest, res: Response
  * GET /reports/gst?month=YYYY-MM — wholesale GST returns from orders (GST added on top).
  * GSTR-3B summary + rate-wise + HSN + B2B (by dealer GSTIN). CGST/SGST split 50/50 intra-state.
  */
+/** Line taxable value — stored `taxableValue` where present (GST-inclusive products), else price × qty. */
+const ITEM_TAXABLE = { $ifNull: ['$items.taxableValue', { $multiply: ['$items.price', '$items.quantity'] }] };
+
 export const wholesalerGstReport = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bId = new Types.ObjectId(String(businessOf(req)));
     const now = new Date();
@@ -168,8 +182,8 @@ export const wholesalerGstReport = asyncHandler(async (req: AuthRequest, res: Re
     const [summaryAgg, rateAgg, hsnAgg, b2bAgg] = await Promise.all([
         // $ifNull → legacy orders (created before GST fields existed) fall back to total as taxable, 0 GST.
         Order.aggregate([{ $match: match }, { $group: { _id: null, count: { $sum: 1 }, taxable: { $sum: { $ifNull: ['$subtotal', '$total'] } }, gst: { $sum: { $ifNull: ['$totalGst', 0] } }, total: { $sum: '$total' } } }]),
-        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: '$items.gstRate', taxable: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }, gst: { $sum: '$items.gstAmount' } } }, { $sort: { _id: 1 } }]),
-        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }, gst: { $sum: '$items.gstAmount' } } }, { $sort: { taxable: -1 } }]),
+        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: '$items.gstRate', taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' } } }, { $sort: { _id: 1 } }]),
+        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' } } }, { $sort: { taxable: -1 } }]),
         Order.aggregate([{ $match: { ...match, dealerGstin: { $exists: true, $nin: [null, ''] } } }, { $group: { _id: '$dealerGstin', name: { $first: '$dealerName' }, count: { $sum: 1 }, taxable: { $sum: '$subtotal' }, gst: { $sum: '$totalGst' }, total: { $sum: '$total' } } }, { $sort: { taxable: -1 } }]),
     ]);
 
@@ -215,10 +229,12 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
         if (qty <= 0) throw AppError.badRequest('Return quantity must be positive');
         const maxReturnable = src.quantity - (alreadyReturned.get(String(i.productId)) || 0);
         if (qty > maxReturnable) throw AppError.badRequest(`Only ${maxReturnable} of "${src.name}" can be returned`);
-        const base = +(src.price * qty).toFixed(2);
-        const gstAmount = +((base * (src.gstRate || 0)) / 100).toFixed(2);
+        // Credit what was charged for these units (GST-inclusive lines included).
+        const net = netLineValue(order, src);
+        const base = round2((net.taxable * qty) / src.quantity);
+        const gstAmount = round2((net.gst * qty) / src.quantity);
         subtotal += base; totalGst += gstAmount;
-        return { productId: src.productId, name: src.name, hsn: src.hsn, unit: src.unit, quantity: qty, price: src.price, gstRate: src.gstRate || 0, gstAmount, lineTotal: +(base + gstAmount).toFixed(2) };
+        return { productId: src.productId, name: src.name, hsn: src.hsn, unit: src.unit, quantity: qty, price: src.price, gstRate: src.gstRate || 0, gstAmount, taxableValue: base, lineTotal: round2(base + gstAmount) };
     });
     const total = +(subtotal + totalGst).toFixed(2);
 

@@ -9,53 +9,54 @@ import Customer from '../../models/Customer.js';
 import CreditLedger from '../../models/CreditLedger.js';
 import Business from '../../models/Business.js';
 import { applyStockChanges } from '../../utils/stock.js';
+import { priceLines, round2 } from '../../utils/tax.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
 /**
  * POST /billing — create a POS sale.
- * body: { items: [{ productId, quantity, price? }], customerId?, discount?, paymentMode, paidAmount? }
+ * body: { items: [{ productId, quantity }], customerId?, discount?, paymentMode, paidAmount? }
+ * `discount` is rupees off the amount payable; it is taken off before GST (utils/tax.ts).
+ * Unit prices always come from the product (sell price less its own discount %) —
+ * a price sent by the client is ignored, so a stale cart can't bill an old price.
  * Decrements stock, records movements, and posts to the udhar ledger for credit sales.
  */
 export const createSale = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const { items = [], customerId, discount = 0, paymentMode = 'cash', paidAmount, walkInName, walkInMobile } = req.body;
     if (!Array.isArray(items) || items.length === 0) throw AppError.badRequest('At least one item is required');
+    if (!(Number(discount) >= 0)) throw AppError.badRequest('Discount cannot be negative');
 
     // Load products in one query
     const ids = items.map((i: any) => i.productId);
     const products = await Product.find({ _id: { $in: ids }, businessId });
     const map = new Map(products.map((p) => [String(p._id), p]));
 
-    let subtotal = 0;
-    let totalGst = 0;
-    const lineItems = items.map((i: any) => {
+    const rows = items.map((i: any) => {
         const p = map.get(String(i.productId));
         if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
         const qty = Number(i.quantity);
-        if (qty <= 0) throw AppError.badRequest('Quantity must be positive');
+        if (!(qty > 0)) throw AppError.badRequest('Quantity must be positive');
         if (p.currentStock < qty) throw AppError.badRequest(`Insufficient stock for ${p.name} (have ${p.currentStock})`);
-        const price = i.price != null ? Number(i.price) : p.sellPrice;
-        const base = price * qty;
-        const gstAmount = +((base * p.gstRate) / 100).toFixed(2);
-        subtotal += base;
-        totalGst += gstAmount;
-        return {
-            productId: p._id,
-            name: p.name,
-            hsn: p.hsn,
-            quantity: qty,
-            unit: p.unit,
-            price,
-            gstRate: p.gstRate,
-            gstAmount,
-            lineTotal: +(base + gstAmount).toFixed(2),
-        };
+        return { p, qty, unitPrice: round2(p.sellPrice * (1 - (p.discountPct || 0) / 100)) };
     });
-
-    const grandTotal = +(subtotal + totalGst - Number(discount)).toFixed(2);
-    const paid = paymentMode === 'credit' ? Number(paidAmount || 0) : paidAmount != null ? Number(paidAmount) : grandTotal;
-    const due = +(grandTotal - paid).toFixed(2);
+    const priced = priceLines(
+        rows.map((r) => ({ unitPrice: r.unitPrice, quantity: r.qty, gstRate: r.p.gstRate || 0, inclusive: r.p.priceIncludesGst === true })),
+        Number(discount)
+    );
+    const lineItems = rows.map((r, k) => ({
+        productId: r.p._id,
+        name: r.p.name,
+        hsn: r.p.hsn,
+        quantity: r.qty,
+        unit: r.p.unit,
+        gstRate: r.p.gstRate || 0,
+        ...priced.lines[k],
+    }));
+    const { subtotal, totalGst, grandTotal } = priced;
+    const asked = paymentMode === 'credit' ? Number(paidAmount || 0) : paidAmount != null ? Number(paidAmount) : grandTotal;
+    const paid = round2(Math.min(grandTotal, Math.max(0, asked || 0))); // never more than the bill, never negative
+    const due = round2(grandTotal - paid);
     const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'credit';
 
     // Resolve the customer. A walk-in with a mobile is auto-matched to an existing
@@ -107,9 +108,9 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
         customerMobile,
         customerGstin,
         items: lineItems,
-        subtotal: +subtotal.toFixed(2),
-        totalGst: +totalGst.toFixed(2),
-        discount: Number(discount),
+        subtotal,
+        totalGst,
+        discount: priced.discount,
         grandTotal,
         paidAmount: paid,
         dueAmount: due,

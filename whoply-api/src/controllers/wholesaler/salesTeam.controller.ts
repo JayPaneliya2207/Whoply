@@ -4,6 +4,7 @@ import { AppError } from '../../utils/AppError.js';
 import { sendSuccess, sendCreated } from '../../utils/response.js';
 import { businessOf, monthStart } from '../../utils/http.js';
 import { normalizePhone } from '../../utils/phone.js';
+import { passwordSchema } from '../../validators/common.validator.js';
 import User from '../../models/User.js';
 import Visit from '../../models/Visit.js';
 import Order from '../../models/Order.js';
@@ -16,6 +17,7 @@ export const createRep = asyncHandler(async (req: AuthRequest, res: Response) =>
     const businessId = businessOf(req);
     const { name, mobile } = req.body;
     if (!name || !mobile) throw AppError.badRequest('name and mobile are required');
+    if (req.body.password) passwordSchema.parse(req.body.password);
     const normalized = normalizePhone(mobile);
     const exists = await User.findOne({ mobile: normalized });
     if (exists) throw AppError.conflict('A user with this mobile already exists');

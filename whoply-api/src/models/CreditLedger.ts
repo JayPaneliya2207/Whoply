@@ -4,7 +4,8 @@
  */
 import mongoose, { Schema, type Document, type Types, type Model } from 'mongoose';
 
-export type LedgerType = 'credit' | 'repayment';
+/** credit = udhar given · repayment = money received · return = goods returned against udhar (no money moves) */
+export type LedgerType = 'credit' | 'repayment' | 'return';
 
 export interface ICreditLedger {
     businessId: Types.ObjectId;
@@ -26,7 +27,7 @@ const creditLedgerSchema = new Schema<ICreditLedgerDocument>(
     {
         businessId: { type: Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
         customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
-        type: { type: String, enum: ['credit', 'repayment'], required: true },
+        type: { type: String, enum: ['credit', 'repayment', 'return'], required: true },
         amount: { type: Number, required: true },
         balanceAfter: { type: Number, required: true },
         refType: String,

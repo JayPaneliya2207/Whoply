@@ -34,6 +34,7 @@ import Visit from '../models/Visit.js';
 import Notification from '../models/Notification.js';
 import Plan from '../models/Plan.js';
 import { DEFAULT_PLANS } from './plans.js';
+import { backfillOrderAdvances } from './backfills.js';
 
 const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 const pick = <T>(arr: readonly T[]): T => arr[rand(0, arr.length - 1)];
@@ -455,6 +456,10 @@ async function run() {
         { updatePipeline: true } as any
     );
     console.log('Synced low-stock flags');
+
+    // Orders above were created with money already paid — give that money its
+    // Payment rows so the Payments ledger agrees with the dashboard.
+    console.log(`Recorded ${await backfillOrderAdvances()} order payments`);
 
     console.log('\n✅ Seed complete. Demo logins (password: whoply123 / OTP: 123456):');
     console.log('   Retail owner    9000000001  (Sharma General Store)');
