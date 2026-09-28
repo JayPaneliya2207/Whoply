@@ -10,6 +10,7 @@ import Payment, { type PaymentMode } from '../models/Payment.js';
 import type { DealerTier } from '../models/Dealer.js';
 import { AppError } from './AppError.js';
 import { priceLines } from './tax.js';
+import { lineQty } from './qty.js';
 import { Types } from 'mongoose';
 
 type Tier = 'A' | 'B' | 'C';
@@ -47,8 +48,7 @@ export async function priceDealerItems(businessId: any, dealer: { tier: DealerTi
     const rows = items.map((i: any) => {
         const p = map.get(String(i.productId));
         if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
-        const qty = Number(i.quantity);
-        if (!(qty > 0)) throw AppError.badRequest('Quantity must be positive');
+        const qty = lineQty(i.quantity, p);
         return { p, qty, unitPrice: tierUnitPrice(priceRows, p, dealer.tier) };
     });
     const priced = priceLines(

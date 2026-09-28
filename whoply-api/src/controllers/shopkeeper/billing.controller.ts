@@ -11,6 +11,7 @@ import Business from '../../models/Business.js';
 import { applyStockChanges } from '../../utils/stock.js';
 import { priceLines, round2 } from '../../utils/tax.js';
 import { resolvePayments } from '../../utils/payments.js';
+import { lineQty } from '../../utils/qty.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
@@ -38,8 +39,7 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     const rows = items.map((i: any) => {
         const p = map.get(String(i.productId));
         if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
-        const qty = Number(i.quantity);
-        if (!(qty > 0)) throw AppError.badRequest('Quantity must be positive');
+        const qty = lineQty(i.quantity, p);
         if (p.currentStock < qty) throw AppError.badRequest(`Insufficient stock for ${p.name} (have ${p.currentStock})`);
         return { p, qty, unitPrice: round2(p.sellPrice * (1 - (p.discountPct || 0) / 100)) };
     });

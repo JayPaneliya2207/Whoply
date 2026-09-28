@@ -9,6 +9,7 @@ import Business from '../../models/Business.js';
 import { applyStockChanges, takeStock } from '../../utils/stock.js';
 import { priceDealerItems, recordAdvancePayment } from '../../utils/wholesaler.js';
 import { netLineValue, round2 } from '../../utils/tax.js';
+import { lineQty } from '../../utils/qty.js';
 import CreditNote from '../../models/CreditNote.js';
 import { nextSequence } from '../../models/Counter.js';
 import { buildEInvoiceJson, buildEWayBillJson, orderToGstDoc } from '../../utils/gstJson.js';
@@ -225,8 +226,7 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
     const lineItems = items.map((i: any) => {
         const src = order.items.find((it) => String(it.productId) === String(i.productId));
         if (!src) throw AppError.badRequest('Item not part of this order');
-        const qty = Number(i.quantity);
-        if (qty <= 0) throw AppError.badRequest('Return quantity must be positive');
+        const qty = lineQty(i.quantity, src);
         const maxReturnable = src.quantity - (alreadyReturned.get(String(i.productId)) || 0);
         if (qty > maxReturnable) throw AppError.badRequest(`Only ${maxReturnable} of "${src.name}" can be returned`);
         // Credit what was charged for these units (GST-inclusive lines included).

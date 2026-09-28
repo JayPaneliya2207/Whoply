@@ -5,6 +5,8 @@ import { Truck, Plus, Pencil, Trash2, PackageCheck, Search, Minus, Check, Clipbo
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
+import { stepQty } from '@/lib/qty';
+import { QtyInput } from '@/components/QtyInput';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
@@ -54,13 +56,14 @@ export default function PurchasesPage() {
     const doDelSup = useMutation({ mutationFn: async () => (await api.delete(`/shopkeeper/suppliers/${delSup._id}`)).data, onSuccess: () => { setDelSup(null); qc.invalidateQueries({ queryKey: ['suppliers'] }); } });
 
     // ---- purchase order ----
-    const addPo = (p: any) => setPoCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c; return [...c, { productId: p._id, name: p.name, costPrice: p.costPrice, quantity: 10 }]; });
+    const addPo = (p: any) => setPoCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c; return [...c, { productId: p._id, name: p.name, costPrice: p.costPrice, unit: p.unit, quantity: 10 }]; });
     const scanAddPo = async (code: string) => {
         const local = (products || []).find((p: any) => p.barcode === code || p.sku === code);
         const target = local || (await api.get(`/shopkeeper/products?barcode=${encodeURIComponent(code)}`)).data.data.items[0];
         if (target) addPo(target);
     };
-    const setPoQty = (id: string, d: number) => setPoCart((c) => c.map((r) => r.productId === id ? { ...r, quantity: Math.max(1, r.quantity + d) } : r));
+    const setPoQty = (id: string, d: number) => setPoCart((c) => c.map((r) => r.productId === id ? { ...r, quantity: stepQty(r.quantity, d, r.unit) } : r));
+    const setPoQtyTo = (id: string, n: number) => setPoCart((c) => c.map((r) => r.productId === id ? { ...r, quantity: n } : r));
     const setPoCost = (id: string, v: string) => setPoCart((c) => c.map((r) => r.productId === id ? { ...r, costPrice: v } : r));
     const poTotal = useMemo(() => poCart.reduce((s, r) => s + (Number(r.costPrice) || 0) * r.quantity, 0), [poCart]);
     const createPo = useMutation({
@@ -177,7 +180,7 @@ export default function PurchasesPage() {
                         <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                             <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
                             <button onClick={() => setPoQty(r.productId, -1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Minus size={12} /></button>
-                            <span className="w-7 text-center text-sm tabular">{r.quantity}</span>
+                            <QtyInput value={r.quantity} unit={r.unit} onChange={(n) => setPoQtyTo(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-14" />
                             <button onClick={() => setPoQty(r.productId, 1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Plus size={12} /></button>
                             <input className="wp-input !py-1 !px-2 w-20 text-sm tabular text-right" type="number" value={r.costPrice} onChange={(e) => setPoCost(r.productId, e.target.value)} placeholder="cost" />
                             <button onClick={() => setPoCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>

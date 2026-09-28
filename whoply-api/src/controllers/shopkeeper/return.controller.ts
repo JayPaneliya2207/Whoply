@@ -9,6 +9,7 @@ import CreditLedger from '../../models/CreditLedger.js';
 import CreditNote from '../../models/CreditNote.js';
 import { applyStockChanges } from '../../utils/stock.js';
 import { netLineValue, round2 } from '../../utils/tax.js';
+import { lineQty } from '../../utils/qty.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
@@ -42,8 +43,7 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
     const lineItems = items.map((i: any) => {
         const src = invoice.items.find((it) => String(it.productId) === String(i.productId));
         if (!src) throw AppError.badRequest('Item not part of this invoice');
-        const qty = Number(i.quantity);
-        if (qty <= 0) throw AppError.badRequest('Return quantity must be positive');
+        const qty = lineQty(i.quantity, src);
         const maxReturnable = src.quantity - (alreadyReturned.get(String(i.productId)) || 0);
         if (qty > maxReturnable) throw AppError.badRequest(`Only ${maxReturnable} of "${src.name}" can be returned`);
         // Value the units at what the customer was charged — bill discount included.

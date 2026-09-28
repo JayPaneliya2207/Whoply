@@ -16,6 +16,8 @@ import { useT } from '@/i18n';
 import { buildBillText, whatsappLink, printBill } from '@/lib/bill';
 import { maskGstin, isValidGstin } from '@/lib/gstin';
 import { priceLines, round2 } from '@/lib/tax';
+import { isLooseUnit } from '@/lib/qty';
+import { QtyInput } from '@/components/QtyInput';
 
 const SPLIT_MODES = ['cash', 'upi', 'card'] as const;
 type SplitMode = (typeof SPLIT_MODES)[number];
@@ -25,7 +27,7 @@ export default function BillingPage() {
     const qc = useQueryClient();
     const { user } = useAuth();
     const t = useT();
-    const { cart, name, mobile, setName, setMobile, add, refresh, setQty, remove, clear, ensureBusiness } = usePos();
+    const { cart, name, mobile, setName, setMobile, add, refresh, setQty, setQtyExact, remove, clear, ensureBusiness } = usePos();
 
     // Scope the cart to this shop — a different/fresh business starts empty.
     const bizId = user?.business?.id;
@@ -98,7 +100,8 @@ export default function BillingPage() {
         const p = priceLines(inputs, disc);
         return { sub: p.subtotal, preTaxDisc: p.discount, gst: p.totalGst, disc, pct, grand: p.grandTotal };
     }, [cart, billDiscPct]);
-    const count = useMemo(() => cart.reduce((s, r) => s + r.qty, 0), [cart]);
+    // Items in the cart: pieces count one by one, a loose line (2.5 kg) counts as one item.
+    const count = useMemo(() => cart.reduce((s, r) => s + (isLooseUnit(r.unit) ? 1 : r.qty), 0), [cart]);
     const inCart = useMemo(() => new Map(cart.map((r) => [r.productId, r.qty])), [cart]);
     // Split bill: what's been entered per mode, and what's left (that part goes on udhar).
     const splitPaid = round2(SPLIT_MODES.reduce((s, m) => s + (Number(split[m]) || 0), 0));
@@ -172,7 +175,7 @@ export default function BillingPage() {
                                 {qty > 0 && (
                                     <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: '1px solid var(--card-border)' }}>
                                         <button onClick={() => (qty <= 1 ? remove(p._id) : setQty(p._id, -1))} className="h-7 w-7 grid place-items-center rounded-lg" style={{ background: 'var(--surface-2)' }}>{qty <= 1 ? <Trash2 size={13} style={{ color: 'var(--danger-500)' }} /> : <Minus size={14} />}</button>
-                                        <span className="text-sm font-bold tabular">{qty}</span>
+                                        <QtyInput value={qty} unit={p.unit} max={p.currentStock} onChange={(n) => setQtyExact(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-14" />
                                         <button onClick={() => setQty(p._id, 1)} disabled={qty >= p.currentStock} className="h-7 w-7 grid place-items-center rounded-lg disabled:opacity-40" style={{ background: 'var(--brand-700)', color: '#fff' }}><Plus size={14} /></button>
                                     </div>
                                 )}
@@ -230,11 +233,11 @@ export default function BillingPage() {
                                 </div>
                                 <p className="text-xs mt-1 mb-2" style={{ color: 'var(--text-muted)' }}>
                                     {r.discountPct > 0 && <span className="line-through mr-1">{inr2(r.mrp)}</span>}
-                                    {inr2(r.price)}{r.discountPct > 0 && <span style={{ color: 'var(--success-600)' }}> ({r.discountPct}% off)</span>} · <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
+                                    {inr2(r.price)}{isLooseUnit(r.unit) && ` / ${r.unit}`}{r.discountPct > 0 && <span style={{ color: 'var(--success-600)' }}> ({r.discountPct}% off)</span>} · <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
                                 </p>
                                 <div className="flex items-center justify-between">
                                     <button onClick={() => setQty(r.productId, -1)} className="h-7 w-7 grid place-items-center rounded-md" style={{ background: 'var(--card-bg)' }}><Minus size={13} /></button>
-                                    <span className="text-sm font-bold tabular">{r.qty}</span>
+                                    <QtyInput value={r.qty} unit={r.unit} max={r.stock} onChange={(n) => setQtyExact(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-14" />
                                     <button onClick={() => setQty(r.productId, 1)} className="h-7 w-7 grid place-items-center rounded-md" style={{ background: 'var(--card-bg)' }}><Plus size={13} /></button>
                                 </div>
                             </motion.div>

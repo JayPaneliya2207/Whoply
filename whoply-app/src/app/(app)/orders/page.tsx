@@ -6,6 +6,8 @@ import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
+import { stepQty } from '@/lib/qty';
+import { QtyInput } from '@/components/QtyInput';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
 import { Modal, Field } from '@/components/Modal';
@@ -102,8 +104,9 @@ export default function OrdersPage() {
 
     const flashMsg = useCallback((m: string) => { setFlash(m); setTimeout(() => setFlash(''), 1800); }, []);
 
-    const add = useCallback((p: any) => setCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c.map((r) => r.productId === p._id ? { ...r, qty: r.qty + 10 } : r); return [...c, { productId: p._id, name: p.name, price: p.wholesalePrice || p.sellPrice, qty: 10 }]; }), []);
-    const setQty = (id: string, d: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: Math.max(1, r.qty + d) } : r));
+    const add = useCallback((p: any) => setCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c.map((r) => r.productId === p._id ? { ...r, qty: r.qty + 10 } : r); return [...c, { productId: p._id, name: p.name, price: p.wholesalePrice || p.sellPrice, unit: p.unit, qty: 10 }]; }), []);
+    const setQty = (id: string, d: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: stepQty(r.qty, d, r.unit) } : r));
+    const setQtyTo = (id: string, n: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: n } : r));
     const total = useMemo(() => cart.reduce((s, r) => s + r.price * r.qty, 0), [cart]);
     const inCart = useMemo(() => new Map(cart.map((r) => [r.productId, r.qty])), [cart]);
 
@@ -344,7 +347,7 @@ export default function OrdersPage() {
                                             {qty > 0 && (
                                                 <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--card-border)' }}>
                                                     <button onClick={() => setQty(p._id, -10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--surface-2)' }}><Minus size={12} /></button>
-                                                    <span className="text-xs font-bold tabular">{qty}</span>
+                                                    <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-12 !text-xs" />
                                                     <button onClick={() => setQty(p._id, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand-700)', color: '#fff' }}><Plus size={12} /></button>
                                                 </div>
                                             )}
@@ -357,7 +360,7 @@ export default function OrdersPage() {
                                     <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                         <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
                                         <button onClick={() => setQty(r.productId, -10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Minus size={12} /></button>
-                                        <span className="w-8 text-center text-sm tabular font-semibold">{r.qty}</span>
+                                        <QtyInput value={r.qty} unit={r.unit} onChange={(n) => setQtyTo(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-14" />
                                         <button onClick={() => setQty(r.productId, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Plus size={12} /></button>
                                         <span className="w-20 text-right text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
                                         <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
