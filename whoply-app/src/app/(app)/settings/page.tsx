@@ -7,6 +7,7 @@ import { api, apiErr } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
 import { useLang, LANGS, type Lang } from '@/i18n';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 import { printBill, getTemplate, type Template } from '@/lib/bill';
 import { GSTIN_PLACEHOLDER, maskGstin, isValidGstin } from '@/lib/gstin';
 
@@ -23,6 +24,7 @@ const SAMPLE_BILL = {
 
 export default function SettingsPage() {
     const t = useT();
+    const can = useCan();
     const { user, setUser, logout } = useAuth();
     const router = useRouter();
     const doLogout = async () => { try { await api.post('/auth/logout'); } catch { /* ignore */ } logout(); router.replace('/login'); };
@@ -30,7 +32,7 @@ export default function SettingsPage() {
     const qc = useQueryClient();
     const base = user?.business?.type === 'wholesale' ? '/wholesaler' : '/shopkeeper';
     const isWholesale = user?.business?.type === 'wholesale';
-    const canEditShop = user?.role === 'owner' || user?.role === 'manager';
+    const canEditShop = can('business.edit'); // the owner only
     const [tpl, setTpl] = useState<Template>('classic');
     useEffect(() => { setTpl(getTemplate()); }, []);
     const pickTpl = (k: Template) => { setTpl(k); if (typeof window !== 'undefined') localStorage.setItem('whoply_invoice_template', k); };

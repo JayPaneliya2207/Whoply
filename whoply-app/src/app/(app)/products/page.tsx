@@ -5,6 +5,7 @@ import { AlertTriangle, Plus, Pencil, Trash2, FolderPlus, Boxes, ChevronDown } f
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
+import { useCan } from '@/lib/permissions';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CatIcon, catEmoji } from '@/lib/icons';
@@ -19,6 +20,8 @@ export default function ProductsPage() {
     const { user } = useAuth();
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
+    const manage = can('products.manage'); // cashier, sales rep, accountant: look only
     const base = user?.business?.type === 'wholesale' ? '/wholesaler' : '/shopkeeper';
     const isWholesale = user?.business?.type === 'wholesale';
 
@@ -95,10 +98,10 @@ export default function ProductsPage() {
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{isWholesale ? t('warehouseStock') : t('productsInventory')}</h1>
-                <div className="flex gap-2">
+                {manage && <div className="flex gap-2">
                     <button className="wp-btn wp-btn-ghost text-sm" onClick={() => { setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> {t('category')}</button>
                     <button className="wp-btn wp-btn-primary text-sm" onClick={openNew}><Plus size={16} /> {t('addProduct')}</button>
-                </div>
+                </div>}
             </div>
 
             {/* Category filter — opens a popup of category boxes */}
@@ -135,13 +138,13 @@ export default function ProductsPage() {
                             </div>
                             <div className="text-right shrink-0">
                                 <p className="font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.sellPrice)}</p>
-                                <p className="text-[11px] tabular hidden sm:block" style={{ color: 'var(--text-muted)' }}>cost {inr2(p.costPrice)} · GST {p.gstRate}%</p>
+                                <p className="text-[11px] tabular hidden sm:block" style={{ color: 'var(--text-muted)' }}>{can('products.cost') && <>cost {inr2(p.costPrice)} · </>}GST {p.gstRate}%</p>
                             </div>
                             <span className="wp-chip tabular shrink-0" style={low ? { background: '#fef3c7', color: 'var(--accent-600)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}</span>
-                            <div className="flex items-center gap-0.5 shrink-0">
+                            {manage && <div className="flex items-center gap-0.5 shrink-0">
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(p)}><Pencil size={14} /></button>
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
-                            </div>
+                            </div>}
                         </div>
                     );
                 })}
@@ -198,7 +201,7 @@ export default function ProductsPage() {
 
             {/* Category picker — boxes, gesture-dismiss */}
             <Modal open={catPicker} onClose={() => setCatPicker(false)} title={t('categories')}
-                footer={<button className="wp-btn wp-btn-ghost w-full" onClick={() => { setCatPicker(false); setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> {t('addCategory')}</button>}>
+                footer={manage ? <button className="wp-btn wp-btn-ghost w-full" onClick={() => { setCatPicker(false); setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> {t('addCategory')}</button> : undefined}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <button onClick={() => { setCatFilter(''); setCatPicker(false); }} className="wp-card p-3 text-center"
                         style={!catFilter ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
@@ -208,7 +211,7 @@ export default function ProductsPage() {
                     </button>
                     {(cats || []).map((c: any) => (
                         <div key={c._id} className="wp-card p-3 text-center relative" style={catFilter === c._id ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
-                            <button onClick={(e) => { e.stopPropagation(); setEditingCat(c); setCatName(c.name); setCatPicker(false); setCatModal(true); }} className="absolute top-1.5 right-1.5 opacity-60"><Pencil size={12} /></button>
+                            {manage && <button onClick={(e) => { e.stopPropagation(); setEditingCat(c); setCatName(c.name); setCatPicker(false); setCatModal(true); }} className="absolute top-1.5 right-1.5 opacity-60"><Pencil size={12} /></button>}
                             <button onClick={() => { setCatFilter(c._id); setCatPicker(false); }} className="w-full">
                                 <span className="text-2xl block leading-none mb-1">{catEmoji(c.name)}</span>
                                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{c.name}</p>

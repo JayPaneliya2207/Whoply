@@ -13,6 +13,7 @@ import { kycPlaceholder, formatKyc } from '@/lib/forms';
 /** The last 4 digits of whatever is entered or stored ("XXXX XXXX 1234" → "1234"). */
 const last4 = (v?: string) => String(v ?? '').replace(/[^0-9]/g, '').slice(-4);
 import { useT } from '@/i18n';
+import { staffRolesFor } from '@/lib/permissions';
 
 const ROLE_LABELS: Record<string, string> = {
     cashier: 'Cashier', manager: 'Manager', warehouse: 'Warehouse', salesStaff: 'Sales Staff', accountant: 'Accountant',
@@ -33,8 +34,7 @@ export default function StaffPage() {
     const { user } = useAuth();
     const qc = useQueryClient();
     const t = useT();
-    const isWholesale = user?.business?.type === 'wholesale';
-    const roleOptions = isWholesale ? ['warehouse', 'salesStaff', 'manager', 'accountant'] : ['cashier', 'manager', 'accountant'];
+    const roleOptions: string[] = staffRolesFor(user?.business?.type);
 
     const [modal, setModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);

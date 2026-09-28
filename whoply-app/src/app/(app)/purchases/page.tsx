@@ -12,12 +12,14 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { ScanButton } from '@/components/BarcodeScanner';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 
 const emptySup = { name: '', mobile: '', country: '+91', gstin: '', address: '' };
 
 export default function PurchasesPage() {
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
     const [supModal, setSupModal] = useState(false);
     const [editingSup, setEditingSup] = useState<any>(null);
     const [supForm, setSupForm] = useState<any>(emptySup);
@@ -91,7 +93,7 @@ export default function PurchasesPage() {
             <div>
                 <div className="flex items-center justify-between mb-3">
                     <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('suppliersTitle')}</h1>
-                    <button className="wp-btn wp-btn-primary" onClick={openNewSup}><Plus size={16} /> {t('addSupplier')}</button>
+                    {can('purchases.manage') && <button className="wp-btn wp-btn-primary" onClick={openNewSup}><Plus size={16} /> {t('addSupplier')}</button>}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {(suppliers || []).length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('addSuppliersFirst')}</p>}
@@ -103,8 +105,8 @@ export default function PurchasesPage() {
                                     <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.mobile || 'No contact'}{s.gstin ? ` · ${s.gstin}` : ''}</p>
                                 </div>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEditSup(s)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDelSup(s)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                {can('purchases.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEditSup(s)}><Pencil size={14} /></button>}
+                                {can('purchases.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDelSup(s)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>}
                             </div>
                             <div className="mt-2 flex justify-between items-center">
                                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('youOwePayable')}</span>
@@ -119,7 +121,7 @@ export default function PurchasesPage() {
             <div>
                 <div className="flex items-center justify-between mb-3">
                     <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><ClipboardList size={18} /> {t('purchaseOrders')}</h2>
-                    <button className="wp-btn wp-btn-ghost" onClick={() => { setPoModal(true); setPoErr(''); }} disabled={!(suppliers || []).length}><Plus size={16} /> {t('newPo')}</button>
+                    {can('purchases.manage') && <button className="wp-btn wp-btn-ghost" onClick={() => { setPoModal(true); setPoErr(''); }} disabled={!(suppliers || []).length}><Plus size={16} /> {t('newPo')}</button>}
                 </div>
                 {(purchases || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noPurchaseOrders')}</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -138,8 +140,8 @@ export default function PurchasesPage() {
                                         : <p className="text-xs" style={{ color: 'var(--success-600)' }}>{t('fullyPaid')}</p>}
                                 </div>
                                 <div className="flex flex-col gap-1.5 items-stretch shrink-0">
-                                    {p.status === 'pending' && <button className="wp-btn wp-btn-primary !py-1.5 !text-xs" disabled={receivePo.isPending} onClick={() => receivePo.mutate(p._id)}><PackageCheck size={13} /> {t('receiveStock')}</button>}
-                                    {p.dueAmount > 0 && <button className="wp-btn wp-btn-ghost !py-1.5 !text-xs" onClick={() => openPay(p)}><RupeeIcon size={13} /> {t('recordPaymentBtn')}</button>}
+                                    {can('purchases.manage') && p.status === 'pending' && <button className="wp-btn wp-btn-primary !py-1.5 !text-xs" disabled={receivePo.isPending} onClick={() => receivePo.mutate(p._id)}><PackageCheck size={13} /> {t('receiveStock')}</button>}
+                                    {can('purchases.manage') && p.dueAmount > 0 && <button className="wp-btn wp-btn-ghost !py-1.5 !text-xs" onClick={() => openPay(p)}><RupeeIcon size={13} /> {t('recordPaymentBtn')}</button>}
                                 </div>
                             </div>
                         </div>

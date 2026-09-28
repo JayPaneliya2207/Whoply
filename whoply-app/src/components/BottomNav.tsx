@@ -10,7 +10,7 @@ export function BottomNav() {
     const { user } = useAuth();
     const t = useT();
     const pathname = usePathname();
-    const tabs = tabsFor(user?.business?.type);
+    const tabs = tabsFor(user?.business?.type, user?.role);
 
     return (
         <nav className="sticky bottom-0 z-30" style={{ background: 'var(--card-bg)', borderTop: '1px solid var(--card-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>

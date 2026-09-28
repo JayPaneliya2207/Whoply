@@ -7,6 +7,7 @@ import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 
 const CATS = ['rent', 'electricity', 'salary', 'transport', 'supplies', 'marketing', 'other'];
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -15,6 +16,7 @@ const empty = { category: 'rent', amount: '', note: '', spentAt: '' };
 export default function ExpensesPage() {
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
     const [modal, setModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
     const [form, setForm] = useState<any>(empty);
@@ -47,7 +49,7 @@ export default function ExpensesPage() {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('expensesTitle')}</h1>
-                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addExpense')}</button>
+                {can('expenses.manage') && <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addExpense')}</button>}
             </div>
 
             <div className="wp-card p-5 flex items-center gap-3">
@@ -65,8 +67,8 @@ export default function ExpensesPage() {
                                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{new Date(e.spentAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(e)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(e)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                {can('expenses.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(e)}><Pencil size={14} /></button>}
+                                {can('expenses.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(e)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>}
                             </div>
                         </div>
                         <p className="text-xl font-extrabold tabular mt-2" style={{ color: 'var(--text-primary)' }}>{inr2(e.amount)}</p>

@@ -7,6 +7,7 @@ import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { Modal } from '@/components/Modal';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 import { buildBillText, whatsappLink, printBill, printCreditNote, printEInvoice, printEwayBill, billsToCsv, downloadFile, payModeLabel, type PrintFormat } from '@/lib/bill';
 
 const PRINT_FORMATS: { k: PrintFormat; label: string }[] = [
@@ -25,6 +26,7 @@ const FILTERS = ['all', 'paid', 'credit'] as const;
 export default function BillsPage() {
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
     const [status, setStatus] = useState<string>('all');
     const [detailId, setDetailId] = useState<string | null>(null);
     const [printFmt, setPrintFmt] = useState<PrintFormat>('a4');
@@ -79,7 +81,7 @@ export default function BillsPage() {
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('bills')}</h1>
                 <div className="flex gap-2">
                     <button className="wp-btn wp-btn-ghost" onClick={() => downloadFile(`whoply-bills-${status}.csv`, billsToCsv(data || []))} disabled={!(data || []).length}><Download size={16} /> CSV</button>
-                    <Link href="/billing" className="wp-btn wp-btn-primary"><Plus size={16} /> {t('newBill')}</Link>
+                    {can('billing.sell') && <Link href="/billing" className="wp-btn wp-btn-primary"><Plus size={16} /> {t('newBill')}</Link>}
                 </div>
             </div>
 
@@ -138,9 +140,9 @@ export default function BillsPage() {
                             const gstDoc = !!detail.customerGstin || (detail.grandTotal || 0) >= 50000;
                             return (
                                 <div className={`grid gap-2 ${gstDoc ? 'grid-cols-3' : 'grid-cols-1'}`}>
-                                    {gstDoc && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => genEInvoice(detail)}><FileJson size={15} className="shrink-0" /> <span className="truncate">{t('eInvoiceJson')}</span></button>}
-                                    {gstDoc && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => setEwayOpen((v) => !v)}><Truck size={15} className="shrink-0" /> <span className="truncate">{t('ewayBill')}</span></button>}
-                                    <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>
+                                    {can('einvoice') && gstDoc && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => genEInvoice(detail)}><FileJson size={15} className="shrink-0" /> <span className="truncate">{t('eInvoiceJson')}</span></button>}
+                                    {can('einvoice') && gstDoc && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => setEwayOpen((v) => !v)}><Truck size={15} className="shrink-0" /> <span className="truncate">{t('ewayBill')}</span></button>}
+                                    {can('returns.create') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>}
                                 </div>
                             );
                         })()}

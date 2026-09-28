@@ -8,11 +8,13 @@ import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 import { buildUdharReminderText, whatsappLink } from '@/lib/bill';
 
 export default function CustomersPage() {
     const { user } = useAuth();
     const t = useT();
+    const can = useCan();
     const qc = useQueryClient();
     const [dueOnly, setDueOnly] = useState(false);
     const [payFor, setPayFor] = useState<any>(null);
@@ -70,9 +72,11 @@ export default function CustomersPage() {
                                         }}>
                                         <MessageCircle size={15} style={{ color: 'var(--success-600)' }} />
                                     </button>
-                                    <button className="wp-btn wp-btn-accent !px-2.5 !py-2" onClick={() => { setPayFor(c); setAmount(String(c.creditBalance)); }}>
-                                        <RupeeIcon size={15} />
-                                    </button>
+                                    {can('customers.manage') && (
+                                        <button className="wp-btn wp-btn-accent !px-2.5 !py-2" onClick={() => { setPayFor(c); setAmount(String(c.creditBalance)); }}>
+                                            <RupeeIcon size={15} />
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>

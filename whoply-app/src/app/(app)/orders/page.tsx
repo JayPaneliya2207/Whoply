@@ -10,6 +10,7 @@ import { stepQty } from '@/lib/qty';
 import { QtyInput } from '@/components/QtyInput';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 import { Modal, Field } from '@/components/Modal';
 import { UpiQr } from '@/components/UpiQr';
 import { ScanButton, useWedgeScanner } from '@/components/BarcodeScanner';
@@ -35,6 +36,7 @@ export default function OrdersPage() {
     const qc = useQueryClient();
     const { user } = useAuth();
     const t = useT();
+    const can = useCan();
     const stLabel = (s: string) => t('st' + s.charAt(0).toUpperCase() + s.slice(1));
     const biz = user?.business ? { name: user.business.name, gstin: user.business.gstin } : undefined;
     const initialStatus = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('status') || 'all' : 'all';
@@ -98,7 +100,7 @@ export default function OrdersPage() {
         })),
     });
     const counts: Record<string, number> = Object.fromEntries(FILTERS.map((f, i) => [f, countQueries[i]?.data ?? 0]));
-    const { data: dealers } = useQuery({ queryKey: ['dealers-all'], queryFn: async () => (await api.get('/wholesaler/dealers?limit=100')).data.data.items });
+    const { data: dealers } = useQuery({ queryKey: ['dealers-all'], queryFn: async () => (await api.get('/wholesaler/dealers?limit=100')).data.data.items, enabled: can('dealers.view') });
     const { data: wsBiz } = useQuery({ queryKey: ['ws-business'], queryFn: async () => (await api.get('/wholesaler/business')).data.data });
     const { data: products } = useQuery({ queryKey: ['ws-products', search], queryFn: async () => (await api.get(`/wholesaler/products?limit=50&search=${encodeURIComponent(search)}`)).data.data.items });
 
@@ -152,7 +154,7 @@ export default function OrdersPage() {
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('ordersTitle')}</h1>
                 <div className="flex gap-2">
                     <button className="wp-btn wp-btn-ghost" onClick={() => downloadFile(`whoply-orders-${statusFilter}.csv`, ordersToCsv(orders || [], mobileOf))} disabled={!(orders || []).length}><Download size={16} /> CSV</button>
-                    <button className="wp-btn wp-btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {t('newOrder')}</button>
+                    {can('orders.create') && <button className="wp-btn wp-btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {t('newOrder')}</button>}
                 </div>
             </div>
 
@@ -195,14 +197,14 @@ export default function OrdersPage() {
                 footer={detail && (
                     <div className="space-y-2">
                         <div className="flex flex-col sm:flex-row gap-2">
-                            {detail.dueAmount > 0 && <button className="wp-btn wp-btn-accent w-full sm:flex-1" onClick={openCollect}><RupeeIcon size={16} /> {t('collectPayment')}</button>}
+                            {can('payments.collect') && detail.dueAmount > 0 && <button className="wp-btn wp-btn-accent w-full sm:flex-1" onClick={openCollect}><RupeeIcon size={16} /> {t('collectPayment')}</button>}
                             <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareOrder(detail)}><MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp</button>
                             <button className="wp-btn wp-btn-primary w-full sm:flex-1" onClick={() => printOrder(detail, wsBiz)}><Printer size={16} /> {t('printPdf')}</button>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
-                            <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => genEInvoice(detail)}><FileJson size={15} className="shrink-0" /> <span className="truncate">{t('eInvoiceJson')}</span></button>
-                            <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => setEwayOpen((v) => !v)}><Truck size={15} className="shrink-0" /> <span className="truncate">{t('ewayBill')}</span></button>
-                            <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>
+                            {can('einvoice') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => genEInvoice(detail)}><FileJson size={15} className="shrink-0" /> <span className="truncate">{t('eInvoiceJson')}</span></button>}
+                            {can('einvoice') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => setEwayOpen((v) => !v)}><Truck size={15} className="shrink-0" /> <span className="truncate">{t('ewayBill')}</span></button>}
+                            {can('returns.create') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>}
                         </div>
                     </div>
                 )}>

@@ -10,6 +10,7 @@ import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 import { UpiQr } from '@/components/UpiQr';
 import { buildDealerPaymentText, whatsappLink } from '@/lib/bill';
 import { GSTIN_PLACEHOLDER, maskGstin, isValidGstin } from '@/lib/gstin';
@@ -26,6 +27,7 @@ const empty = { name: '', shopName: '', mobile: '', country: '+91', gstin: '', t
 export default function DealersPage() {
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
     const [showQr, setShowQr] = useState(false);
     const { data: biz } = useQuery({ queryKey: ['ws-business'], queryFn: async () => (await api.get('/wholesaler/business')).data.data });
     // Remind a dealer on WhatsApp — includes how to pay (UPI + bank details).
@@ -82,7 +84,7 @@ export default function DealersPage() {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('dealersTitle')}</h1>
-                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addDealer')}</button>
+                {can('dealers.manage') && <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addDealer')}</button>}
             </div>
 
             {(data || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noDealersYet')}</p>}
@@ -103,12 +105,12 @@ export default function DealersPage() {
                                 <p className="text-lg font-extrabold tabular" style={{ color: d.outstandingBalance > 0 ? 'var(--accent-600)' : 'var(--success-600)' }}>{inr2(d.outstandingBalance)}</p>
                             </div>
                             <div className="flex gap-1.5">
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(d)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(d)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                {can('dealers.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(d)}><Pencil size={14} /></button>}
+                                {can('dealers.delete') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(d)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>}
                                 {d.outstandingBalance > 0 && (
                                     <>
                                         <button className="wp-btn wp-btn-ghost !p-2" title="Send WhatsApp payment reminder" onClick={() => remindDealer(d)}><MessageCircle size={14} style={{ color: 'var(--success-600)' }} /></button>
-                                        <button className="wp-btn wp-btn-accent !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>
+                                        {can('payments.collect') && <button className="wp-btn wp-btn-accent !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>}
                                     </>
                                 )}
                             </div>

@@ -9,6 +9,7 @@ import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 
 const outcomeTone: Record<string, any> = {
     order: { background: '#dcfce7', color: 'var(--success-600)' },
@@ -27,6 +28,7 @@ const empty = { name: '', mobile: '', country: '+91', salary: '', password: '' }
 export default function SalesTeamPage() {
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
     const [modal, setModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
     const [form, setForm] = useState<any>(empty);
@@ -62,7 +64,7 @@ export default function SalesTeamPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('salesTeamTitle')}</h1>
-                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addRep')}</button>
+                {can('staff.manage') && <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addRep')}</button>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -71,8 +73,8 @@ export default function SalesTeamPage() {
                         <div className="flex items-center gap-3 mb-4">
                             <div className="h-11 w-11 grid place-items-center rounded-full font-bold" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{r.name.charAt(0)}</div>
                             <div className="flex-1 min-w-0"><p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{r.name}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.mobile}</p></div>
-                            <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(r)}><Pencil size={14} /></button>
-                            <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(r)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                            {can('staff.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(r)}><Pencil size={14} /></button>}
+                            {can('staff.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(r)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>}
                         </div>
                         {/* clickable stats → open detail */}
                         <button className="grid grid-cols-3 gap-2 text-center w-full" onClick={() => { setDetailId(r._id); setDetailTab('visits'); }}>

@@ -13,6 +13,7 @@ import { payModeLabel } from '@/lib/bill';
 import { useT } from '@/i18n';
 import { NavGrid } from '@/components/NavGrid';
 import { ShopStatusToggle } from '@/components/ShopStatusToggle';
+import { useCan } from '@/lib/permissions';
 
 const fetchDash = async (type: string) => {
     const base = type === 'wholesale' ? '/wholesaler/dashboard' : '/shopkeeper/dashboard';
@@ -40,6 +41,7 @@ function Kpi({ label, value, icon: Icon, tone, hint, href, alert }: any) {
 export default function DashboardPage() {
     const { user } = useAuth();
     const t = useT();
+    const can = useCan();
     const stLabel = (s: string) => t('st' + s.charAt(0).toUpperCase() + s.slice(1));
     const type = user?.business?.type || 'retail';
     const { data, isLoading } = useQuery({ queryKey: ['dashboard', type], queryFn: () => fetchDash(type) });
@@ -70,6 +72,8 @@ export default function DashboardPage() {
             red: { bg: '#fee2e2', fg: 'var(--danger-500)' },
             sky: { bg: '#e0e7ff', fg: 'var(--brand-700)' },
         };
+        // Money totals come only for roles that handle money (not the godown team).
+        const money = can('payments.view');
         const billed = data.revenue || 0;
         const outstanding = data.outstandingPayments || 0;
         const collected = Math.max(0, billed - outstanding);
@@ -91,23 +95,23 @@ export default function DashboardPage() {
 
                 {/* KPI grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    <Kpi label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={T.brand} hint={`${inr(data.todaySales || 0)} ${t('billedTodayHint')}`} href="/orders" />
+                    <Kpi label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={T.brand} hint={money ? `${inr(data.todaySales || 0)} ${t('billedTodayHint')}` : undefined} href="/orders" />
                     <Kpi label={t('pendingDispatch')} value={data.pendingDispatch} icon={Truck} tone={T.amber} hint={t('toShipHint')} href="/orders?status=pending" alert={data.pendingDispatch > 0} />
-                    <Kpi label={t('outstanding')} value={inr(outstanding)} icon={Wallet} tone={T.amber} hint={`${data.outstandingDealers || 0} ${t('dealersToCollectHint')}`} href="/dealers" alert={outstanding > 0} />
+                    {money && <Kpi label={t('outstanding')} value={inr(outstanding)} icon={Wallet} tone={T.amber} hint={`${data.outstandingDealers || 0} ${t('dealersToCollectHint')}`} href="/dealers" alert={outstanding > 0} />}
                     <Kpi label={t('lowStockTitle')} value={data.lowStockCount || 0} icon={AlertTriangle} tone={T.red} hint={t('productsNeedReorder')} href="/products?lowStock=true" alert={(data.lowStockCount || 0) > 0} />
-                    <Kpi label={t('totalRevenue')} value={inr(billed)} icon={TrendingUp} tone={T.green} hint={t('allTimeBilledHint')} />
-                    <Kpi label={t('dealersCount')} value={data.dealerCount} icon={Users} tone={T.sky} hint={t('activeDealersHint')} href="/dealers" />
+                    {money && <Kpi label={t('totalRevenue')} value={inr(billed)} icon={TrendingUp} tone={T.green} hint={t('allTimeBilledHint')} />}
+                    {can('dealers.view') && <Kpi label={t('dealersCount')} value={data.dealerCount} icon={Users} tone={T.sky} hint={t('activeDealersHint')} href="/dealers" />}
                 </div>
 
                 {/* Money to collect — collection progress */}
-                <div className="wp-card p-5">
+                {money && <div className="wp-card p-5">
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('moneyToCollect')}</p>
                             <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: 'var(--accent-600)' }}>{inr(outstanding)}</p>
                             <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{data.outstandingDealers || 0} {t('dealersWord')} · {t('dealersToCollectHint')}</p>
                         </div>
-                        <Link href="/dealers" className="wp-btn wp-btn-ghost shrink-0"><Wallet size={15} /> {t('collectPayment')}</Link>
+                        {can('payments.collect') && <Link href="/dealers" className="wp-btn wp-btn-ghost shrink-0"><Wallet size={15} /> {t('collectPayment')}</Link>}
                     </div>
                     <div className="mt-4">
                         <div className="flex items-center justify-between text-xs mb-1.5">
@@ -119,7 +123,7 @@ export default function DashboardPage() {
                         </div>
                         <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>{collectedPct}% {t('collected').toLowerCase()} · {t('allOrders')}</p>
                     </div>
-                </div>
+                </div>}
 
                 {/* Order pipeline — stacked bar + legend */}
                 <div className="wp-card p-5">
@@ -180,6 +184,9 @@ export default function DashboardPage() {
         sky: { bg: '#e0e7ff', fg: 'var(--brand-700)' },
     };
     const invTone = (s: string) => (s === 'paid' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' });
+    // Profit and supplier dues come only for roles allowed to see them (not a cashier).
+    const profit = can('profit.view');
+    const suppliers = can('purchases.view');
     const receivable = data.pendingUdhar || 0;
     const payable = data.supplierPayable || 0;
     const net = receivable - payable;
@@ -200,16 +207,16 @@ export default function DashboardPage() {
 
             {/* KPI grid */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                <Kpi label={t('todaysSales')} value={inr(data.todaySales)} icon={RupeeIcon} tone={rt.green} hint={`${t('todaysProfitEst')} ${inr(data.todayProfit || 0)}`} />
+                <Kpi label={t('todaysSales')} value={inr(data.todaySales)} icon={RupeeIcon} tone={rt.green} hint={profit ? `${t('todaysProfitEst')} ${inr(data.todayProfit || 0)}` : undefined} />
                 <Kpi label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={rt.brand} href="/bills" />
-                <Kpi label={t('todaysProfitEst')} value={inr(data.todayProfit || 0)} icon={TrendingUp} tone={rt.sky} />
-                <Kpi label={t('pendingUdhar')} value={inr(receivable)} icon={Wallet} tone={rt.amber} hint={`${data.udharCustomers || 0} ${t('onUdharSuffix')}`} href="/customers?hasDue=true" alert={receivable > 0} />
+                {profit && <Kpi label={t('todaysProfitEst')} value={inr(data.todayProfit || 0)} icon={TrendingUp} tone={rt.sky} />}
+                {can('customers.view') && <Kpi label={t('pendingUdhar')} value={inr(receivable)} icon={Wallet} tone={rt.amber} hint={`${data.udharCustomers || 0} ${t('onUdharSuffix')}`} href="/customers?hasDue=true" alert={receivable > 0} />}
                 <Kpi label={t('lowStockTitle')} value={data.lowStockCount} icon={AlertTriangle} tone={rt.red} hint={t('productsNeedReorder')} href="/products?lowStock=true" alert={data.lowStockCount > 0} />
-                <Kpi label={t('youOweSuppliers')} value={inr(payable)} icon={Truck} tone={rt.amber} hint={`${data.supplierPayableCount || 0} ${t('suppliersCount')}`} href="/purchases" alert={payable > 0} />
+                {suppliers && <Kpi label={t('youOweSuppliers')} value={inr(payable)} icon={Truck} tone={rt.amber} hint={`${data.supplierPayableCount || 0} ${t('suppliersCount')}`} href="/purchases" alert={payable > 0} />}
             </div>
 
             {/* Money to settle — receivable vs payable balance */}
-            <div className="wp-card p-5">
+            {suppliers && <div className="wp-card p-5">
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('netPosition')}</p>
                 <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: net >= 0 ? 'var(--success-600)' : 'var(--danger-500)' }}>{inr(net)}</p>
                 <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{net >= 0 ? t('inYourFavour') : t('youOweMore')}</p>
@@ -223,7 +230,7 @@ export default function DashboardPage() {
                         <Link href="/purchases" className="flex items-center gap-1.5 min-w-0"><b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(payable)}</b> <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('youOweSuppliers')}</span><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--accent-500)' }} /></Link>
                     </div>
                 </div>
-            </div>
+            </div>}
 
             {/* Top products — compact 2-column layout */}
             <div className="wp-card p-5">
@@ -242,7 +249,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Recent activity — bills feed */}
-            <div className="wp-card p-5">
+            {can('bills.view') && <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-1">
                     <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('recentBills')}</h3>
                     <Link href="/bills" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
@@ -263,7 +270,7 @@ export default function DashboardPage() {
                         </Link>
                     ))}
                 </div>
-            </div>
+            </div>}
 
             {/* All features */}
             <div className="wp-card p-4 sm:p-5"><NavGrid /></div>

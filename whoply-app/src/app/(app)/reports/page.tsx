@@ -6,13 +6,58 @@ import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, API_URL } from '@/lib/api';
 import { inr, inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
+import { useCan } from '@/lib/permissions';
 import { useT } from '@/i18n';
 import { paymentsToCsv, downloadFile, buildDealerPaymentText, whatsappLink } from '@/lib/bill';
 
 export default function ReportsPage() {
     const { user } = useAuth();
+    const can = useCan();
+    const t = useT();
     if (user?.business?.type === 'wholesale') return <WholesaleTally />;
+    // A cashier sees only today's cash tally — no profit, no other days.
+    if (!can('reports.view')) {
+        return (
+            <div className="space-y-6">
+                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('dayCloseToday')}</h1>
+                <DayCloseCard />
+            </div>
+        );
+    }
     return <ShopReports />;
+}
+
+/** Day close — today's cash tally (money in by mode, udhar, expenses, refunds). */
+function DayCloseCard() {
+    const t = useT();
+    const { data: dayClose } = useQuery({ queryKey: ['rep-dayclose'], queryFn: async () => (await api.get('/shopkeeper/reports/day-close')).data.data, refetchOnMount: 'always' });
+    return (
+    <div className="wp-card p-5">
+        <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Wallet size={17} style={{ color: 'var(--brand-700)' }} /> {t('dayCloseToday')}</h3>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{dayClose?.billCount || 0} bills · sold {inr(dayClose?.totalSales || 0)}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('cashLabel')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.cash || 0)}</p></div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>UPI</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.upi || 0)}</p></div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Card</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.card || 0)}</p></div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('udharGiven')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--accent-600)' }}>{inr(dayClose?.udharGiven || 0)}</p></div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('udharCollected')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--success-600)' }}>{inr(dayClose?.udharCollected || 0)}</p></div>
+            <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('expensesTodayLabel')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.expenses || 0)}</p></div>
+        </div>
+        {(dayClose?.refunds || 0) > 0 && (
+            <div className="mt-3 flex items-center justify-between text-sm" style={{ color: 'var(--danger-500)' }}>
+                <span>{t('cashRefunds')}</span>
+                <span className="font-bold tabular">− {inr(dayClose.refunds)}</span>
+            </div>
+        )}
+        <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid var(--card-border)' }}>
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{t('cashCollectedToday')}</span>
+            <span className="text-xl font-extrabold tabular" style={{ color: 'var(--success-600)' }}>{inr((dayClose?.cash || 0) + (dayClose?.udharCollected || 0) - (dayClose?.refunds || 0))}</span>
+        </div>
+        <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>Cash sales + udhar collected today. All figures are for <b>today only</b>. Any expenses you paid from the cash box, subtract separately.</p>
+    </div>
+    );
 }
 
 /* ───────────────────────── Wholesaler — account tally ───────────────────────── */
@@ -158,7 +203,6 @@ function ShopReports() {
     const monthDays = new Date().getDate(); // days elapsed this month → "this month" chart
     const { data: sales } = useQuery({ queryKey: ['rep-sales', 'month'], queryFn: async () => (await api.get(`/shopkeeper/reports/sales?days=${monthDays}`)).data.data });
     const { data: prod } = useQuery({ queryKey: ['rep-prod'], queryFn: async () => (await api.get('/shopkeeper/reports/products')).data.data });
-    const { data: dayClose } = useQuery({ queryKey: ['rep-dayclose'], queryFn: async () => (await api.get('/shopkeeper/reports/day-close')).data.data, refetchOnMount: 'always' });
 
     // Fill in every day of this month (1 → today) so the chart shows real highs & lows, not just days that had a sale.
     const monthSeries = useMemo(() => {
@@ -210,31 +254,7 @@ function ShopReports() {
             </div>
 
             {/* Day close — today's cash tally */}
-            <div className="wp-card p-5">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Wallet size={17} style={{ color: 'var(--brand-700)' }} /> {t('dayCloseToday')}</h3>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{dayClose?.billCount || 0} bills · sold {inr(dayClose?.totalSales || 0)}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('cashLabel')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.cash || 0)}</p></div>
-                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>UPI</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.upi || 0)}</p></div>
-                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Card</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.card || 0)}</p></div>
-                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('udharGiven')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--accent-600)' }}>{inr(dayClose?.udharGiven || 0)}</p></div>
-                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('udharCollected')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--success-600)' }}>{inr(dayClose?.udharCollected || 0)}</p></div>
-                    <div className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('expensesTodayLabel')}</p><p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(dayClose?.expenses || 0)}</p></div>
-                </div>
-                {(dayClose?.refunds || 0) > 0 && (
-                    <div className="mt-3 flex items-center justify-between text-sm" style={{ color: 'var(--danger-500)' }}>
-                        <span>{t('cashRefunds')}</span>
-                        <span className="font-bold tabular">− {inr(dayClose.refunds)}</span>
-                    </div>
-                )}
-                <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid var(--card-border)' }}>
-                    <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{t('cashCollectedToday')}</span>
-                    <span className="text-xl font-extrabold tabular" style={{ color: 'var(--success-600)' }}>{inr((dayClose?.cash || 0) + (dayClose?.udharCollected || 0) - (dayClose?.refunds || 0))}</span>
-                </div>
-                <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>Cash sales + udhar collected today. All figures are for <b>today only</b>. Any expenses you paid from the cash box, subtract separately.</p>
-            </div>
+            <DayCloseCard />
 
             {/* Tally tiles */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

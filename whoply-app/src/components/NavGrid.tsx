@@ -21,8 +21,8 @@ export function NavGrid() {
     const { user } = useAuth();
     const t = useT();
     // Items already in the bottom tab bar are excluded here so nothing repeats.
-    const inTabs = new Set(tabsFor(user?.business?.type).map((x) => x.href));
-    const groups = groupsFor(user?.business?.type)
+    const inTabs = new Set(tabsFor(user?.business?.type, user?.role).map((x) => x.href));
+    const groups = groupsFor(user?.business?.type, user?.role)
         .map((g) => ({ ...g, items: g.items.filter((it) => !inTabs.has(it.href)) }))
         .filter((g) => g.items.length > 0);
     let i = 0;

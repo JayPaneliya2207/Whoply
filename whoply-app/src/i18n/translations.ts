@@ -165,7 +165,7 @@ const en: Dict = {
     // ── wholesaler ──
     wholesalerDashboard: 'Wholesaler Dashboard', newOrder: 'New Order', pendingDispatch: 'Pending Dispatch',
     outstanding: 'Outstanding', dealersCount: 'Dealers', warehouseUnits: 'Warehouse Units', totalRevenue: 'Total Revenue',
-    orderPipeline: 'Order pipeline', recentOrders: 'Recent Orders', noOrdersYet: 'No orders yet.',
+    orderPipeline: 'Order pipeline', recentOrders: 'Recent Orders', noOrdersYet: 'No orders yet.', noAccessTitle: 'Not for your role', noAccessBody: 'Your role does not include this screen. Ask the shop owner if you need it.', goHome: 'Go to home',
     moneyToCollect: 'Money to collect', dealersOweYou: 'Dealers owe you', collected: 'Collected', totalBilled: 'Total billed',
     received: 'received', allOrders: 'all orders', dealersWord: 'dealers',
     stPending: 'Pending', stConfirmed: 'Confirmed', stDispatched: 'Dispatched', stDelivered: 'Delivered', stCancelled: 'Cancelled',
@@ -361,7 +361,7 @@ const hi: Dict = {
     // ── wholesaler ──
     wholesalerDashboard: 'थोक विक्रेता डैशबोर्ड', newOrder: 'नया ऑर्डर', pendingDispatch: 'बकाया डिस्पैच',
     outstanding: 'बकाया', dealersCount: 'डीलर', warehouseUnits: 'गोदाम यूनिट', totalRevenue: 'कुल आमदनी',
-    orderPipeline: 'ऑर्डर पाइपलाइन', recentOrders: 'हाल के ऑर्डर', noOrdersYet: 'अभी कोई ऑर्डर नहीं।',
+    orderPipeline: 'ऑर्डर पाइपलाइन', recentOrders: 'हाल के ऑर्डर', noOrdersYet: 'अभी कोई ऑर्डर नहीं।', noAccessTitle: 'आपकी भूमिका के लिए नहीं', noAccessBody: 'यह स्क्रीन आपकी भूमिका में शामिल नहीं है। ज़रूरत हो तो दुकान मालिक से पूछें।', goHome: 'होम पर जाएं',
     moneyToCollect: 'वसूलने के पैसे', dealersOweYou: 'डीलर आपको देंगे', collected: 'वसूला', totalBilled: 'कुल बिल',
     received: 'मिला', allOrders: 'सभी ऑर्डर', dealersWord: 'डीलर',
     stPending: 'बकाया', stConfirmed: 'पुष्टि', stDispatched: 'भेजा', stDelivered: 'पहुँचा', stCancelled: 'रद्द',
@@ -557,7 +557,7 @@ const gu: Dict = {
     // ── wholesaler ──
     wholesalerDashboard: 'જથ્થાબંધ ડેશબોર્ડ', newOrder: 'નવો ઓર્ડર', pendingDispatch: 'બાકી ડિસ્પેચ',
     outstanding: 'બાકી', dealersCount: 'ડીલર', warehouseUnits: 'વેરહાઉસ યુનિટ', totalRevenue: 'કુલ આવક',
-    orderPipeline: 'ઓર્ડર પાઇપલાઇન', recentOrders: 'તાજેતરના ઓર્ડર', noOrdersYet: 'હજી કોઈ ઓર્ડર નથી.',
+    orderPipeline: 'ઓર્ડર પાઇપલાઇન', recentOrders: 'તાજેતરના ઓર્ડર', noOrdersYet: 'હજી કોઈ ઓર્ડર નથી.', noAccessTitle: 'તમારી ભૂમિકા માટે નથી', noAccessBody: 'આ સ્ક્રીન તમારી ભૂમિકામાં શામેલ નથી. જરૂર હોય તો દુકાન માલિકને પૂછો.', goHome: 'હોમ પર જાઓ',
     moneyToCollect: 'વસૂલવાના પૈસા', dealersOweYou: 'ડીલર તમને આપશે', collected: 'વસૂલ્યું', totalBilled: 'કુલ બિલ',
     received: 'મળ્યું', allOrders: 'બધા ઓર્ડર', dealersWord: 'ડીલર',
     stPending: 'બાકી', stConfirmed: 'પુષ્ટિ', stDispatched: 'મોકલ્યું', stDelivered: 'પહોંચ્યું', stCancelled: 'રદ',

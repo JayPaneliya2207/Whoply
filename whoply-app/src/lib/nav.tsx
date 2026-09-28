@@ -5,6 +5,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { ComponentType, CSSProperties } from 'react';
 import { RupeeIcon } from '@/components/RupeeIcon';
+import { canOpen } from '@/lib/permissions';
 
 /** Any icon usable in the nav — Lucide icons or our custom RupeeIcon. */
 type NavIcon = LucideIcon | ComponentType<{ size?: number; className?: string; style?: CSSProperties; strokeWidth?: number }>;
@@ -77,15 +78,22 @@ export const wholesaleGroups: NavGroup[] = [
     },
 ];
 
-export const groupsFor = (type?: string): NavGroup[] => (type === 'wholesale' ? wholesaleGroups : retailGroups);
+/** Home-screen groups, keeping only the screens this role may open. */
+export const groupsFor = (type?: string, role?: string): NavGroup[] =>
+    (type === 'wholesale' ? wholesaleGroups : retailGroups)
+        .map((g) => ({ ...g, items: g.items.filter((it) => canOpen(role, it.href)) }))
+        .filter((g) => g.items.length > 0);
 
 /* ── Bottom tab bar — the main, daily-use screens ── */
+// In order of preference; the first 5 this role may open are shown, so staff
+// who can't open a main screen get their own daily screen in its place.
 export const retailTabs: NavItem[] = [
     { href: '/dashboard', key: 'home', icon: Home },
     { href: '/billing', key: 'billingShort', icon: ShoppingCart },
     { href: '/bills', key: 'bills', icon: ReceiptText },
     { href: '/customers', key: 'customersShort', icon: Users },
     { href: '/reports', key: 'reports', icon: BarChart3 },
+    { href: '/products', key: 'products', icon: Package },
 ];
 export const wholesaleTabs: NavItem[] = [
     { href: '/dashboard', key: 'home', icon: Home },
@@ -93,5 +101,8 @@ export const wholesaleTabs: NavItem[] = [
     { href: '/dealers', key: 'dealers', icon: Users },
     { href: '/payments', key: 'payments', icon: RupeeIcon },
     { href: '/reports', key: 'reports', icon: BarChart3 },
+    { href: '/dispatch', key: 'dispatch', icon: Truck },
+    { href: '/products', key: 'warehouse', icon: Package },
 ];
-export const tabsFor = (type?: string): NavItem[] => (type === 'wholesale' ? wholesaleTabs : retailTabs);
+export const tabsFor = (type?: string, role?: string): NavItem[] =>
+    (type === 'wholesale' ? wholesaleTabs : retailTabs).filter((it) => canOpen(role, it.href)).slice(0, 5);
