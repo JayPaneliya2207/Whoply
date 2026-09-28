@@ -8,6 +8,7 @@ import Customer from '../../models/Customer.js';
 import Expense from '../../models/Expense.js';
 import Supplier from '../../models/Supplier.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { can } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
 
 /** GET /dashboard — Shopkeeper dashboard tiles */
@@ -53,19 +54,27 @@ export const shopkeeperDashboard = asyncHandler(async (req: AuthRequest, res: Re
     const monthExpense = expenseAgg[0]?.total || 0;
     const todaySales = todayAgg[0]?.sales || 0;
 
+    // Profit, expenses and supplier dues only go to roles allowed to see them (a cashier is not).
+    const role = req.user?.role;
     sendSuccess(res, {
         todaySales,
         todayOrders: todayAgg[0]?.count || 0,
-        todayProfit: +(todaySales * 0.3).toFixed(2), // rough ~30% margin estimate for today
         monthSales,
-        monthExpense,
-        estimatedProfit: +(monthSales * 0.3 - monthExpense).toFixed(2), // ~30% gross margin est.
         lowStockCount: lowStock,
-        pendingUdhar: dueAgg[0]?.total || 0,
-        udharCustomers: dueAgg[0]?.count || 0,
-        supplierPayable: payableAgg[0]?.total || 0,
-        supplierPayableCount: payableAgg[0]?.count || 0,
+        ...(can(role, 'customers.view') && {
+            pendingUdhar: dueAgg[0]?.total || 0,
+            udharCustomers: dueAgg[0]?.count || 0,
+        }),
+        ...(can(role, 'profit.view') && {
+            todayProfit: +(todaySales * 0.3).toFixed(2), // rough ~30% margin estimate for today
+            monthExpense,
+            estimatedProfit: +(monthSales * 0.3 - monthExpense).toFixed(2), // ~30% gross margin est.
+        }),
+        ...(can(role, 'purchases.view') && {
+            supplierPayable: payableAgg[0]?.total || 0,
+            supplierPayableCount: payableAgg[0]?.count || 0,
+        }),
         topProducts: topProducts.map((t) => ({ name: t._id, qty: t.qty, revenue: t.revenue })),
-        recentInvoices,
+        recentInvoices: can(role, 'bills.view') ? recentInvoices : [],
     });
 });

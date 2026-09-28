@@ -1,15 +1,16 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware.js';
-import { requireRole } from '../middleware/role.middleware.js';
+import { requireRole, requirePerm } from '../middleware/role.middleware.js';
 import { listStaff, createStaff, updateStaff, deleteStaff, staffDetail } from '../controllers/shared/staff.controller.js';
 
 const router = Router();
-// Both shopkeeper and wholesaler owners/managers manage staff
+// Staff logins and salaries are the owner's; a manager may only open a sales rep's detail.
 router.use(authenticate, requireRole('owner', 'manager'));
 
+router.get('/:id/detail', requirePerm('staff.manage', 'team.view'), staffDetail);
+router.use(requirePerm('staff.manage'));
 router.get('/', listStaff);
 router.post('/', createStaff);
-router.get('/:id/detail', staffDetail);
 router.patch('/:id', updateStaff);
 router.delete('/:id', deleteStaff);
 

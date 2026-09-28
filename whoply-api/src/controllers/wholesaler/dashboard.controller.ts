@@ -6,6 +6,7 @@ import Order from '../../models/Order.js';
 import Dealer from '../../models/Dealer.js';
 import Product from '../../models/Product.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { can } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
 
 /** GET /dashboard — Wholesaler dashboard tiles */
@@ -36,17 +37,21 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
             Order.aggregate([{ $match: { businessId: bId } }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
         ]);
 
+    // Money totals only go to roles that handle money (the godown team sees counts and stock).
+    const money = can(req.user?.role, 'payments.view');
     sendSuccess(res, {
         todayOrders: todayAgg[0]?.count || 0,
-        todaySales: todayAgg[0]?.sales || 0,
         pendingDispatch,
-        outstandingPayments: outstanding.reduce((s, d) => s + (d.due || 0), 0),
-        outstandingDealers: outstanding.length,
         warehouseUnits: warehouse[0]?.units || 0,
         skuCount: warehouse[0]?.skus || 0,
         lowStockCount: lowStock,
         dealerCount,
-        revenue: revenueAgg[0]?.total || 0,
+        ...(money && {
+            todaySales: todayAgg[0]?.sales || 0,
+            outstandingPayments: outstanding.reduce((s, d) => s + (d.due || 0), 0),
+            outstandingDealers: outstanding.length,
+            revenue: revenueAgg[0]?.total || 0,
+        }),
         recentOrders,
         statusBreakdown: statusAgg.map((s) => ({ status: s._id, count: s.count })),
     });

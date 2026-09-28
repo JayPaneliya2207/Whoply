@@ -11,6 +11,7 @@ import Visit from '../../models/Visit.js';
 import Order from '../../models/Order.js';
 import Dealer from '../../models/Dealer.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { can } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
 
 /** POST /sales-team — add a sales rep (creates a salesStaff user in this business) */
@@ -87,14 +88,19 @@ export const listReps = asyncHandler(async (req: AuthRequest, res: Response) => 
 /** GET /sales-team/visits — recent field visits */
 export const listVisits = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const visits = await Visit.find({ businessId }).sort({ visitedAt: -1 }).limit(50).lean();
+    // A sales rep sees only their own visits; owner and manager see everyone's.
+    const filter: any = { businessId };
+    if (!can(req.user?.role, 'team.view')) filter.salesRepId = req.user?._id;
+    const visits = await Visit.find(filter).sort({ visitedAt: -1 }).limit(50).lean();
     sendSuccess(res, visits);
 });
 
 /** POST /sales-team/visits — record a visit */
 export const recordVisit = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { salesRepId, dealerId, outcome = 'no_order', note } = req.body;
+    const { dealerId, outcome = 'no_order', note } = req.body;
+    // A sales rep can only log their own visits.
+    const salesRepId = can(req.user?.role, 'team.view') ? req.body.salesRepId : req.user?._id;
     if (!salesRepId || !dealerId) throw AppError.badRequest('salesRepId and dealerId are required');
     const [rep, dealer] = await Promise.all([
         User.findOne({ _id: salesRepId, businessId }).lean(),

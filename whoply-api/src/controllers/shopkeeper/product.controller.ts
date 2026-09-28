@@ -8,6 +8,14 @@ import Category from '../../models/Category.js';
 import StockMovement from '../../models/StockMovement.js';
 import { syncLowStock } from '../../utils/stock.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { can } from '../../utils/permissions.js';
+
+/** Cost price shows the margin, so only roles allowed to see it get it (not a cashier or sales rep). */
+function hideCost<T extends { costPrice?: number }>(req: AuthRequest, p: T): T {
+    if (can(req.user?.role, 'products.cost')) return p;
+    const { costPrice: _cost, ...rest } = p;
+    return rest as T;
+}
 
 /** GET /products — list with search & low-stock filter */
 export const listProducts = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -28,7 +36,7 @@ export const listProducts = asyncHandler(async (req: AuthRequest, res: Response)
         Product.find(filter).populate('categoryId', 'name').sort({ name: 1 }).skip(skip).limit(limit).lean(),
         Product.countDocuments(filter),
     ]);
-    sendPaginated(res, items, meta(total));
+    sendPaginated(res, items.map((p) => hideCost(req, p)), meta(total));
 });
 
 /** GET /products/:id */
@@ -36,7 +44,7 @@ export const getProduct = asyncHandler(async (req: AuthRequest, res: Response) =
     const businessId = businessOf(req);
     const product = await Product.findOne({ _id: req.params.id, businessId }).lean();
     if (!product) throw AppError.notFound('Product not found');
-    sendSuccess(res, product);
+    sendSuccess(res, hideCost(req, product));
 });
 
 const TEXT_FIELDS = ['name', 'sku', 'barcode', 'hsn', 'unit', 'image'] as const;

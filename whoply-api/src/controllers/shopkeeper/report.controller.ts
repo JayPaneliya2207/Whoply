@@ -9,6 +9,7 @@ import CreditLedger from '../../models/CreditLedger.js';
 import CreditNote from '../../models/CreditNote.js';
 import User from '../../models/User.js';
 import { STAFF_ROLES, type AuthRequest } from '../../interfaces/index.js';
+import { can } from '../../utils/permissions.js';
 import { Types, type PipelineStage } from 'mongoose';
 
 const salaryMultiplier: Record<string, number> = { week: 7 / 30, month: 1, quarter: 3, year: 12 };
@@ -185,7 +186,8 @@ export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Respons
     const bId = new Types.ObjectId(String(businessOf(req)));
     let start: Date;
     let end: Date;
-    if (req.query.date) {
+    // Roles with only the day-close permission (a cashier) get today's tally, never older days.
+    if (req.query.date && can(req.user?.role, 'reports.view')) {
         start = new Date(String(req.query.date));
         start.setHours(0, 0, 0, 0);
         end = new Date(start);
