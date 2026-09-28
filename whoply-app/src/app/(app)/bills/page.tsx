@@ -17,9 +17,9 @@ const PRINT_FORMATS: { k: PrintFormat; label: string }[] = [
 ];
 
 const statusTone: Record<string, any> = {
-    paid: { background: '#dcfce7', color: 'var(--success-600)' },
-    partial: { background: '#fef3c7', color: 'var(--accent-600)' },
-    credit: { background: '#fef3c7', color: 'var(--accent-600)' },
+    paid: { background: 'var(--success-tint)', color: 'var(--success)' },
+    partial: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+    credit: { background: 'var(--warning-tint)', color: 'var(--warning)' },
 };
 const FILTERS = ['all', 'paid', 'credit'] as const;
 
@@ -88,7 +88,7 @@ export default function BillsPage() {
             <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-2)' }}>
                 {FILTERS.map((f) => (
                     <button key={f} onClick={() => setStatus(f)} className="px-4 py-2 rounded-lg text-sm font-semibold capitalize transition-all"
-                        style={status === f ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
+                        style={status === f ? { background: 'var(--card-bg)', color: 'var(--brand-text)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
                         {f === 'all' ? t('all') : f === 'paid' ? t('paid') : f}
                     </button>
                 ))}
@@ -109,7 +109,7 @@ export default function BillsPage() {
                             <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{inv.customerName || t('walkIn')} · <span className="capitalize">{payModeLabel(inv)}</span></p>
                             <p className="text-xs shrink-0 ml-2" style={{ color: 'var(--text-muted)' }}>{new Date(inv.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                         </div>
-                        {inv.whatsappSentAt && <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: 'var(--success-600)' }}><CheckCheck size={12} /> {t('sentOnWhatsapp')}</p>}
+                        {inv.whatsappSentAt && <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: 'var(--success)' }}><CheckCheck size={12} /> {t('sentOnWhatsapp')}</p>}
                     </button>
                 ))}
             </div>
@@ -123,13 +123,13 @@ export default function BillsPage() {
                             <div className="flex gap-1 p-1 rounded-lg flex-1" style={{ background: 'var(--surface-2)' }}>
                                 {PRINT_FORMATS.map((f) => (
                                     <button key={f.k} onClick={() => setPrintFmt(f.k)} className="flex-1 py-1.5 rounded-md text-xs font-semibold transition-all"
-                                        style={printFmt === f.k ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>{f.label}</button>
+                                        style={printFmt === f.k ? { background: 'var(--card-bg)', color: 'var(--brand-text)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>{f.label}</button>
                                 ))}
                             </div>
                         </div>
                         <div className="flex gap-2">
                             <button className="wp-btn wp-btn-ghost flex-1" onClick={() => shareOnWhatsapp(detail)}>
-                                <MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp{detail.whatsappSentAt ? ' again' : ''}
+                                <MessageCircle size={16} style={{ color: 'var(--success)' }} /> WhatsApp{detail.whatsappSentAt ? ' again' : ''}
                             </button>
                             <button className="wp-btn wp-btn-primary flex-1" onClick={() => printBill(detail, detail.business, printFmt)}><Printer size={16} /> {printFmt === 'a4' ? t('printPdf') : t('printReceipt')}</button>
                         </div>
@@ -184,10 +184,10 @@ export default function BillsPage() {
                                 <input className="wp-input text-sm" placeholder={t('returnReasonPh')} value={retReason} onChange={(e) => setRetReason(e.target.value)} />
                                 <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--card-bg)' }}>
                                     {([['cash', t('cashRefund')], ['udhar_adjust', t('adjustUdhar')]] as const).map(([k, label]) => (
-                                        <button key={k} onClick={() => setRetMode(k)} className="flex-1 py-1.5 rounded-md text-xs font-semibold" style={retMode === k ? { background: 'var(--surface-2)', color: 'var(--brand-700)' } : { color: 'var(--text-secondary)' }}>{label}</button>
+                                        <button key={k} onClick={() => setRetMode(k)} className="flex-1 py-1.5 rounded-md text-xs font-semibold" style={retMode === k ? { background: 'var(--surface-2)', color: 'var(--brand-text)' } : { color: 'var(--text-secondary)' }}>{label}</button>
                                     ))}
                                 </div>
-                                {retErr && <p className="text-xs" style={{ color: 'var(--danger-500)' }}>{retErr}</p>}
+                                {retErr && <p className="text-xs" style={{ color: 'var(--danger)' }}>{retErr}</p>}
                                 <div className="flex gap-2">
                                     <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => setReturning(false)}>{t('cancel')}</button>
                                     <button className="wp-btn wp-btn-primary flex-1 !py-2 text-sm" onClick={() => submitReturn(detail)}><RotateCcw size={15} /> {t('recordReturn')}</button>
@@ -208,7 +208,7 @@ export default function BillsPage() {
                             {detail.discount > 0 && <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>Discount</span><span className="tabular">- {inr2(detail.discount)}</span></div>}
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('gst')}</span><span className="tabular">{inr2(detail.totalGst)}</span></div>
                             <div className="flex justify-between text-lg font-extrabold pt-1" style={{ color: 'var(--text-primary)', borderTop: '1px solid var(--card-border)' }}><span>{t('total')}</span><span className="tabular">{inr2(detail.grandTotal)}</span></div>
-                            {detail.dueAmount > 0 && <div className="flex justify-between font-semibold" style={{ color: 'var(--accent-600)' }}><span>{t('due')} (udhar)</span><span className="tabular">{inr2(detail.dueAmount)}</span></div>}
+                            {detail.dueAmount > 0 && <div className="flex justify-between font-semibold" style={{ color: 'var(--warning)' }}><span>{t('due')} (udhar)</span><span className="tabular">{inr2(detail.dueAmount)}</span></div>}
                         </div>
                     </div>
                 )}

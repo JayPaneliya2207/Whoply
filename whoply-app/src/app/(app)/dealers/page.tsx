@@ -16,9 +16,9 @@ import { buildDealerPaymentText, whatsappLink } from '@/lib/bill';
 import { GSTIN_PLACEHOLDER, maskGstin, isValidGstin } from '@/lib/gstin';
 
 const tierTone: Record<string, any> = {
-    A: { background: '#dcfce7', color: 'var(--success-600)' },
-    B: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    C: { background: '#fef3c7', color: 'var(--accent-600)' },
+    A: { background: 'var(--success-tint)', color: 'var(--success)' },
+    B: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    C: { background: 'var(--warning-tint)', color: 'var(--warning)' },
 };
 // "tier" renamed to a friendly Price Group for clarity
 const groupKey: Record<string, string> = { A: 'tierPremium', B: 'tierStandard', C: 'tierBasic' };
@@ -92,7 +92,7 @@ export default function DealersPage() {
                 {(data || []).map((d: any) => (
                     <motion.div key={d._id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="wp-card wp-card-hover p-4">
                         <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><Building2 size={18} /></div>
+                            <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><Building2 size={18} /></div>
                             <div className="flex-1 min-w-0">
                                 <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{d.name}</p>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{d.city || '—'} · {d.mobile}</p>
@@ -102,15 +102,15 @@ export default function DealersPage() {
                         <div className="mt-3 flex items-center justify-between">
                             <div>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('outstandingWord')}</p>
-                                <p className="text-lg font-extrabold tabular" style={{ color: d.outstandingBalance > 0 ? 'var(--accent-600)' : 'var(--success-600)' }}>{inr2(d.outstandingBalance)}</p>
+                                <p className="text-lg font-extrabold tabular" style={{ color: d.outstandingBalance > 0 ? 'var(--warning)' : 'var(--success)' }}>{inr2(d.outstandingBalance)}</p>
                             </div>
                             <div className="flex gap-1.5">
                                 {can('dealers.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(d)}><Pencil size={14} /></button>}
-                                {can('dealers.delete') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(d)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>}
+                                {can('dealers.delete') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(d)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
                                 {d.outstandingBalance > 0 && (
                                     <>
-                                        <button className="wp-btn wp-btn-ghost !p-2" title="Send WhatsApp payment reminder" onClick={() => remindDealer(d)}><MessageCircle size={14} style={{ color: 'var(--success-600)' }} /></button>
-                                        {can('payments.collect') && <button className="wp-btn wp-btn-accent !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>}
+                                        <button className="wp-btn wp-btn-ghost !p-2" title="Send WhatsApp payment reminder" onClick={() => remindDealer(d)}><MessageCircle size={14} style={{ color: 'var(--success)' }} /></button>
+                                        {can('payments.collect') && <button className="wp-btn wp-btn-collect !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>}
                                     </>
                                 )}
                             </div>
@@ -127,14 +127,14 @@ export default function DealersPage() {
                 <Field label={t('mobile')}><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} /></Field>
                 <Field label={`${t('gstin')} (${t('optionalWord')})`}>
                     <input className="wp-input uppercase" value={form.gstin} maxLength={15} onChange={(e) => set('gstin', maskGstin(e.target.value))} placeholder={GSTIN_PLACEHOLDER} />
-                    {form.gstin.length === 15 && !isValidGstin(form.gstin) && <p className="text-xs mt-1" style={{ color: 'var(--danger-500)' }}>{t('gstinInvalid')}</p>}
+                    {form.gstin.length === 15 && !isValidGstin(form.gstin) && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{t('gstinInvalid')}</p>}
                 </Field>
                 <div className="grid grid-cols-3 gap-3">
                     <Field label={t('priceGroup')}><select className="wp-input" value={form.tier} onChange={(e) => set('tier', e.target.value)}><option value="A">{t('premiumBest')}</option><option value="B">{t('tierStandard')}</option><option value="C">{t('tierBasic')}</option></select></Field>
                     <Field label={t('cityLabel')}><input className="wp-input" value={form.city} onChange={(e) => set('city', e.target.value)} /></Field>
                     <Field label={t('creditRs')}><input className="wp-input tabular" type="number" value={form.creditLimit} onChange={(e) => set('creditLimit', e.target.value)} /></Field>
                 </div>
-                {formErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{formErr}</p>}
+                {formErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{formErr}</p>}
             </Modal>
 
             {/* Collect payment */}
@@ -161,9 +161,9 @@ export default function DealersPage() {
                     </div>
                 )}
                 {collectFor && collectFor.mobile && (
-                    <button type="button" className="wp-btn wp-btn-ghost w-full mb-1" onClick={() => remindDealer(collectFor)}><MessageCircle size={15} style={{ color: 'var(--success-600)' }} /> {t('sendReminderWa')}</button>
+                    <button type="button" className="wp-btn wp-btn-ghost w-full mb-1" onClick={() => remindDealer(collectFor)}><MessageCircle size={15} style={{ color: 'var(--success)' }} /> {t('sendReminderWa')}</button>
                 )}
-                {collectErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{collectErr}</p>}
+                {collectErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{collectErr}</p>}
             </Modal>
 
             {showQr && collectFor && <UpiQr amount={Number(amount) || collectFor.outstandingBalance} upiId={biz?.upiId} qrImage={biz?.upiQrImage} shopName={biz?.name} onClose={() => setShowQr(false)} />}

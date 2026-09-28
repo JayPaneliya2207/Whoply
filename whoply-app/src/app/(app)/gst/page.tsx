@@ -52,9 +52,9 @@ export default function GstPage() {
     };
 
     const tiles = [
-        { label: t('taxableValue'), value: sum?.taxableValue, icon: RupeeIcon, tone: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' } },
-        { label: t('totalTax'), value: sum?.totalTax, icon: Percent, tone: { bg: '#fef3c7', fg: 'var(--accent-600)' } },
-        { label: t('invoiceValue'), value: sum?.invoiceValue, icon: FileSpreadsheet, tone: { bg: '#dcfce7', fg: 'var(--success-600)' } },
+        { label: t('taxableValue'), value: sum?.taxableValue, icon: RupeeIcon, tone: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' } },
+        { label: t('totalTax'), value: sum?.totalTax, icon: Percent, tone: { bg: 'var(--warning-tint)', fg: 'var(--warning)' } },
+        { label: t('invoiceValue'), value: sum?.invoiceValue, icon: FileSpreadsheet, tone: { bg: 'var(--success-tint)', fg: 'var(--success)' } },
     ];
 
     return (
@@ -78,7 +78,7 @@ export default function GstPage() {
             {/* GSTR-3B summary */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><FileSpreadsheet size={17} style={{ color: 'var(--brand-700)' }} /> {t('gstr3bSummary')}</h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><FileSpreadsheet size={17} style={{ color: 'var(--brand-text)' }} /> {t('gstr3bSummary')}</h3>
                     <button className="wp-btn wp-btn-ghost" onClick={exportGstr3b} disabled={!sum?.invoices}><Download size={15} /> {t('exportCsv')}</button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
@@ -95,14 +95,14 @@ export default function GstPage() {
             {/* Rate-wise (B2C) */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Percent size={17} style={{ color: 'var(--brand-700)' }} /> {t('rateWise')}</h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Percent size={17} style={{ color: 'var(--brand-text)' }} /> {t('rateWise')}</h3>
                     <button className="wp-btn wp-btn-ghost" onClick={exportRateWise} disabled={!(data?.rateWise || []).length}><Download size={15} /> {t('exportCsv')}</button>
                 </div>
                 <div className="space-y-2">
                     {(data?.rateWise || []).map((r: any) => (
                         <div key={r.rate} className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
                             <div className="flex items-center justify-between mb-2.5">
-                                <span className="wp-chip font-bold" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}>{rate(r.rate)} GST</span>
+                                <span className="wp-chip font-bold" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{rate(r.rate)} GST</span>
                                 <div className="text-right">
                                     <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('totalTax')}</p>
                                     <p className="text-base font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{inr(r.gst)}</p>
@@ -125,7 +125,7 @@ export default function GstPage() {
             {/* HSN summary */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><FileSpreadsheet size={17} style={{ color: 'var(--brand-700)' }} /> {t('hsnSummary')}</h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><FileSpreadsheet size={17} style={{ color: 'var(--brand-text)' }} /> {t('hsnSummary')}</h3>
                     <button className="wp-btn wp-btn-ghost" onClick={exportHsn} disabled={!(data?.hsnWise || []).length}><Download size={15} /> {t('exportCsv')}</button>
                 </div>
                 <div className="space-y-2">
@@ -136,7 +136,7 @@ export default function GstPage() {
                                     <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{h.name}</p>
                                     <p className="text-[11px] tabular" style={{ color: 'var(--text-muted)' }}>HSN {h.hsn}</p>
                                 </div>
-                                <span className="wp-chip font-bold shrink-0" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}>{rate(h.rate)}</span>
+                                <span className="wp-chip font-bold shrink-0" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{rate(h.rate)}</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                                 {[[t('qtyWord'), h.qty], [t('taxableValue'), inr(h.taxable)], [t('totalTax'), inr(h.gst)]].map(([l, v]: any) => (
@@ -155,7 +155,7 @@ export default function GstPage() {
             {/* B2B */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Building2 size={17} style={{ color: 'var(--brand-700)' }} /> {t('b2bInvoices')} <span className="wp-chip" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>{(data?.b2b || []).length}</span></h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Building2 size={17} style={{ color: 'var(--brand-text)' }} /> {t('b2bInvoices')} <span className="wp-chip" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>{(data?.b2b || []).length}</span></h3>
                     <button className="wp-btn wp-btn-ghost" onClick={exportB2b} disabled={!(data?.b2b || []).length}><Download size={15} /> {t('exportCsv')}</button>
                 </div>
                 {!(data?.b2b || []).length && <p className="text-sm flex items-center gap-2" style={{ color: 'var(--text-muted)' }}><Users size={14} /> {t('noB2b')}</p>}

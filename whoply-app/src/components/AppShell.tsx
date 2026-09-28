@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     >
                         {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
-                    <Link href="/settings" aria-label="Profile & settings" className="h-9 w-9 grid place-items-center rounded-full font-bold text-sm shrink-0" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>
+                    <Link href="/settings" aria-label="Profile & settings" className="h-9 w-9 grid place-items-center rounded-full font-bold text-sm shrink-0" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>
                         {user?.name?.charAt(0) || 'W'}
                     </Link>
                 </div>

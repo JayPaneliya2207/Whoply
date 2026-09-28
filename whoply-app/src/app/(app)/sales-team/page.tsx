@@ -12,15 +12,15 @@ import { useT } from '@/i18n';
 import { useCan } from '@/lib/permissions';
 
 const outcomeTone: Record<string, any> = {
-    order: { background: '#dcfce7', color: 'var(--success-600)' },
+    order: { background: 'var(--success-tint)', color: 'var(--success)' },
     no_order: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
-    follow_up: { background: '#fef3c7', color: 'var(--accent-600)' },
+    follow_up: { background: 'var(--warning-tint)', color: 'var(--warning)' },
 };
 const statusTone: Record<string, any> = {
     pending: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
-    confirmed: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    dispatched: { background: '#fef3c7', color: 'var(--accent-600)' },
-    delivered: { background: '#dcfce7', color: 'var(--success-600)' },
+    confirmed: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    dispatched: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+    delivered: { background: 'var(--success-tint)', color: 'var(--success)' },
 };
 const DOC_LABELS: Record<string, string> = { aadhaar: 'Aadhaar', pan: 'PAN', voterid: 'Voter ID', driving: 'Driving Licence', other: 'Other' };
 const empty = { name: '', mobile: '', country: '+91', salary: '', password: '' };
@@ -71,18 +71,18 @@ export default function SalesTeamPage() {
                 {(reps || []).map((r: any) => (
                     <div key={r._id} className="wp-card wp-card-hover p-5">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="h-11 w-11 grid place-items-center rounded-full font-bold" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{r.name.charAt(0)}</div>
+                            <div className="h-11 w-11 grid place-items-center rounded-full font-bold" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{r.name.charAt(0)}</div>
                             <div className="flex-1 min-w-0"><p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{r.name}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.mobile}</p></div>
                             {can('staff.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(r)}><Pencil size={14} /></button>}
-                            {can('staff.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(r)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>}
+                            {can('staff.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(r)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
                         </div>
                         {/* clickable stats → open detail */}
                         <button className="grid grid-cols-3 gap-2 text-center w-full" onClick={() => { setDetailId(r._id); setDetailTab('visits'); }}>
                             <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{r.visits}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('visitsWord')}</p></div>
                             <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{r.orders}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('ordersWord')}</p></div>
-                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--success-600)' }}>{inr2(r.commission)}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('commission')}</p></div>
+                            <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--success)' }}>{inr2(r.commission)}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('commission')}</p></div>
                         </button>
-                        <button className="text-sm mt-3 flex items-center gap-1 font-semibold" style={{ color: 'var(--brand-700)' }} onClick={() => { setDetailId(r._id); setDetailTab('orders'); }}>
+                        <button className="text-sm mt-3 flex items-center gap-1 font-semibold" style={{ color: 'var(--brand-text)' }} onClick={() => { setDetailId(r._id); setDetailTab('orders'); }}>
                             <RupeeIcon size={13} /> {inr2(r.sales)} {t('salesWordLc')} · {t('viewDetail')} <ChevronRight size={14} />
                         </button>
                     </div>
@@ -118,7 +118,7 @@ export default function SalesTeamPage() {
                         <p className="text-xs flex items-center gap-1.5 rounded-lg p-2.5" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}><IdCard size={13} /> {t('kycInStaffNote')}</p>
                     </>
                 )}
-                {err && <p className="text-sm mt-2" style={{ color: 'var(--danger-500)' }}>{err}</p>}
+                {err && <p className="text-sm mt-2" style={{ color: 'var(--danger)' }}>{err}</p>}
             </Modal>
 
             {/* Rep detail */}
@@ -126,12 +126,12 @@ export default function SalesTeamPage() {
                 {detail?.staff?.kyc?.docNumber && (
                     <div className="wp-card p-3 mb-3 flex items-center justify-between" style={{ background: 'var(--surface-2)' }}>
                         <span className="text-sm flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}><IdCard size={14} /> {DOC_LABELS[detail.staff.kyc.docType]}: {detail.staff.kyc.docNumber}</span>
-                        <span className="wp-chip" style={detail.staff.kyc.verified ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' }}>{detail.staff.kyc.verified ? <BadgeCheck size={12} /> : <ShieldAlert size={12} />} KYC</span>
+                        <span className="wp-chip" style={detail.staff.kyc.verified ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--warning-tint)', color: 'var(--warning)' }}>{detail.staff.kyc.verified ? <BadgeCheck size={12} /> : <ShieldAlert size={12} />} KYC</span>
                     </div>
                 )}
                 <div className="flex gap-1 p-1 rounded-xl mb-3" style={{ background: 'var(--surface-2)' }}>
                     {(['visits', 'orders'] as const).map((tb) => (
-                        <button key={tb} onClick={() => setDetailTab(tb)} className="flex-1 py-2 rounded-lg text-sm font-semibold capitalize" style={detailTab === tb ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>{tb === 'visits' ? t('visitsWord') : t('ordersWord')} ({tb === 'visits' ? detail?.visits?.length || 0 : detail?.orders?.length || 0})</button>
+                        <button key={tb} onClick={() => setDetailTab(tb)} className="flex-1 py-2 rounded-lg text-sm font-semibold capitalize" style={detailTab === tb ? { background: 'var(--card-bg)', color: 'var(--brand-text)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>{tb === 'visits' ? t('visitsWord') : t('ordersWord')} ({tb === 'visits' ? detail?.visits?.length || 0 : detail?.orders?.length || 0})</button>
                     ))}
                 </div>
                 {detailTab === 'visits' && (

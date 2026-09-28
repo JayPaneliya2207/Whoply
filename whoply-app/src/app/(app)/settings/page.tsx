@@ -117,7 +117,7 @@ export default function SettingsPage() {
             {/* Business */}
             <div className="wp-card p-5">
                 <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 grid place-items-center rounded-xl" style={{ background: 'var(--brand-700)', color: '#fff' }}>
+                    <div className="h-12 w-12 grid place-items-center rounded-xl" style={{ background: 'var(--brand)', color: '#fff' }}>
                         {user?.business?.type === 'wholesale' ? <Building2 size={22} /> : <Store size={22} />}
                     </div>
                     <div>
@@ -129,7 +129,7 @@ export default function SettingsPage() {
 
             {/* Shop details — shown on every bill / invoice */}
             <div className="wp-card p-5">
-                <div className="flex items-center gap-2 mb-1"><ReceiptText size={18} style={{ color: 'var(--brand-700)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{isWholesale ? t('businessDetails') : t('shopDetails')}</h3></div>
+                <div className="flex items-center gap-2 mb-1"><ReceiptText size={18} style={{ color: 'var(--brand-text)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{isWholesale ? t('businessDetails') : t('shopDetails')}</h3></div>
                 <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>{t('shownOnBills')}</p>
                 {!shop && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading…</p>}
                 {shop && (
@@ -145,7 +145,7 @@ export default function SettingsPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <label className="block mb-3"><span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>GSTIN</span>
                                 <input className="wp-input mt-1.5 uppercase" value={shop.gstin} onChange={(e) => setS('gstin', maskGstin(e.target.value))} disabled={!canEditShop} placeholder={GSTIN_PLACEHOLDER} maxLength={15} />
-                                {shop.gstin.length === 15 && !isValidGstin(shop.gstin) && <span className="text-xs mt-1 block" style={{ color: 'var(--danger-500)' }}>{t('gstinInvalid')}</span>}</label>
+                                {shop.gstin.length === 15 && !isValidGstin(shop.gstin) && <span className="text-xs mt-1 block" style={{ color: 'var(--danger)' }}>{t('gstinInvalid')}</span>}</label>
                             <label className="block mb-3"><span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('invoicePrefix')}</span>
                                 <input className="wp-input mt-1.5 uppercase" value={shop.invoicePrefix} onChange={(e) => setS('invoicePrefix', e.target.value.toUpperCase().slice(0, 6))} disabled={!canEditShop} placeholder="INV" /></label>
                         </div>
@@ -204,7 +204,7 @@ export default function SettingsPage() {
                                 <button type="button" role="switch" aria-checked={!!shop.enableUdharReminders} disabled={!canEditShop}
                                     onClick={() => setShop((s: any) => ({ ...s, enableUdharReminders: !s.enableUdharReminders }))}
                                     className="relative h-6 w-11 rounded-full transition-colors shrink-0 disabled:opacity-50"
-                                    style={{ background: shop.enableUdharReminders ? 'var(--brand-700)' : 'var(--card-border)' }}>
+                                    style={{ background: shop.enableUdharReminders ? 'var(--brand-text)' : 'var(--card-border)' }}>
                                     <span className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all" style={{ left: shop.enableUdharReminders ? '22px' : '2px' }} />
                                 </button>
                             </label>
@@ -215,7 +215,7 @@ export default function SettingsPage() {
                             </label>
                         </div>
 
-                        {shopErr && <p className="text-sm mb-2" style={{ color: 'var(--danger-500)' }}>{shopErr}</p>}
+                        {shopErr && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{shopErr}</p>}
                         {canEditShop
                             ? <button className="wp-btn wp-btn-primary" disabled={savingShop || !shop.name} onClick={saveShop}>{shopSaved ? <><Check size={16} /> {t('saved')}</> : t('saveShopDetails')}</button>
                             : <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('onlyOwnerEdit')}</p>}
@@ -225,19 +225,19 @@ export default function SettingsPage() {
 
             {/* Invoice template — device preference, applied to every printed bill/order/quote */}
             <div className="wp-card p-5">
-                <div className="flex items-center gap-2 mb-1"><LayoutTemplate size={18} style={{ color: 'var(--brand-700)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('invoiceTemplate')}</h3></div>
+                <div className="flex items-center gap-2 mb-1"><LayoutTemplate size={18} style={{ color: 'var(--brand-text)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('invoiceTemplate')}</h3></div>
                 <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>{t('invoiceTemplateHint')}</p>
                 <div className="grid grid-cols-3 gap-2">
                     {TEMPLATE_KEYS.map((x) => (
-                        <button key={x.k} onClick={() => pickTpl(x.k)} className="rounded-xl p-3 text-center transition-all" style={tpl === x.k ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)', background: 'var(--surface-2)' } : { border: '1px solid var(--card-border)' }}>
+                        <button key={x.k} onClick={() => pickTpl(x.k)} className="rounded-xl p-3 text-center transition-all" style={tpl === x.k ? { borderColor: 'var(--brand-line)', boxShadow: '0 0 0 1px var(--brand-line)', background: 'var(--surface-2)' } : { border: '1px solid var(--card-border)' }}>
                             <div className="h-10 grid place-items-center mb-1.5">
                                 {x.k === 'modern'
-                                    ? <div className="w-full h-full rounded-md flex flex-col overflow-hidden" style={{ border: '1px solid var(--card-border)' }}><div style={{ background: 'var(--brand-700)', height: 10 }} /><div className="flex-1" style={{ background: 'var(--card-bg)' }} /></div>
+                                    ? <div className="w-full h-full rounded-md flex flex-col overflow-hidden" style={{ border: '1px solid var(--card-border)' }}><div style={{ background: 'var(--brand)', height: 10 }} /><div className="flex-1" style={{ background: 'var(--card-bg)' }} /></div>
                                     : x.k === 'compact'
                                         ? <div className="w-full h-full rounded-md flex flex-col justify-center gap-[3px] px-2" style={{ border: '1px solid var(--card-border)', background: 'var(--card-bg)' }}>{[0, 1, 2, 3].map((i) => <div key={i} style={{ height: 2, background: 'var(--card-border)' }} />)}</div>
                                         : <div className="w-full h-full rounded-md flex flex-col justify-center gap-1 px-2" style={{ border: '1px solid var(--card-border)', background: 'var(--card-bg)' }}>{[0, 1].map((i) => <div key={i} style={{ height: 3, background: 'var(--card-border)' }} />)}</div>}
                             </div>
-                            <span className="text-xs font-semibold" style={{ color: tpl === x.k ? 'var(--brand-700)' : 'var(--text-secondary)' }}>{x.label}</span>
+                            <span className="text-xs font-semibold" style={{ color: tpl === x.k ? 'var(--brand-text)' : 'var(--text-secondary)' }}>{x.label}</span>
                         </button>
                     ))}
                 </div>
@@ -246,14 +246,14 @@ export default function SettingsPage() {
 
             {/* Profile */}
             <div className="wp-card p-5">
-                <div className="flex items-center gap-2 mb-4"><User size={18} style={{ color: 'var(--brand-700)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('editProfile')}</h3></div>
+                <div className="flex items-center gap-2 mb-4"><User size={18} style={{ color: 'var(--brand-text)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('editProfile')}</h3></div>
                 <label className="block mb-3"><span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('name')}</span>
                     <input className="wp-input mt-1.5" value={name} onChange={(e) => setName(e.target.value)} /></label>
                 <label className="block mb-3"><span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('emailLabel')}</span>
                     <input className="wp-input mt-1.5" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="optional" /></label>
                 <label className="block mb-4"><span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('mobile')}</span>
                     <input className="wp-input mt-1.5" value={user?.mobile || ''} disabled style={{ opacity: 0.6 }} /></label>
-                {profileErr && <p className="text-sm mb-2" style={{ color: 'var(--danger-500)' }}>{profileErr}</p>}
+                {profileErr && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{profileErr}</p>}
                 <button className="wp-btn wp-btn-primary" disabled={savingProfile} onClick={saveProfile}>
                     {savedProfile ? <><Check size={16} /> Saved</> : t('save')}
                 </button>
@@ -261,11 +261,11 @@ export default function SettingsPage() {
 
             {/* Language */}
             <div className="wp-card p-5">
-                <div className="flex items-center gap-2 mb-4"><Globe size={18} style={{ color: 'var(--brand-700)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('language')}</h3></div>
+                <div className="flex items-center gap-2 mb-4"><Globe size={18} style={{ color: 'var(--brand-text)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('language')}</h3></div>
                 <div className="flex gap-2 flex-wrap">
                     {LANGS.map((l) => (
                         <button key={l.code} onClick={() => { setLang(l.code as Lang); if (user) setUser({ ...user, language: l.code }); api.patch('/auth/profile', { language: l.code }).catch(() => {}); }}
-                            className="wp-btn" style={lang === l.code ? { background: 'var(--brand-700)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--card-border)' }}>
+                            className="wp-btn" style={lang === l.code ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--card-border)' }}>
                             {l.native}
                         </button>
                     ))}
@@ -274,18 +274,18 @@ export default function SettingsPage() {
 
             {/* Change password */}
             <div className="wp-card p-5">
-                <div className="flex items-center gap-2 mb-4"><Lock size={18} style={{ color: 'var(--brand-700)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('changePassword')}</h3></div>
+                <div className="flex items-center gap-2 mb-4"><Lock size={18} style={{ color: 'var(--brand-text)' }} /><h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('changePassword')}</h3></div>
                 <label className="block mb-3"><span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('currentPassword')}</span>
                     <input type="password" className="wp-input mt-1.5" value={cur} onChange={(e) => setCur(e.target.value)} /></label>
                 <label className="block mb-4"><span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('newPassword')}</span>
                     <input type="password" className="wp-input mt-1.5" value={nw} onChange={(e) => setNw(e.target.value)} /></label>
-                {pwErr && <p className="text-sm mb-2" style={{ color: 'var(--danger-500)' }}>{pwErr}</p>}
-                {pwMsg && <p className="text-sm mb-2" style={{ color: 'var(--success-600)' }}>{pwMsg}</p>}
+                {pwErr && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{pwErr}</p>}
+                {pwMsg && <p className="text-sm mb-2" style={{ color: 'var(--success)' }}>{pwMsg}</p>}
                 <button className="wp-btn wp-btn-primary" disabled={savingPw || !nw} onClick={changePw}>{t('changePassword')}</button>
             </div>
 
             {/* Logout */}
-            <button onClick={doLogout} className="wp-card p-4 flex items-center justify-center gap-2 font-semibold w-full" style={{ color: 'var(--danger-500)' }}>
+            <button onClick={doLogout} className="wp-card p-4 flex items-center justify-center gap-2 font-semibold w-full" style={{ color: 'var(--danger)' }}>
                 <LogOut size={18} /> {t('logout')}
             </button>
         </div>

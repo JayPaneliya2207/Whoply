@@ -45,7 +45,7 @@ export function PhoneInput({
                             {COUNTRIES.map((c) => (
                                 <button key={c.iso} type="button" onClick={() => { onCountryChange?.(c.code); setOpen(false); }}
                                     className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-sm"
-                                    style={c.code === country ? { background: 'var(--surface-2)', color: 'var(--brand-700)' } : { color: 'var(--text-secondary)' }}>
+                                    style={c.code === country ? { background: 'var(--surface-2)', color: 'var(--brand-text)' } : { color: 'var(--text-secondary)' }}>
                                     <span className="text-base">{c.flag}</span>
                                     <span className="flex-1 text-left truncate">{c.name}</span>
                                     <span style={{ color: 'var(--text-muted)' }}>{c.code}</span>

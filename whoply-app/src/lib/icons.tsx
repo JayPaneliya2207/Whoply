@@ -30,7 +30,7 @@ export const catEmoji = (name?: string): string => {
 export function CatIcon({ name, size = 'md' }: { name?: string; size?: 'sm' | 'md' | 'lg' }) {
     const dims = size === 'lg' ? 'h-11 w-11 text-2xl' : size === 'sm' ? 'h-7 w-7 text-sm' : 'h-9 w-9 text-lg';
     return (
-        <div className={`${dims} grid place-items-center rounded-xl shrink-0`} style={{ background: 'var(--brand-100)' }}>
+        <div className={`${dims} grid place-items-center rounded-xl shrink-0`} style={{ background: 'var(--brand-tint)' }}>
             <span>{catEmoji(name)}</span>
         </div>
     );

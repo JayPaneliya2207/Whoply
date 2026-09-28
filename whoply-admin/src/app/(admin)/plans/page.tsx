@@ -54,20 +54,20 @@ export default function PlansPage() {
 
             <div className="grid md:grid-cols-3 gap-4 items-start">
                 {(plans || []).map((p: any) => (
-                    <div key={p._id} className="wp-card p-6 relative" style={p.highlight ? { borderColor: 'var(--brand-700)', boxShadow: 'var(--shadow-md)' } : { opacity: p.isActive ? 1 : 0.55 }}>
-                        {p.highlight && <span className="wp-chip absolute -top-3 left-6" style={{ background: 'var(--accent-500)', color: '#1a1205' }}><Star size={11} /> Popular</span>}
+                    <div key={p._id} className="wp-card p-6 relative" style={p.highlight ? { borderColor: 'var(--brand-text)', boxShadow: 'var(--shadow-md)' } : { opacity: p.isActive ? 1 : 0.55 }}>
+                        {p.highlight && <span className="wp-chip absolute -top-3 left-6" style={{ background: 'var(--accent)', color: '#fff' }}><Star size={11} /> Popular</span>}
                         <div className="flex items-center justify-between">
                             <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{p.name}</h3>
                             <div className="flex gap-1">
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(p)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                             </div>
                         </div>
                         <p className="mt-1"><span className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{p.price === 0 ? '₹0' : inr(p.price)}</span><span style={{ color: 'var(--text-muted)' }}>/{p.period}</span></p>
                         <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Users size={12} /> {p.subscribers} subscriber(s)</p>
                         <ul className="mt-4 space-y-1.5">
                             {p.features.map((f: string, i: number) => (
-                                <li key={i} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}><Check size={14} style={{ color: 'var(--success-600)' }} /> {f}</li>
+                                <li key={i} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}><Check size={14} style={{ color: 'var(--success)' }} /> {f}</li>
                             ))}
                         </ul>
                         <label className="flex items-center gap-2 text-sm mt-4 cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
@@ -101,7 +101,7 @@ export default function PlansPage() {
                     ))}
                 </div>
                 <button className="wp-btn wp-btn-ghost text-sm mt-2" onClick={() => set('features', [...form.features, ''])}><Plus size={14} /> Add feature</button>
-                {err && <p className="text-sm mt-2" style={{ color: 'var(--danger-500)' }}>{err}</p>}
+                {err && <p className="text-sm mt-2" style={{ color: 'var(--danger)' }}>{err}</p>}
             </Modal>
 
             <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title="Delete plan?" message={`Delete the “${del?.name}” plan? Businesses on it must be moved first.`} />

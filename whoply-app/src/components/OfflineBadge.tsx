@@ -15,7 +15,7 @@ export function OfflineBadge() {
     }, []);
     if (online) return null;
     return (
-        <span className="wp-chip" style={{ background: '#fef3c7', color: 'var(--accent-600)' }}>
+        <span className="wp-chip" style={{ background: 'var(--warning-tint)', color: 'var(--warning)' }}>
             <WifiOff size={12} /> Offline — bills will sync
         </span>
     );

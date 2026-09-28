@@ -10,10 +10,10 @@ import { paymentsToCsv, downloadFile } from '@/lib/bill';
 
 const MODES = ['all', 'cash', 'upi', 'bank', 'cheque', 'other'] as const;
 const modeTone: Record<string, any> = {
-    cash: { background: '#dcfce7', color: 'var(--success-600)' },
-    upi: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    bank: { background: '#e0e7ff', color: 'var(--brand-700)' },
-    cheque: { background: '#fef3c7', color: 'var(--accent-600)' },
+    cash: { background: 'var(--success-tint)', color: 'var(--success)' },
+    upi: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    bank: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    cheque: { background: 'var(--warning-tint)', color: 'var(--warning)' },
     other: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
 };
 
@@ -36,11 +36,11 @@ export default function PaymentsPage() {
             {/* Summary */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="wp-card p-5 flex items-center gap-3">
-                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: '#dcfce7', color: 'var(--success-600)' }}><Wallet size={20} /></div>
+                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--success-tint)', color: 'var(--success)' }}><Wallet size={20} /></div>
                     <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('totalCollectedLabel')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(total)}</p></div>
                 </div>
                 <div className="wp-card p-5 flex items-center gap-3">
-                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><RupeeIcon size={20} /></div>
+                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><RupeeIcon size={20} /></div>
                     <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('paymentsCountLabel')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{rows.length}</p></div>
                 </div>
             </div>
@@ -49,7 +49,7 @@ export default function PaymentsPage() {
             <div className="flex gap-1 p-1 rounded-xl w-fit overflow-x-auto wp-scroll" style={{ background: 'var(--surface-2)' }}>
                 {MODES.map((m) => (
                     <button key={m} onClick={() => setMode(m)} className="px-3.5 py-2 rounded-lg text-sm font-semibold capitalize whitespace-nowrap transition-all"
-                        style={mode === m ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
+                        style={mode === m ? { background: 'var(--card-bg)', color: 'var(--brand-text)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
                         {modeLabel(m)}
                     </button>
                 ))}
@@ -60,7 +60,7 @@ export default function PaymentsPage() {
             <div className="space-y-2">
                 {rows.map((p: any) => (
                     <div key={p._id} className="wp-card p-3.5 flex items-center gap-3">
-                        <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--brand-700)' }}>
+                        <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--brand-text)' }}>
                             {p.orderNo ? <ShoppingBag size={16} /> : <Building2 size={16} />}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -70,7 +70,7 @@ export default function PaymentsPage() {
                             </p>
                         </div>
                         <div className="text-right shrink-0">
-                            <p className="font-bold tabular" style={{ color: 'var(--success-600)' }}>{inr2(p.amount)}</p>
+                            <p className="font-bold tabular" style={{ color: 'var(--success)' }}>{inr2(p.amount)}</p>
                             <span className="wp-chip capitalize mt-0.5" style={modeTone[p.mode] || modeTone.other}>{t('mode_' + p.mode)}</span>
                         </div>
                     </div>

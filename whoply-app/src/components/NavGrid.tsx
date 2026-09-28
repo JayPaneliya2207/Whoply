@@ -8,12 +8,12 @@ import { useT } from '@/i18n';
 
 // App-icon tones — rotated across tiles so the home screen reads like a phone launcher.
 const TONES = [
-    { bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
-    { bg: '#dcfce7', fg: 'var(--success-600)' },
-    { bg: '#fef3c7', fg: 'var(--accent-600)' },
-    { bg: '#e0e7ff', fg: 'var(--brand-700)' },
-    { bg: '#fee2e2', fg: 'var(--danger-500)' },
-    { bg: '#e0f2fe', fg: '#0369a1' },
+    { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
+    { bg: 'var(--success-tint)', fg: 'var(--success)' },
+    { bg: 'var(--warning-tint)', fg: 'var(--warning)' },
+    { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
+    { bg: 'var(--danger-tint)', fg: 'var(--danger)' },
+    { bg: 'var(--surface-2)', fg: 'var(--text-secondary)' },
 ];
 
 /** The dashboard "home screen": app tiles grouped under section headings. */

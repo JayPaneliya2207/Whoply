@@ -31,8 +31,8 @@ export function ShopStatusToggle() {
     // Keep layout stable before hydration (default to "open" look).
     const isOpen = mounted ? open : true;
     const tone = isOpen
-        ? { bg: '#dcfce7', fg: 'var(--success-600)', dot: 'var(--success-500)' }
-        : { bg: '#fee2e2', fg: 'var(--danger-500)', dot: 'var(--danger-500)' };
+        ? { bg: 'var(--success-tint)', fg: 'var(--success)', dot: 'var(--success-fill)' }
+        : { bg: 'var(--danger-tint)', fg: 'var(--danger)', dot: 'var(--danger)' };
 
     return (
         <button

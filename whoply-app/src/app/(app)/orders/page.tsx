@@ -18,17 +18,17 @@ import { ordersToCsv, orderPayStatus, printOrder, printEInvoice, printEwayBill, 
 
 const PAY_MODES = ['cash', 'upi', 'bank', 'cheque', 'other'] as const;
 const payTone: Record<string, any> = {
-    Paid: { background: '#dcfce7', color: 'var(--success-600)' },
-    Partial: { background: '#fef3c7', color: 'var(--accent-600)' },
-    Unpaid: { background: '#fee2e2', color: 'var(--danger-500)' },
+    Paid: { background: 'var(--success-tint)', color: 'var(--success)' },
+    Partial: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+    Unpaid: { background: 'var(--danger-tint)', color: 'var(--danger)' },
 };
 
 const statusTone: Record<string, any> = {
     pending: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
-    confirmed: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    dispatched: { background: '#fef3c7', color: 'var(--accent-600)' },
-    delivered: { background: '#dcfce7', color: 'var(--success-600)' },
-    cancelled: { background: '#fee2e2', color: 'var(--danger-500)' },
+    confirmed: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    dispatched: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+    delivered: { background: 'var(--success-tint)', color: 'var(--success)' },
+    cancelled: { background: 'var(--danger-tint)', color: 'var(--danger)' },
 };
 const FILTERS = ['all', 'pending', 'confirmed', 'dispatched', 'delivered'] as const;
 
@@ -164,9 +164,9 @@ export default function OrdersPage() {
                     const on = statusFilter === f;
                     return (
                         <button key={f} onClick={() => setStatusFilter(f)} className="wp-card p-3 text-center transition-all"
-                            style={on ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
+                            style={on ? { borderColor: 'var(--brand-line)', boxShadow: '0 0 0 1px var(--brand-line)' } : {}}>
                             <p className="text-lg font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{counts[f] || 0}</p>
-                            <p className="text-[11px] sm:text-xs mt-1 capitalize truncate" style={{ color: on ? 'var(--brand-700)' : 'var(--text-secondary)' }}>{f === 'all' ? t('all') : stLabel(f)}</p>
+                            <p className="text-[11px] sm:text-xs mt-1 capitalize truncate" style={{ color: on ? 'var(--brand-text)' : 'var(--text-secondary)' }}>{f === 'all' ? t('all') : stLabel(f)}</p>
                         </button>
                     );
                 })}
@@ -186,7 +186,7 @@ export default function OrdersPage() {
                         </div>
                         <div className="text-right shrink-0">
                             <p className="font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(o.total)}</p>
-                            {o.dueAmount > 0 && <p className="text-xs tabular" style={{ color: 'var(--accent-600)' }}>{t('due')} {inr2(o.dueAmount)}</p>}
+                            {o.dueAmount > 0 && <p className="text-xs tabular" style={{ color: 'var(--warning)' }}>{t('due')} {inr2(o.dueAmount)}</p>}
                         </div>
                     </button>
                 ))}
@@ -197,8 +197,8 @@ export default function OrdersPage() {
                 footer={detail && (
                     <div className="space-y-2">
                         <div className="flex flex-col sm:flex-row gap-2">
-                            {can('payments.collect') && detail.dueAmount > 0 && <button className="wp-btn wp-btn-accent w-full sm:flex-1" onClick={openCollect}><RupeeIcon size={16} /> {t('collectPayment')}</button>}
-                            <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareOrder(detail)}><MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp</button>
+                            {can('payments.collect') && detail.dueAmount > 0 && <button className="wp-btn wp-btn-collect w-full sm:flex-1" onClick={openCollect}><RupeeIcon size={16} /> {t('collectPayment')}</button>}
+                            <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareOrder(detail)}><MessageCircle size={16} style={{ color: 'var(--success)' }} /> WhatsApp</button>
                             <button className="wp-btn wp-btn-primary w-full sm:flex-1" onClick={() => printOrder(detail, wsBiz)}><Printer size={16} /> {t('printPdf')}</button>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
@@ -233,8 +233,8 @@ export default function OrdersPage() {
                             </>}
                             <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}><span>{t('total')}</span><span className="tabular">{inr2(detail.total)}</span></div>
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('paid')}</span><span className="tabular">{inr2(detail.paidAmount)}</span></div>
-                            {detail.dueAmount > 0 && <div className="flex justify-between font-semibold" style={{ color: 'var(--accent-600)' }}><span>{t('outstandingWord')}</span><span className="tabular">{inr2(detail.dueAmount)}</span></div>}
-                            {detail.deliveredAt && <p className="text-xs pt-1" style={{ color: 'var(--success-600)' }}>Delivered {new Date(detail.deliveredAt).toLocaleDateString('en-IN')}</p>}
+                            {detail.dueAmount > 0 && <div className="flex justify-between font-semibold" style={{ color: 'var(--warning)' }}><span>{t('outstandingWord')}</span><span className="tabular">{inr2(detail.dueAmount)}</span></div>}
+                            {detail.deliveredAt && <p className="text-xs pt-1" style={{ color: 'var(--success)' }}>Delivered {new Date(detail.deliveredAt).toLocaleDateString('en-IN')}</p>}
                         </div>
 
                         {/* e-Way bill form */}
@@ -268,7 +268,7 @@ export default function OrdersPage() {
                                 </div>
                                 <input className="wp-input text-sm" placeholder={t('returnReasonPh')} value={retReason} onChange={(e) => setRetReason(e.target.value)} />
                                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('wsReturnNote')}</p>
-                                {retErr && <p className="text-xs" style={{ color: 'var(--danger-500)' }}>{retErr}</p>}
+                                {retErr && <p className="text-xs" style={{ color: 'var(--danger)' }}>{retErr}</p>}
                                 <div className="flex gap-2">
                                     <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => setReturning(false)}>{t('cancel')}</button>
                                     <button className="wp-btn wp-btn-primary flex-1 !py-2 text-sm" onClick={() => submitReturn(detail)}><RotateCcw size={15} /> {t('recordReturn')}</button>
@@ -298,7 +298,7 @@ export default function OrdersPage() {
                                 {(payMode === 'upi' || payMode === 'bank') && !(wsBiz?.upiId || wsBiz?.upiQrImage || wsBiz?.bank?.account) && (
                                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('addUpiBankInSettings')}</p>
                                 )}
-                                {payErr && <p className="text-xs" style={{ color: 'var(--danger-500)' }}>{payErr}</p>}
+                                {payErr && <p className="text-xs" style={{ color: 'var(--danger)' }}>{payErr}</p>}
                                 <div className="flex gap-2">
                                     <button className="wp-btn wp-btn-ghost flex-1" onClick={() => setCollecting(false)}>{t('cancel')}</button>
                                     <button className="wp-btn wp-btn-primary flex-1" disabled={collect.isPending || !Number(payAmt)} onClick={() => collect.mutate()}><Check size={16} /> {t('confirm')} · {inr2(Number(payAmt) || 0)}</button>
@@ -340,17 +340,17 @@ export default function OrdersPage() {
                                 {(products || []).map((p: any) => {
                                     const qty = inCart.get(p._id) || 0;
                                     return (
-                                        <div key={p._id} className="wp-card p-2 relative" style={qty ? { borderColor: 'var(--brand-600)' } : {}}>
-                                            {qty > 0 && <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 grid place-items-center rounded-full text-[10px] font-bold z-10" style={{ background: 'var(--brand-700)', color: '#fff' }}>{qty}</span>}
+                                        <div key={p._id} className="wp-card p-2 relative" style={qty ? { borderColor: 'var(--brand-line)' } : {}}>
+                                            {qty > 0 && <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 grid place-items-center rounded-full text-[10px] font-bold z-10" style={{ background: 'var(--brand)', color: '#fff' }}>{qty}</span>}
                                             <button onClick={() => add(p)} className="text-left w-full">
                                                 <p className="text-xs font-semibold line-clamp-1" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                                                <p className="text-xs" style={{ color: 'var(--brand-700)' }}>{inr2(p.wholesalePrice || p.sellPrice)}</p>
+                                                <p className="text-xs" style={{ color: 'var(--brand-text)' }}>{inr2(p.wholesalePrice || p.sellPrice)}</p>
                                             </button>
                                             {qty > 0 && (
                                                 <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--card-border)' }}>
                                                     <button onClick={() => setQty(p._id, -10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--surface-2)' }}><Minus size={12} /></button>
                                                     <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-12 !text-xs" />
-                                                    <button onClick={() => setQty(p._id, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand-700)', color: '#fff' }}><Plus size={12} /></button>
+                                                    <button onClick={() => setQty(p._id, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={12} /></button>
                                                 </div>
                                             )}
                                         </div>
@@ -365,7 +365,7 @@ export default function OrdersPage() {
                                         <QtyInput value={r.qty} unit={r.unit} onChange={(n) => setQtyTo(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-14" />
                                         <button onClick={() => setQty(r.productId, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Plus size={12} /></button>
                                         <span className="w-20 text-right text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
-                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                                     </div>
                                 ))}
                             </div>
@@ -373,7 +373,7 @@ export default function OrdersPage() {
                                 <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('total')}</span>
                                 <span className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(total)}</span>
                             </div>
-                            {error && <p className="text-sm mb-2" style={{ color: 'var(--danger-500)' }}>{error}</p>}
+                            {error && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{error}</p>}
                             <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || create.isPending} onClick={() => create.mutate()}><Check size={16} /> {t('createOrder')} · {inr2(total)}</button>
                             <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{t('pricesAutoApply')}</p>
                         </motion.div>
@@ -395,7 +395,7 @@ export default function OrdersPage() {
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
                         className="fixed bottom-6 left-1/2 -translate-x-1/2 wp-card p-4 z-[55] w-[92vw] max-w-md" style={{ boxShadow: 'var(--shadow-lg)' }}>
                         <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 grid place-items-center rounded-full shrink-0" style={{ background: 'var(--success-500)', color: '#fff' }}><Check size={18} /></div>
+                            <div className="h-9 w-9 grid place-items-center rounded-full shrink-0" style={{ background: 'var(--success-fill)', color: '#fff' }}><Check size={18} /></div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('orderCreated')} · {done.orderNo}</p>
                                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{inr2(done.total)} · {done.dealerName}</p>
@@ -403,7 +403,7 @@ export default function OrdersPage() {
                             <button onClick={() => setDone(null)}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                            <button className="wp-btn wp-btn-ghost flex-1 min-w-0 justify-center !py-2 text-sm" onClick={() => shareOrder(done)}><MessageCircle size={15} className="shrink-0" style={{ color: 'var(--success-600)' }} /> <span className="truncate">{t('sendInvoiceWhatsapp')}</span></button>
+                            <button className="wp-btn wp-btn-ghost flex-1 min-w-0 justify-center !py-2 text-sm" onClick={() => shareOrder(done)}><MessageCircle size={15} className="shrink-0" style={{ color: 'var(--success)' }} /> <span className="truncate">{t('sendInvoiceWhatsapp')}</span></button>
                             <button className="wp-btn wp-btn-ghost flex-1 min-w-0 justify-center !py-2 text-sm" onClick={() => printOrder(done, wsBiz)}><Printer size={15} className="shrink-0" /> <span className="truncate">{t('printPdf')}</span></button>
                         </div>
                     </motion.div>

@@ -38,7 +38,7 @@ export default function ReturnsPage() {
             </div>
 
             <div className="wp-card p-5 flex items-center gap-3">
-                <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: '#fee2e2', color: 'var(--danger-500)' }}><RotateCcw size={20} /></div>
+                <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--danger-tint)', color: 'var(--danger)' }}><RotateCcw size={20} /></div>
                 <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('totalRefunded')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(total)}</p></div>
                 <div className="ml-auto text-right"><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('creditNotes')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{(notes || []).length}</p></div>
             </div>
@@ -47,13 +47,13 @@ export default function ReturnsPage() {
             <div className="space-y-2">
                 {(notes || []).map((n: any) => (
                     <button key={n._id} onClick={() => setDetail(n)} className="wp-card wp-card-hover p-3.5 w-full flex items-center gap-3 text-left">
-                        <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--danger-500)' }}><RotateCcw size={16} /></div>
+                        <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--danger)' }}><RotateCcw size={16} /></div>
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{n.creditNoteNo}</p>
                             <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{n.customerName || t('walkIn')} · {t('againstBill')} {against(n)} · {new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                         </div>
                         <div className="text-right shrink-0">
-                            <p className="font-bold tabular" style={{ color: 'var(--danger-500)' }}>−{inr2(n.total)}</p>
+                            <p className="font-bold tabular" style={{ color: 'var(--danger)' }}>−{inr2(n.total)}</p>
                             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{n.refundMode === 'udhar_adjust' ? t('adjustUdhar') : t('cashRefund')}</p>
                         </div>
                     </button>
@@ -74,7 +74,7 @@ export default function ReturnsPage() {
                                 </div>
                             ))}
                         </div>
-                        <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--danger-500)' }}><span>{t('refundTotal')}</span><span className="tabular">{inr2(detail.total)}</span></div>
+                        <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--danger)' }}><span>{t('refundTotal')}</span><span className="tabular">{inr2(detail.total)}</span></div>
                     </div>
                 )}
             </Modal>

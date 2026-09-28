@@ -100,17 +100,17 @@ export default function PurchasesPage() {
                     {(suppliers || []).map((s: any) => (
                         <div key={s._id} className="wp-card wp-card-hover p-4">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><Truck size={18} /></div>
+                                <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><Truck size={18} /></div>
                                 <div className="flex-1 min-w-0">
                                     <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.mobile || 'No contact'}{s.gstin ? ` · ${s.gstin}` : ''}</p>
                                 </div>
                                 {can('purchases.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEditSup(s)}><Pencil size={14} /></button>}
-                                {can('purchases.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDelSup(s)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>}
+                                {can('purchases.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDelSup(s)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
                             </div>
                             <div className="mt-2 flex justify-between items-center">
                                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('youOwePayable')}</span>
-                                <span className="font-bold tabular" style={{ color: s.payableBalance > 0 ? 'var(--accent-600)' : 'var(--success-600)' }}>{inr2(s.payableBalance)}</span>
+                                <span className="font-bold tabular" style={{ color: s.payableBalance > 0 ? 'var(--warning)' : 'var(--success)' }}>{inr2(s.payableBalance)}</span>
                             </div>
                         </div>
                     ))}
@@ -129,15 +129,15 @@ export default function PurchasesPage() {
                         <div key={p._id} className="wp-card p-4">
                             <div className="flex items-center justify-between mb-2">
                                 <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{p.poNo}</p>
-                                <span className="wp-chip capitalize shrink-0" style={p.status === 'received' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{p.status}</span>
+                                <span className="wp-chip capitalize shrink-0" style={p.status === 'received' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{p.status}</span>
                             </div>
                             <p className="text-xs truncate mb-2" style={{ color: 'var(--text-muted)' }}>{p.supplierName}</p>
                             <div className="flex items-end justify-between gap-2">
                                 <div>
                                     <p className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.total)}</p>
                                     {p.dueAmount > 0
-                                        ? <p className="text-xs tabular" style={{ color: 'var(--accent-600)' }}>You owe {inr2(p.dueAmount)}</p>
-                                        : <p className="text-xs" style={{ color: 'var(--success-600)' }}>{t('fullyPaid')}</p>}
+                                        ? <p className="text-xs tabular" style={{ color: 'var(--warning)' }}>You owe {inr2(p.dueAmount)}</p>
+                                        : <p className="text-xs" style={{ color: 'var(--success)' }}>{t('fullyPaid')}</p>}
                                 </div>
                                 <div className="flex flex-col gap-1.5 items-stretch shrink-0">
                                     {can('purchases.manage') && p.status === 'pending' && <button className="wp-btn wp-btn-primary !py-1.5 !text-xs" disabled={receivePo.isPending} onClick={() => receivePo.mutate(p._id)}><PackageCheck size={13} /> {t('receiveStock')}</button>}
@@ -158,7 +158,7 @@ export default function PurchasesPage() {
                     <Field label="GSTIN"><input className="wp-input uppercase" value={supForm.gstin} onChange={(e) => setSup('gstin', e.target.value)} placeholder="22AAAAA0000A1Z5" maxLength={15} /></Field>
                     <Field label={t('cityAddress')}><input className="wp-input" value={supForm.address} onChange={(e) => setSup('address', e.target.value)} placeholder="Optional" /></Field>
                 </div>
-                {supErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{supErr}</p>}
+                {supErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{supErr}</p>}
             </Modal>
 
             {/* PO modal */}
@@ -185,7 +185,7 @@ export default function PurchasesPage() {
                             <QtyInput value={r.quantity} unit={r.unit} onChange={(n) => setPoQtyTo(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-14" />
                             <button onClick={() => setPoQty(r.productId, 1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Plus size={12} /></button>
                             <input className="wp-input !py-1 !px-2 w-20 text-sm tabular text-right" type="number" value={r.costPrice} onChange={(e) => setPoCost(r.productId, e.target.value)} placeholder="cost" />
-                            <button onClick={() => setPoCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                            <button onClick={() => setPoCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                         </div>
                     ))}
                 </div>
@@ -194,7 +194,7 @@ export default function PurchasesPage() {
                     <div className="flex items-end justify-end pb-3"><span className="font-bold text-lg tabular" style={{ color: 'var(--text-primary)' }}>{inr2(poTotal)}</span></div>
                 </div>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Stock is added when you tap “Receive” on the PO.</p>
-                {poErr && <p className="text-sm mt-1" style={{ color: 'var(--danger-500)' }}>{poErr}</p>}
+                {poErr && <p className="text-sm mt-1" style={{ color: 'var(--danger)' }}>{poErr}</p>}
             </Modal>
 
             {/* Record a payment you make to the supplier */}
@@ -203,9 +203,9 @@ export default function PurchasesPage() {
                 {payPo && (
                     <>
                         <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{payPo.poNo} · {payPo.supplierName}</p>
-                        <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>You owe <b style={{ color: 'var(--accent-600)' }}>{inr2(payPo.dueAmount)}</b> on this order.</p>
+                        <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>You owe <b style={{ color: 'var(--warning)' }}>{inr2(payPo.dueAmount)}</b> on this order.</p>
                         <Field label="Amount you are paying now ₹"><input className="wp-input tabular" type="number" value={payAmt} onChange={(e) => setPayAmt(e.target.value)} autoFocus /></Field>
-                        {payErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{payErr}</p>}
+                        {payErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{payErr}</p>}
                         <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>This reduces the order’s due and how much you owe this supplier.</p>
                     </>
                 )}

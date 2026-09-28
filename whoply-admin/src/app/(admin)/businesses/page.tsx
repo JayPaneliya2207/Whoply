@@ -9,8 +9,8 @@ import { PhoneInput } from '@/components/PhoneInput';
 
 const planColors: Record<string, any> = {
     free: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
-    pro: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    business: { background: '#fef3c7', color: 'var(--accent-600)' },
+    pro: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    business: { background: 'var(--warning-tint)', color: 'var(--warning)' },
 };
 const emptyBiz = { name: '', type: 'retail', ownerName: '', mobile: '', country: '+91', plan: 'free', gstin: '', city: '', password: '' };
 
@@ -76,7 +76,7 @@ export default function BusinessesPage() {
                                 <tr key={b._id} style={{ borderTop: '1px solid var(--card-border)' }}>
                                     <td className="p-3">
                                         <div className="flex items-center gap-2.5">
-                                            <div className="h-8 w-8 grid place-items-center rounded-lg" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}>{b.type === 'wholesale' ? <Building2 size={15} /> : <Store size={15} />}</div>
+                                            <div className="h-8 w-8 grid place-items-center rounded-lg" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{b.type === 'wholesale' ? <Building2 size={15} /> : <Store size={15} />}</div>
                                             <div><p className="font-medium" style={{ color: 'var(--text-primary)' }}>{b.name}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{b.ownerName} · {b.city || '—'}</p></div>
                                         </div>
                                     </td>
@@ -89,7 +89,7 @@ export default function BusinessesPage() {
                                         </select>
                                     </td>
                                     <td className="p-3 text-right">
-                                        <button onClick={() => toggle.mutate({ id: b._id, isActive: !b.isActive })} className="wp-chip" style={b.isActive ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fee2e2', color: 'var(--danger-500)' }}>
+                                        <button onClick={() => toggle.mutate({ id: b._id, isActive: !b.isActive })} className="wp-chip" style={b.isActive ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--danger-tint)', color: 'var(--danger)' }}>
                                             <Power size={11} /> {b.isActive ? 'Active' : 'Suspended'}
                                         </button>
                                     </td>
@@ -121,7 +121,7 @@ export default function BusinessesPage() {
                     <Field label="City"><input className="wp-input" value={form.city} onChange={(e) => set('city', e.target.value)} placeholder="e.g. Surat" /></Field>
                 </div>
                 {!editing && <Field label="Owner password (optional)"><input className="wp-input" type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="They can also login via OTP" /></Field>}
-                {err && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{err}</p>}
+                {err && <p className="text-sm" style={{ color: 'var(--danger)' }}>{err}</p>}
             </Modal>
 
             {/* Detail */}
@@ -129,18 +129,18 @@ export default function BusinessesPage() {
                 {detail && (
                     <div className="space-y-4">
                         <div className="grid grid-cols-3 gap-3 text-center">
-                            <div className="wp-card p-3"><Package size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-700)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.products}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Products</p></div>
-                            <div className="wp-card p-3"><Receipt size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-700)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.invoices}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Invoices</p></div>
-                            <div className="wp-card p-3"><Users size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-700)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.staffCount}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Staff</p></div>
+                            <div className="wp-card p-3"><Package size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.products}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Products</p></div>
+                            <div className="wp-card p-3"><Receipt size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.invoices}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Invoices</p></div>
+                            <div className="wp-card p-3"><Users size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.staffCount}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Staff</p></div>
                         </div>
-                        <div className="wp-card p-3 text-center"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Lifetime GMV</p><p className="text-xl font-extrabold tabular" style={{ color: 'var(--success-600)' }}>{inr(detail.gmv)}</p></div>
+                        <div className="wp-card p-3 text-center"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Lifetime GMV</p><p className="text-xl font-extrabold tabular" style={{ color: 'var(--success)' }}>{inr(detail.gmv)}</p></div>
                         <div>
                             <p className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Users ({detail.users.length})</p>
                             <div className="space-y-1.5">
                                 {detail.users.map((u: any) => (
                                     <div key={u._id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                         <div><p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{u.name}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{u.mobile}</p></div>
-                                        <span className="wp-chip capitalize" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{u.role}</span>
+                                        <span className="wp-chip capitalize" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{u.role}</span>
                                     </div>
                                 ))}
                             </div>

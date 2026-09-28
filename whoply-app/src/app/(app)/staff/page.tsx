@@ -20,10 +20,10 @@ const ROLE_LABELS: Record<string, string> = {
 };
 const DOC_LABELS: Record<string, string> = { aadhaar: 'Aadhaar', pan: 'PAN', voterid: 'Voter ID', driving: 'Driving Licence', other: 'Other' };
 const roleTone: Record<string, any> = {
-    cashier: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    manager: { background: '#fef3c7', color: 'var(--accent-600)' },
-    warehouse: { background: '#dcfce7', color: 'var(--success-600)' },
-    salesStaff: { background: '#e0e7ff', color: 'var(--brand-700)' },
+    cashier: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    manager: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+    warehouse: { background: 'var(--success-tint)', color: 'var(--success)' },
+    salesStaff: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
     accountant: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
 };
 
@@ -102,11 +102,11 @@ export default function StaffPage() {
             {/* Salary summary */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="wp-card p-5 flex items-center gap-3">
-                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><UserPlus size={20} /></div>
+                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><UserPlus size={20} /></div>
                     <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('totalStaff')}</p><p className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{data?.count || 0}</p></div>
                 </div>
                 <div className="wp-card p-5 flex items-center gap-3">
-                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: '#fef3c7', color: 'var(--accent-600)' }}><Wallet size={20} /></div>
+                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--warning-tint)', color: 'var(--warning)' }}><Wallet size={20} /></div>
                     <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('monthlySalaryLabel')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(data?.monthlySalary || 0)}</p></div>
                 </div>
             </div>
@@ -115,7 +115,7 @@ export default function StaffPage() {
                 {(data?.staff || []).map((s: any) => (
                     <div key={s._id} className="wp-card wp-card-hover p-4">
                         <div className="flex items-center gap-3">
-                            <div className="h-11 w-11 grid place-items-center rounded-full font-bold" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{s.name.charAt(0)}</div>
+                            <div className="h-11 w-11 grid place-items-center rounded-full font-bold" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{s.name.charAt(0)}</div>
                             <div className="flex-1 min-w-0">
                                 <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.mobile}</p>
@@ -129,12 +129,12 @@ export default function StaffPage() {
                             </div>
                             <div className="flex items-center gap-1.5">
                                 {(s.kyc?.docNumber || s.kyc?.documents?.length) ? (
-                                    <span className="wp-chip" style={s.kyc.verified ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' }}>
+                                    <span className="wp-chip" style={s.kyc.verified ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--warning-tint)', color: 'var(--warning)' }}>
                                         {s.kyc.verified ? <BadgeCheck size={12} /> : <ShieldAlert size={12} />} KYC
                                     </span>
                                 ) : <span className="wp-chip" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>{t('noKyc')}</span>}
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(s)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(s)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(s)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                             </div>
                         </div>
                         {(s.kyc?.docNumber || s.kyc?.documents?.length > 0) && (
@@ -173,7 +173,7 @@ export default function StaffPage() {
                             {form.kycDocs.map((d: string, i: number) => (
                                 <div key={i} className="relative h-14 w-14 rounded-lg overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
                                     <img src={d} alt={`doc ${i + 1}`} className="h-full w-full object-cover" />
-                                    <button type="button" onClick={() => removeDoc(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 grid place-items-center rounded-full" style={{ background: 'var(--danger-500)', color: '#fff' }}><X size={11} /></button>
+                                    <button type="button" onClick={() => removeDoc(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 grid place-items-center rounded-full" style={{ background: 'var(--danger-fill)', color: '#fff' }}><X size={11} /></button>
                                 </div>
                             ))}
                             {form.kycDocs.length < MAX_DOCS && (
@@ -195,7 +195,7 @@ export default function StaffPage() {
                         <input type="checkbox" checked={form.kycVerified} onChange={(e) => set('kycVerified', e.target.checked)} /> {t('markKycVerified')}
                     </label>
                 </div>
-                {err && <p className="text-sm mt-2" style={{ color: 'var(--danger-500)' }}>{err}</p>}
+                {err && <p className="text-sm mt-2" style={{ color: 'var(--danger)' }}>{err}</p>}
             </Modal>
 
             <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title={t('removeStaffTitle')} message={`Remove “${del?.name}” from your staff?`} />

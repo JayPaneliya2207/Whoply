@@ -55,16 +55,16 @@ export default function DispatchPage() {
                     const on = active === c.key;
                     return (
                         <button key={c.key} onClick={() => setActive(c.key)} className="wp-card p-3 text-center transition-all"
-                            style={on ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
-                            <Icon size={17} className="mx-auto mb-1" style={{ color: on ? 'var(--brand-700)' : 'var(--text-muted)' }} />
+                            style={on ? { borderColor: 'var(--brand-line)', boxShadow: '0 0 0 1px var(--brand-line)' } : {}}>
+                            <Icon size={17} className="mx-auto mb-1" style={{ color: on ? 'var(--brand-text)' : 'var(--text-muted)' }} />
                             <p className="text-lg font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{n}</p>
-                            <p className="text-[11px] sm:text-xs mt-1 truncate" style={{ color: on ? 'var(--brand-700)' : 'var(--text-secondary)' }}>{stLabel(c.key)}</p>
+                            <p className="text-[11px] sm:text-xs mt-1 truncate" style={{ color: on ? 'var(--brand-text)' : 'var(--text-secondary)' }}>{stLabel(c.key)}</p>
                         </button>
                     );
                 })}
             </div>
 
-            {error && <p className="text-sm wp-card p-3" style={{ color: 'var(--danger-500)' }}>{error}</p>}
+            {error && <p className="text-sm wp-card p-3" style={{ color: 'var(--danger)' }}>{error}</p>}
 
             {/* selected status orders */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

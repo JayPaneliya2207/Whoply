@@ -39,7 +39,7 @@ export default function PriceListsPage() {
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-2">
-                <Tags size={20} style={{ color: 'var(--brand-700)' }} />
+                <Tags size={20} style={{ color: 'var(--brand-text)' }} />
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('dealerPriceLists')}</h1>
             </div>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('priceListDesc')}</p>

@@ -84,9 +84,9 @@ export default function LoginPage() {
     };
 
     const features = [
-        { icon: ReceiptText, label: t('featBilling'), bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
-        { icon: Package, label: t('featStock'), bg: '#dcfce7', fg: 'var(--success-600)' },
-        { icon: BarChart3, label: t('featInsights'), bg: '#fef3c7', fg: 'var(--accent-600)' },
+        { icon: ReceiptText, label: t('featBilling'), bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
+        { icon: Package, label: t('featStock'), bg: 'var(--success-tint)', fg: 'var(--success)' },
+        { icon: BarChart3, label: t('featInsights'), bg: 'var(--warning-tint)', fg: 'var(--warning)' },
     ];
 
     return (
@@ -125,7 +125,7 @@ export default function LoginPage() {
                                 <div className="grid grid-cols-3 gap-2">
                                     {LANGS.map((l) => (
                                         <button key={l.code} onClick={() => setLang(l.code as Lang)} className="py-2.5 rounded-xl text-sm font-bold transition-all"
-                                            style={lang === l.code ? { background: 'var(--brand-700)', color: '#fff' } : { background: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--card-border)' }}>
+                                            style={lang === l.code ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--card-border)' }}>
                                             {l.native}
                                         </button>
                                     ))}
@@ -153,7 +153,7 @@ export default function LoginPage() {
                             </button>
                             <div className="flex gap-1.5">
                                 {LANGS.map((l) => (
-                                    <button key={l.code} onClick={() => setLang(l.code as Lang)} className="wp-chip px-2.5 py-1.5 text-xs" style={lang === l.code ? { background: 'var(--brand-700)', color: '#fff' } : { background: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--card-border)' }}>{l.native}</button>
+                                    <button key={l.code} onClick={() => setLang(l.code as Lang)} className="wp-chip px-2.5 py-1.5 text-xs" style={lang === l.code ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--card-border)' }}>{l.native}</button>
                                 ))}
                             </div>
                         </div>
@@ -167,7 +167,7 @@ export default function LoginPage() {
                                         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{t('signInToContinue')}</p>
                                     </div>
 
-                                    {error && <div className="mb-4 p-3 rounded-xl text-sm" style={{ background: '#fee2e2', color: 'var(--danger-500)' }}>{error}</div>}
+                                    {error && <div className="mb-4 p-3 rounded-xl text-sm" style={{ background: 'var(--danger-tint)', color: 'var(--danger)' }}>{error}</div>}
 
                                     {/* Mobile */}
                                     <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>{t('mobileNumber')}</label>
@@ -180,7 +180,7 @@ export default function LoginPage() {
                                         <div className="flex gap-1 p-1 rounded-xl mb-5" style={{ background: 'var(--surface-2)' }}>
                                             {(['otp', 'password'] as Method[]).map((m) => (
                                                 <button key={m} onClick={() => { setMethod(m); setError(''); }} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all"
-                                                    style={method === m ? { background: 'var(--card-bg)', color: 'var(--brand-700)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
+                                                    style={method === m ? { background: 'var(--card-bg)', color: 'var(--brand-text)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
                                                     {m === 'otp' ? <Smartphone size={16} /> : <Lock size={16} />}{m === 'otp' ? t('otpLogin') : t('password')}
                                                 </button>
                                             ))}
@@ -197,11 +197,11 @@ export default function LoginPage() {
                                             <div className="space-y-4">
                                                 <p className="text-xs font-semibold text-center" style={{ color: 'var(--text-secondary)' }}>{t('otpSentTo')} {country} {mobile}</p>
                                                 <OTPInput value={otp} onChange={setOtp} onComplete={verifyOtp} disabled={loading} />
-                                                {devOtp && <p className="text-xs text-center wp-chip mx-auto w-fit" style={{ background: 'var(--accent-500)', color: '#1a1205' }}>Dev OTP: {devOtp}</p>}
-                                                {loading && <div className="flex justify-center"><Loader2 className="animate-spin" size={20} style={{ color: 'var(--brand-700)' }} /></div>}
+                                                {devOtp && <p className="text-xs text-center wp-chip mx-auto w-fit" style={{ background: 'var(--warning-tint)', color: 'var(--warning)' }}>Dev OTP: {devOtp}</p>}
+                                                {loading && <div className="flex justify-center"><Loader2 className="animate-spin" size={20} style={{ color: 'var(--brand-text)' }} /></div>}
                                                 <div className="flex gap-3 text-sm">
                                                     <button className="flex-1 font-medium" style={{ color: 'var(--text-secondary)' }} onClick={() => { setOtpSent(false); setOtp(['', '', '', '', '', '']); }}>{t('changeMobile')}</button>
-                                                    <button className="flex-1 font-medium" disabled={!canResend} style={{ color: canResend ? 'var(--brand-700)' : 'var(--text-muted)' }} onClick={sendOtp}>{canResend ? t('resendOtp') : `${t('resendOtp')} (${cooldown})`}</button>
+                                                    <button className="flex-1 font-medium" disabled={!canResend} style={{ color: canResend ? 'var(--brand-text)' : 'var(--text-muted)' }} onClick={sendOtp}>{canResend ? t('resendOtp') : `${t('resendOtp')} (${cooldown})`}</button>
                                                 </div>
                                             </div>
                                         )

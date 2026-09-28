@@ -38,7 +38,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </div>
             {!mini && (
                 <div className="px-3 mb-2">
-                    <div className="wp-chip w-fit" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}><ShieldCheck size={13} /> Platform Admin</div>
+                    <div className="wp-chip w-fit" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><ShieldCheck size={13} /> Platform Admin</div>
                 </div>
             )}
             <nav className="flex-1 px-3 py-2 space-y-1">
@@ -48,14 +48,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     return (
                         <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} title={item.label}
                             className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium', mini && 'justify-center')}
-                            style={active ? { background: 'var(--brand-700)', color: '#fff' } : { color: 'var(--text-secondary)' }}>
+                            style={active ? { background: 'var(--brand)', color: '#fff' } : { color: 'var(--text-secondary)' }}>
                             <Icon size={18} /> {!mini && item.label}
                         </Link>
                     );
                 })}
             </nav>
             <div className="p-3 border-t" style={{ borderColor: 'var(--card-border)' }}>
-                <button onClick={doLogout} title="Logout" className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full', mini && 'justify-center')} style={{ color: 'var(--danger-500)' }}>
+                <button onClick={doLogout} title="Logout" className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full', mini && 'justify-center')} style={{ color: 'var(--danger)' }}>
                     <LogOut size={18} /> {!mini && 'Logout'}
                 </button>
             </div>
@@ -88,7 +88,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     </div>
                     <div className="flex items-center gap-3">
                         <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="wp-btn wp-btn-ghost !px-2.5">{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
-                        <div className="h-9 w-9 grid place-items-center rounded-full font-bold text-sm" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{user?.name?.charAt(0) || 'A'}</div>
+                        <div className="h-9 w-9 grid place-items-center rounded-full font-bold text-sm" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{user?.name?.charAt(0) || 'A'}</div>
                     </div>
                 </header>
                 <main className="flex-1 p-4 sm:p-5 max-w-[1300px] w-full mx-auto">{children}</main>

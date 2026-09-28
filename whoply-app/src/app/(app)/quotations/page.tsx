@@ -17,8 +17,8 @@ import { printQuote, buildQuoteText, whatsappLink } from '@/lib/bill';
 import { GSTIN_PLACEHOLDER, isValidGstin } from '@/lib/gstin';
 
 const statusTone: Record<string, any> = {
-    open: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    converted: { background: '#dcfce7', color: 'var(--success-600)' },
+    open: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    converted: { background: 'var(--success-tint)', color: 'var(--success)' },
 };
 
 export default function QuotationsPage() {
@@ -95,7 +95,7 @@ function RetailQuotes() {
             <div className="space-y-2">
                 {(quotes || []).map((q: any) => (
                     <button key={q._id} onClick={() => setDetail(q)} className="wp-card wp-card-hover p-3.5 w-full flex items-center gap-3 text-left">
-                        <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--brand-700)' }}><FileText size={16} /></div>
+                        <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--brand-text)' }}><FileText size={16} /></div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{q.quoteNo}</p>
@@ -113,7 +113,7 @@ function RetailQuotes() {
                 footer={detail && (
                     <div className="flex flex-col sm:flex-row gap-2">
                         {detail.status === 'open' && <button className="wp-btn wp-btn-primary w-full sm:flex-1" disabled={convert.isPending} onClick={() => convert.mutate(detail._id)}><ArrowRightCircle size={16} /> {t('convertToBill')}</button>}
-                        <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareQuote(detail)}><MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp</button>
+                        <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareQuote(detail)}><MessageCircle size={16} style={{ color: 'var(--success)' }} /> WhatsApp</button>
                         <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => printQuote(detail, biz)}><Printer size={16} /> {t('printPdf')}</button>
                     </div>
                 )}>
@@ -123,7 +123,7 @@ function RetailQuotes() {
                             <span style={{ color: 'var(--text-secondary)' }}>{detail.customerName || t('walkIn')}{detail.customerMobile ? ` · ${detail.customerMobile}` : ''}</span>
                             <span className="wp-chip capitalize" style={statusTone[detail.status]}>{t(detail.status === 'converted' ? 'converted' : 'openQuote')}</span>
                         </div>
-                        {detail.convertedInvoiceNo && <p className="text-xs" style={{ color: 'var(--success-600)' }}>✓ {t('convertedTo')} {detail.convertedInvoiceNo}</p>}
+                        {detail.convertedInvoiceNo && <p className="text-xs" style={{ color: 'var(--success)' }}>✓ {t('convertedTo')} {detail.convertedInvoiceNo}</p>}
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
                             {detail.items.map((it: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-2.5 text-sm" style={{ borderTop: i ? '1px solid var(--card-border)' : 'none' }}>
@@ -133,7 +133,7 @@ function RetailQuotes() {
                             ))}
                         </div>
                         <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}><span>{t('estimatedTotal')}</span><span className="tabular">{inr2(detail.grandTotal)}</span></div>
-                        <button className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger-500)' }} onClick={() => setDel(detail)}><Trash2 size={14} /> {t('delete')}</button>
+                        <button className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger)' }} onClick={() => setDel(detail)}><Trash2 size={14} /> {t('delete')}</button>
                     </div>
                 )}
             </Modal>
@@ -152,7 +152,7 @@ function RetailQuotes() {
                                 <input className="wp-input text-sm" inputMode="numeric" placeholder={t('mobileFewDigits')} value={cust.mobile} onChange={(e) => setCust({ ...cust, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })} />
                                 <input className="wp-input text-sm uppercase" placeholder={GSTIN_PLACEHOLDER} maxLength={15} value={cust.gstin} onChange={(e) => setCust({ ...cust, gstin: e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 15) })} />
                             </div>
-                            {cust.gstin.length === 15 && !isValidGstin(cust.gstin) && <p className="text-xs mb-2" style={{ color: 'var(--danger-500)' }}>{t('gstinInvalid')}</p>}
+                            {cust.gstin.length === 15 && !isValidGstin(cust.gstin) && <p className="text-xs mb-2" style={{ color: 'var(--danger)' }}>{t('gstinInvalid')}</p>}
                             <div className="flex gap-2 mb-2">
                                 <div className="relative flex-1">
                                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
@@ -164,17 +164,17 @@ function RetailQuotes() {
                                 {(products || []).map((p: any) => {
                                     const qty = inCart.get(p._id) || 0;
                                     return (
-                                        <div key={p._id} className="wp-card p-2 relative" style={qty ? { borderColor: 'var(--brand-600)' } : {}}>
-                                            {qty > 0 && <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 grid place-items-center rounded-full text-[10px] font-bold z-10" style={{ background: 'var(--brand-700)', color: '#fff' }}>{qty}</span>}
+                                        <div key={p._id} className="wp-card p-2 relative" style={qty ? { borderColor: 'var(--brand-line)' } : {}}>
+                                            {qty > 0 && <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 grid place-items-center rounded-full text-[10px] font-bold z-10" style={{ background: 'var(--brand)', color: '#fff' }}>{qty}</span>}
                                             <button onClick={() => add(p)} className="text-left w-full">
                                                 <p className="text-xs font-semibold line-clamp-1" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                                                <p className="text-xs" style={{ color: 'var(--brand-700)' }}>{inr2(p.sellPrice)}</p>
+                                                <p className="text-xs" style={{ color: 'var(--brand-text)' }}>{inr2(p.sellPrice)}</p>
                                             </button>
                                             {qty > 0 && (
                                                 <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--card-border)' }}>
                                                     <button onClick={() => setQty(p._id, -1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--surface-2)' }}><Minus size={12} /></button>
                                                     <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-12 !text-xs" />
-                                                    <button onClick={() => setQty(p._id, 1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand-700)', color: '#fff' }}><Plus size={12} /></button>
+                                                    <button onClick={() => setQty(p._id, 1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={12} /></button>
                                                 </div>
                                             )}
                                         </div>
@@ -186,7 +186,7 @@ function RetailQuotes() {
                                     <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                         <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
                                         <span className="text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
-                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                                     </div>
                                 ))}
                             </div>
@@ -195,7 +195,7 @@ function RetailQuotes() {
                                 <input className="wp-input !py-1.5 w-24 text-sm tabular" type="number" placeholder="0" value={disc} onChange={(e) => setDisc(e.target.value)} />
                                 <span className="ml-auto font-bold" style={{ color: 'var(--text-primary)' }}>{t('estimatedTotal')}: <span className="tabular">{inr2(total)}</span></span>
                             </div>
-                            {error && <p className="text-sm mb-2" style={{ color: 'var(--danger-500)' }}>{error}</p>}
+                            {error && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{error}</p>}
                             <button className="wp-btn wp-btn-primary w-full" disabled={!cart.length || save.isPending} onClick={() => save.mutate()}><Check size={16} /> {t('saveQuote')} · {inr2(total)}</button>
                         </motion.div>
                     </div>
@@ -267,11 +267,11 @@ function WholesaleQuotes() {
             <div className="space-y-2">
                 {(quotes || []).map((q: any) => (
                     <button key={q._id} onClick={() => setDetail(q)} className="wp-card wp-card-hover p-3.5 w-full flex items-center gap-3 text-left">
-                        <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--brand-700)' }}><FileText size={16} /></div>
+                        <div className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)', color: 'var(--brand-text)' }}><FileText size={16} /></div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{q.quoteNo}</p>
-                                <span className="wp-chip capitalize shrink-0" style={q.status === 'converted' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{t(q.status === 'converted' ? 'converted' : 'openQuote')}</span>
+                                <span className="wp-chip capitalize shrink-0" style={q.status === 'converted' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{t(q.status === 'converted' ? 'converted' : 'openQuote')}</span>
                             </div>
                             <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{q.customerName} · {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{q.convertedInvoiceNo ? ` → ${q.convertedInvoiceNo}` : ''}</p>
                         </div>
@@ -284,7 +284,7 @@ function WholesaleQuotes() {
                 footer={detail && (
                     <div className="flex flex-col sm:flex-row gap-2">
                         {detail.status === 'open' && <button className="wp-btn wp-btn-primary w-full sm:flex-1" disabled={convert.isPending} onClick={() => convert.mutate(detail._id)}><ArrowRightCircle size={16} /> {t('convertToOrder')}</button>}
-                        <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareQuote(detail)}><MessageCircle size={16} style={{ color: 'var(--success-600)' }} /> WhatsApp</button>
+                        <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareQuote(detail)}><MessageCircle size={16} style={{ color: 'var(--success)' }} /> WhatsApp</button>
                         <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => printQuote(detail, biz)}><Printer size={16} /> {t('printPdf')}</button>
                     </div>
                 )}>
@@ -292,9 +292,9 @@ function WholesaleQuotes() {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                             <span style={{ color: 'var(--text-secondary)' }}>{detail.customerName}{detail.customerGstin ? ` · ${detail.customerGstin}` : ''}</span>
-                            <span className="wp-chip capitalize" style={detail.status === 'converted' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{t(detail.status === 'converted' ? 'converted' : 'openQuote')}</span>
+                            <span className="wp-chip capitalize" style={detail.status === 'converted' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{t(detail.status === 'converted' ? 'converted' : 'openQuote')}</span>
                         </div>
-                        {detail.convertedInvoiceNo && <p className="text-xs" style={{ color: 'var(--success-600)' }}>✓ {t('convertedTo')} {detail.convertedInvoiceNo}</p>}
+                        {detail.convertedInvoiceNo && <p className="text-xs" style={{ color: 'var(--success)' }}>✓ {t('convertedTo')} {detail.convertedInvoiceNo}</p>}
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
                             {detail.items.map((it: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-2.5 text-sm" style={{ borderTop: i ? '1px solid var(--card-border)' : 'none' }}>
@@ -305,11 +305,11 @@ function WholesaleQuotes() {
                         </div>
                         <div className="space-y-1 text-sm">
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('subtotal')}</span><span className="tabular">{inr2(detail.subtotal)}</span></div>
-                            {detail.discount > 0 && <div className="flex justify-between" style={{ color: 'var(--success-600)' }}><span>{t('discountRs')}</span><span className="tabular">− {inr2(detail.discount)}</span></div>}
+                            {detail.discount > 0 && <div className="flex justify-between" style={{ color: 'var(--success)' }}><span>{t('discountRs')}</span><span className="tabular">− {inr2(detail.discount)}</span></div>}
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('gst')}</span><span className="tabular">{inr2(detail.totalGst)}</span></div>
                             <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}><span>{t('estimatedTotal')}</span><span className="tabular">{inr2(detail.grandTotal)}</span></div>
                         </div>
-                        <button className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger-500)' }} onClick={() => setDel(detail)}><Trash2 size={14} /> {t('delete')}</button>
+                        <button className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger)' }} onClick={() => setDel(detail)}><Trash2 size={14} /> {t('delete')}</button>
                     </div>
                 )}
             </Modal>
@@ -337,17 +337,17 @@ function WholesaleQuotes() {
                                 {(products || []).map((p: any) => {
                                     const qty = inCart.get(p._id) || 0;
                                     return (
-                                        <div key={p._id} className="wp-card p-2 relative" style={qty ? { borderColor: 'var(--brand-600)' } : {}}>
-                                            {qty > 0 && <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 grid place-items-center rounded-full text-[10px] font-bold z-10" style={{ background: 'var(--brand-700)', color: '#fff' }}>{qty}</span>}
+                                        <div key={p._id} className="wp-card p-2 relative" style={qty ? { borderColor: 'var(--brand-line)' } : {}}>
+                                            {qty > 0 && <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 grid place-items-center rounded-full text-[10px] font-bold z-10" style={{ background: 'var(--brand)', color: '#fff' }}>{qty}</span>}
                                             <button onClick={() => add(p)} className="text-left w-full">
                                                 <p className="text-xs font-semibold line-clamp-1" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                                                <p className="text-xs" style={{ color: 'var(--brand-700)' }}>{inr2(p.wholesalePrice || p.sellPrice)}</p>
+                                                <p className="text-xs" style={{ color: 'var(--brand-text)' }}>{inr2(p.wholesalePrice || p.sellPrice)}</p>
                                             </button>
                                             {qty > 0 && (
                                                 <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--card-border)' }}>
                                                     <button onClick={() => setQty(p._id, -10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--surface-2)' }}><Minus size={12} /></button>
                                                     <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-12 !text-xs" />
-                                                    <button onClick={() => setQty(p._id, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand-700)', color: '#fff' }}><Plus size={12} /></button>
+                                                    <button onClick={() => setQty(p._id, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={12} /></button>
                                                 </div>
                                             )}
                                         </div>
@@ -359,7 +359,7 @@ function WholesaleQuotes() {
                                     <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                         <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
                                         <span className="text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
-                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                                     </div>
                                 ))}
                             </div>
@@ -367,7 +367,7 @@ function WholesaleQuotes() {
                                 <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('subtotal')} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>(+GST)</span></span>
                                 <span className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(total)}</span>
                             </div>
-                            {error && <p className="text-sm mb-2" style={{ color: 'var(--danger-500)' }}>{error}</p>}
+                            {error && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{error}</p>}
                             <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || save.isPending} onClick={() => save.mutate()}><Check size={16} /> {t('saveQuote')}</button>
                         </motion.div>
                     </div>

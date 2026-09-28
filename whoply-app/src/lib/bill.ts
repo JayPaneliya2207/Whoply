@@ -128,7 +128,7 @@ export type Template = 'classic' | 'modern' | 'compact';
 
 const TPL: Record<Template, { font: string; hfs: string; tfs: string; pad: string; band: boolean; accent: string }> = {
     classic: { font: 'Arial,Helvetica,sans-serif', hfs: '20px', tfs: '13px', pad: '6px 4px', band: false, accent: '#111' },
-    modern: { font: "'Segoe UI',Arial,sans-serif", hfs: '22px', tfs: '13px', pad: '8px 6px', band: true, accent: '#4338CA' },
+    modern: { font: "'Segoe UI',Arial,sans-serif", hfs: '22px', tfs: '13px', pad: '8px 6px', band: true, accent: '#0F2B46' },
     compact: { font: 'Arial,sans-serif', hfs: '16px', tfs: '11px', pad: '3px 3px', band: false, accent: '#111' },
 };
 /** The user's saved invoice template (device preference, set in Settings). */
@@ -142,7 +142,7 @@ function tplBase(template: Template, biz: Biz | undefined, wide = false) {
     const T = TPL[template];
     const addr = esc([biz?.address, biz?.city, biz?.state, biz?.pincode].filter(Boolean).join(', '));
     const contact = esc(`${biz?.gstin ? 'GSTIN: ' + biz.gstin : ''}${biz?.gstin && biz?.mobile ? ' · ' : ''}${biz?.mobile ? 'Ph: ' + (biz.countryCode || '') + ' ' + biz.mobile : ''}`);
-    const css = `*{font-family:${T.font};box-sizing:border-box}body{max-width:${wide ? 760 : 480}px;margin:24px auto;color:#111;padding:0 16px}h1{font-size:${T.hfs};margin:0}.muted{color:#666;font-size:12px}hr{border:none;border-top:1px dashed #bbb;margin:12px 0}table{width:100%;border-collapse:collapse;font-size:${T.tfs}}th,td{padding:${T.pad};text-align:left;border-bottom:1px solid #eee}.r{text-align:right}.tot{display:flex;justify-content:space-between;font-size:14px;padding:3px 0}.grand{font-weight:800;font-size:18px;border-top:2px solid ${T.accent};padding-top:8px;margin-top:6px;color:${T.accent}}.chip{display:inline-block;background:#eef;color:#334;border-radius:6px;padding:2px 8px;font-size:12px}.tag{display:inline-block;background:#eef2ff;color:#4338CA;border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700}.band{background:${T.accent};color:#fff;margin:-24px -16px 12px;padding:18px 16px}.band h1{color:#fff}.band .muted{color:#dfe3ff}@media print{button{display:none}.band{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+    const css = `*{font-family:${T.font};box-sizing:border-box}body{max-width:${wide ? 760 : 480}px;margin:24px auto;color:#111;padding:0 16px}h1{font-size:${T.hfs};margin:0}.muted{color:#666;font-size:12px}hr{border:none;border-top:1px dashed #bbb;margin:12px 0}table{width:100%;border-collapse:collapse;font-size:${T.tfs}}th,td{padding:${T.pad};text-align:left;border-bottom:1px solid #eee}.r{text-align:right}.tot{display:flex;justify-content:space-between;font-size:14px;padding:3px 0}.grand{font-weight:800;font-size:18px;border-top:2px solid ${T.accent};padding-top:8px;margin-top:6px;color:${T.accent}}.chip{display:inline-block;background:#EEF2F6;color:#0F2B46;border-radius:6px;padding:2px 8px;font-size:12px}.tag{display:inline-block;background:#EEF2F6;color:#0F2B46;border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700}.band{background:${T.accent};color:#fff;margin:-24px -16px 12px;padding:18px 16px}.band h1{color:#fff}.band .muted{color:#D9C8B0}@media print{button{display:none}.band{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
     const header = T.band
         ? `<div class="band"><h1>${esc(biz?.name || 'Whoply')}</h1>${addr || contact ? `<p class="muted">${addr}${addr && contact ? '<br>' : ''}${contact}</p>` : ''}</div>`
         : `<h1>${esc(biz?.name || 'Whoply')}</h1>${addr || contact ? `<p class="muted">${addr}${addr && contact ? '<br>' : ''}${contact}</p>` : ''}<hr>`;
@@ -201,7 +201,7 @@ function printThermal(inv: any, biz: Biz | undefined, mm: 58 | 80) {
       <div class="sep">${line}</div>
       <div class="c">Thank you! 🙏</div>
       <div class="c">Powered by Whoply</div>
-      <button onclick="window.print()" style="margin:12px auto;display:block;padding:8px 16px;background:#4338CA;color:#fff;border:0;border-radius:6px;font-weight:600">Print</button>
+      <button onclick="window.print()" style="margin:12px auto;display:block;padding:8px 16px;background:#C25000;color:#fff;border:0;border-radius:6px;font-weight:600">Print</button>
       <script>setTimeout(()=>window.print(),400)</script>
     </body></html>`;
     const win = window.open('', '_blank', `width=${mm === 58 ? 300 : 380},height=720`);
@@ -278,7 +278,7 @@ function openGstDoc(d: GstDoc, biz: Biz | undefined, template: Template) {
       ${d.notes || ''}
       <div class="sign">For ${esc(biz?.name || 'Whoply')}<br><span class="l">Authorised signatory</span></div>
       <hr><p class="muted" style="text-align:center">Thank you! Powered by Whoply</p>
-      <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#4338CA;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
+      <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#C25000;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
       <script>setTimeout(()=>window.print(),400)</script>
     </body></html>`;
     const w = window.open('', '_blank', 'width=860,height=900');
@@ -305,7 +305,7 @@ export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', templ
         pre: inv.discount > 0 ? `<div class="tot"><span>Subtotal</span><span>${inr2(inv.subtotal)}</span></div><div class="tot"><span>Discount</span><span>- ${inr2(inv.discount)}</span></div>` : '',
         totalLabel: 'Total',
         total: inv.grandTotal,
-        post: `<div class="tot"><span>Paid <span class="chip">${esc(payModeLabel(inv))}</span></span><span>${inr2(inv.paidAmount)}</span></div>${inv.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}`,
+        post: `<div class="tot"><span>Paid <span class="chip">${esc(payModeLabel(inv))}</span></span><span>${inr2(inv.paidAmount)}</span></div>${inv.dueAmount > 0 ? `<div class="tot" style="color:#B54708"><span>Due (udhar)</span><span>${inr2(inv.dueAmount)}</span></div>` : ''}`,
         notes: biz?.upiId ? `<p class="muted">Pay by UPI: <b>${esc(biz.upiId)}</b></p>` : '',
     }, biz, template);
 }
@@ -354,7 +354,7 @@ export function printQuote(q: any, biz?: Biz, template: Template = getTemplate()
       <table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
       <div style="margin-top:12px"><div class="tot"><span>Subtotal</span><span>${inr2(q.subtotal)}</span></div>${q.discount > 0 ? `<div class="tot"><span>Discount</span><span>- ${inr2(q.discount)}</span></div>` : ''}<div class="tot"><span>GST</span><span>${inr2(q.totalGst)}</span></div><div class="tot grand"><span>Estimated total</span><span>${inr2(q.grandTotal)}</span></div></div>
       <hr><p class="muted" style="text-align:center">This is an estimate, not a tax invoice. Powered by Whoply</p>
-      <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#4338CA;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
+      <button onclick="window.print()" style="margin:16px auto;display:block;padding:10px 20px;background:#C25000;color:#fff;border:0;border-radius:8px;font-weight:600">Print / Save as PDF</button>
       <script>setTimeout(()=>window.print(),400)</script></body></html>`;
     const w = window.open('', '_blank', 'width=520,height=720');
     if (w) { w.document.write(html); w.document.close(); }
@@ -390,7 +390,7 @@ export function printCreditNote(cn: any, biz?: Biz, template: Template = getTemp
     }, biz, template);
 }
 
-const GST_DOC_CSS = `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}body{max-width:640px;margin:20px auto;color:#111;padding:0 16px;font-size:13px}h1{font-size:18px;margin:0 0 2px}.tag{display:inline-block;background:#eef2ff;color:#4338CA;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;margin-bottom:8px}.muted{color:#666;font-size:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}.box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.box h4{margin:0 0 4px;font-size:12px;color:#4338CA;text-transform:uppercase}hr{border:none;border-top:1px dashed #bbb;margin:12px 0}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:6px 4px;text-align:left;border-bottom:1px solid #eee}.r{text-align:right}.tot{display:flex;justify-content:space-between;padding:2px 0}.grand{font-weight:800;font-size:15px;border-top:2px solid #111;padding-top:6px;margin-top:4px}.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:11px;margin-top:10px}.btns{margin:16px 0;display:flex;gap:8px;justify-content:center}.btns button{padding:9px 16px;border:0;border-radius:8px;font-weight:600;cursor:pointer}.pbtn{background:#4338CA;color:#fff}.jbtn{background:#eef2ff;color:#4338CA}@media print{.btns,.warn{display:none}}`;
+const GST_DOC_CSS = `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-box}body{max-width:640px;margin:20px auto;color:#111;padding:0 16px;font-size:13px}h1{font-size:18px;margin:0 0 2px}.tag{display:inline-block;background:#EEF2F6;color:#0F2B46;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;margin-bottom:8px}.muted{color:#666;font-size:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}.box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.box h4{margin:0 0 4px;font-size:12px;color:#0F2B46;text-transform:uppercase}hr{border:none;border-top:1px dashed #bbb;margin:12px 0}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:6px 4px;text-align:left;border-bottom:1px solid #eee}.r{text-align:right}.tot{display:flex;justify-content:space-between;padding:2px 0}.grand{font-weight:800;font-size:15px;border-top:2px solid #111;padding-top:6px;margin-top:4px}.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 10px;font-size:11px;margin-top:10px}.btns{margin:16px 0;display:flex;gap:8px;justify-content:center}.btns button{padding:9px 16px;border:0;border-radius:8px;font-weight:600;cursor:pointer}.pbtn{background:#C25000;color:#fff}.jbtn{background:#EEF2F6;color:#0F2B46}@media print{.btns,.warn{display:none}}`;
 /** Injects a "Download portal JSON" button + script into a printable GST doc window. */
 function jsonBtn(data: any, filename: string): string {
     const safe = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -494,7 +494,7 @@ export function printOrder(o: any, biz?: Biz, template: Template = getTemplate()
         g,
         totalLabel: 'Total',
         total: hasReturns ? asSold : o.total,
-        post: `${hasReturns ? `<div class="tot"><span>Less returns (credit notes)</span><span>- ${inr2(returned)}</span></div><div class="tot"><span><b>Net amount</b></span><span><b>${inr2(o.total)}</b></span></div>` : ''}<div class="tot"><span>Paid</span><span>${inr2(o.paidAmount)}</span></div>${o.dueAmount > 0 ? `<div class="tot" style="color:#b45309"><span>Outstanding</span><span>${inr2(o.dueAmount)}</span></div>` : ''}`,
+        post: `${hasReturns ? `<div class="tot"><span>Less returns (credit notes)</span><span>- ${inr2(returned)}</span></div><div class="tot"><span><b>Net amount</b></span><span><b>${inr2(o.total)}</b></span></div>` : ''}<div class="tot"><span>Paid</span><span>${inr2(o.paidAmount)}</span></div>${o.dueAmount > 0 ? `<div class="tot" style="color:#B54708"><span>Outstanding</span><span>${inr2(o.dueAmount)}</span></div>` : ''}`,
         notes,
     }, biz, template);
 }

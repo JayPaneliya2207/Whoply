@@ -117,7 +117,7 @@ export default function ProductsPage() {
             <div className="flex gap-2">
                 <SearchInput value={search} onChange={setSearch} placeholder={t('searchNameBarcode')} />
                 <ScanButton onScan={scanLookup} label={t('scan')} />
-                <button onClick={() => setLowOnly((v) => !v)} className="wp-btn wp-btn-ghost shrink-0" style={lowOnly ? { background: '#fef3c7', color: 'var(--accent-600)', borderColor: 'transparent' } : {}}><AlertTriangle size={15} /></button>
+                <button onClick={() => setLowOnly((v) => !v)} className="wp-btn wp-btn-ghost shrink-0" style={lowOnly ? { background: 'var(--warning-tint)', color: 'var(--warning)', borderColor: 'transparent' } : {}}><AlertTriangle size={15} /></button>
             </div>
 
             {/* One product per row — scrolls up/down only */}
@@ -132,7 +132,7 @@ export default function ProductsPage() {
                             <div className="flex-1 min-w-0">
                                 <p className="font-semibold truncate flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
                                     <span className="truncate">{p.name}</span>
-                                    {p.discountPct > 0 && <span className="wp-chip shrink-0" style={{ background: '#dcfce7', color: 'var(--success-600)' }}>{p.discountPct}% off</span>}
+                                    {p.discountPct > 0 && <span className="wp-chip shrink-0" style={{ background: 'var(--success-tint)', color: 'var(--success)' }}>{p.discountPct}% off</span>}
                                 </p>
                                 <p className="text-xs capitalize truncate" style={{ color: 'var(--text-muted)' }}>{p.categoryId?.name || p.sku}{p.barcode ? ` · ${p.barcode}` : ''}</p>
                             </div>
@@ -140,10 +140,10 @@ export default function ProductsPage() {
                                 <p className="font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.sellPrice)}</p>
                                 <p className="text-[11px] tabular hidden sm:block" style={{ color: 'var(--text-muted)' }}>{can('products.cost') && <>cost {inr2(p.costPrice)} · </>}GST {p.gstRate}%</p>
                             </div>
-                            <span className="wp-chip tabular shrink-0" style={low ? { background: '#fef3c7', color: 'var(--accent-600)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}</span>
+                            <span className="wp-chip tabular shrink-0" style={low ? { background: 'var(--warning-tint)', color: 'var(--warning)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}</span>
                             {manage && <div className="flex items-center gap-0.5 shrink-0">
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(p)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                             </div>}
                         </div>
                     );
@@ -190,7 +190,7 @@ export default function ProductsPage() {
                     <Field label={t('lowStockAt')}><input className="wp-input tabular" type="number" value={form.lowStockThreshold} onChange={(e) => set('lowStockThreshold', e.target.value)} /></Field>
                 </div>
                 {editing && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{t('stockEditHint')}</p>}
-                {formErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{formErr}</p>}
+                {formErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{formErr}</p>}
             </Modal>
 
             {/* Category modal */}
@@ -204,13 +204,13 @@ export default function ProductsPage() {
                 footer={manage ? <button className="wp-btn wp-btn-ghost w-full" onClick={() => { setCatPicker(false); setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> {t('addCategory')}</button> : undefined}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <button onClick={() => { setCatFilter(''); setCatPicker(false); }} className="wp-card p-3 text-center"
-                        style={!catFilter ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
-                        <Boxes size={20} className="mx-auto mb-1" style={{ color: 'var(--brand-700)' }} />
+                        style={!catFilter ? { borderColor: 'var(--brand-line)', boxShadow: '0 0 0 1px var(--brand-line)' } : {}}>
+                        <Boxes size={20} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} />
                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{t('all')}</p>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{(cats || []).reduce((s: number, c: any) => s + (c.productCount ?? 0), 0)} {t('items')}</p>
                     </button>
                     {(cats || []).map((c: any) => (
-                        <div key={c._id} className="wp-card p-3 text-center relative" style={catFilter === c._id ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
+                        <div key={c._id} className="wp-card p-3 text-center relative" style={catFilter === c._id ? { borderColor: 'var(--brand-line)', boxShadow: '0 0 0 1px var(--brand-line)' } : {}}>
                             {manage && <button onClick={(e) => { e.stopPropagation(); setEditingCat(c); setCatName(c.name); setCatPicker(false); setCatModal(true); }} className="absolute top-1.5 right-1.5 opacity-60"><Pencil size={12} /></button>}
                             <button onClick={() => { setCatFilter(c._id); setCatPicker(false); }} className="w-full">
                                 <span className="text-2xl block leading-none mb-1">{catEmoji(c.name)}</span>

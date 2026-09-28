@@ -83,7 +83,7 @@ export function OTPInput({
                     autoComplete={i === 0 ? 'one-time-code' : 'off'}
                     className="w-11 h-14 text-center text-xl font-bold rounded-xl outline-none transition-all"
                     style={{ background: 'var(--card-bg)', border: '2px solid var(--card-border)', color: 'var(--text-primary)' }}
-                    onFocusCapture={(e) => (e.currentTarget.style.borderColor = 'var(--brand-600)')}
+                    onFocusCapture={(e) => (e.currentTarget.style.borderColor = 'var(--brand-line)')}
                     onBlurCapture={(e) => (e.currentTarget.style.borderColor = 'var(--card-border)')}
                 />
             ))}

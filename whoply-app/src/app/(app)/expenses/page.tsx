@@ -53,7 +53,7 @@ export default function ExpensesPage() {
             </div>
 
             <div className="wp-card p-5 flex items-center gap-3">
-                <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: '#fef3c7', color: 'var(--accent-600)' }}><Wallet size={20} /></div>
+                <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--warning-tint)', color: 'var(--warning)' }}><Wallet size={20} /></div>
                 <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('totalRecent')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(monthTotal)}</p></div>
             </div>
 
@@ -68,7 +68,7 @@ export default function ExpensesPage() {
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                                 {can('expenses.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(e)}><Pencil size={14} /></button>}
-                                {can('expenses.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(e)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>}
+                                {can('expenses.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(e)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
                             </div>
                         </div>
                         <p className="text-xl font-extrabold tabular mt-2" style={{ color: 'var(--text-primary)' }}>{inr2(e.amount)}</p>
@@ -85,7 +85,7 @@ export default function ExpensesPage() {
                 </div>
                 <Field label={t('amountRs')}><input className="wp-input tabular" type="number" value={form.amount} onChange={(e) => set('amount', e.target.value)} autoFocus /></Field>
                 <Field label={t('note')}><input className="wp-input" value={form.note} onChange={(e) => set('note', e.target.value)} placeholder={t('optionalWord')} /></Field>
-                {err && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{err}</p>}
+                {err && <p className="text-sm" style={{ color: 'var(--danger)' }}>{err}</p>}
             </Modal>
 
             <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title={t('deleteExpenseTitle')} message="This expense will be permanently removed." />

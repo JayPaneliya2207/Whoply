@@ -59,18 +59,18 @@ export default function DashboardPage() {
     if (type === 'wholesale') {
         const statusTone: Record<string, any> = {
             pending: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
-            confirmed: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-            dispatched: { background: '#fef3c7', color: 'var(--accent-600)' },
-            delivered: { background: '#dcfce7', color: 'var(--success-600)' },
-            cancelled: { background: '#fee2e2', color: 'var(--danger-500)' },
+            confirmed: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+            dispatched: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+            delivered: { background: 'var(--success-tint)', color: 'var(--success)' },
+            cancelled: { background: 'var(--danger-tint)', color: 'var(--danger)' },
         };
-        const pipeColor: Record<string, string> = { pending: '#94a3b8', confirmed: 'var(--brand-600)', dispatched: 'var(--accent-500)', delivered: 'var(--success-500)', cancelled: 'var(--danger-500)' };
+        const pipeColor: Record<string, string> = { pending: 'var(--text-muted)', confirmed: 'var(--brand-line)', dispatched: 'var(--warning-bright)', delivered: 'var(--success-fill)', cancelled: 'var(--danger)' };
         const T = {
-            brand: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
-            amber: { bg: '#fef3c7', fg: 'var(--accent-600)' },
-            green: { bg: '#dcfce7', fg: 'var(--success-600)' },
-            red: { bg: '#fee2e2', fg: 'var(--danger-500)' },
-            sky: { bg: '#e0e7ff', fg: 'var(--brand-700)' },
+            brand: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
+            amber: { bg: 'var(--warning-tint)', fg: 'var(--warning)' },
+            green: { bg: 'var(--success-tint)', fg: 'var(--success)' },
+            red: { bg: 'var(--danger-tint)', fg: 'var(--danger)' },
+            sky: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
         };
         // Money totals come only for roles that handle money (not the godown team).
         const money = can('payments.view');
@@ -108,18 +108,18 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('moneyToCollect')}</p>
-                            <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: 'var(--accent-600)' }}>{inr(outstanding)}</p>
+                            <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: 'var(--warning)' }}>{inr(outstanding)}</p>
                             <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{data.outstandingDealers || 0} {t('dealersWord')} · {t('dealersToCollectHint')}</p>
                         </div>
                         {can('payments.collect') && <Link href="/dealers" className="wp-btn wp-btn-ghost shrink-0"><Wallet size={15} /> {t('collectPayment')}</Link>}
                     </div>
                     <div className="mt-4">
                         <div className="flex items-center justify-between text-xs mb-1.5">
-                            <span className="font-medium" style={{ color: 'var(--success-600)' }}>{t('collected')} {inr(collected)}</span>
+                            <span className="font-medium" style={{ color: 'var(--success)' }}>{t('collected')} {inr(collected)}</span>
                             <span style={{ color: 'var(--text-muted)' }}>{t('totalBilled')} {inr(billed)}</span>
                         </div>
                         <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                            <div className="h-full rounded-full transition-all" style={{ width: `${collectedPct}%`, background: 'var(--success-500)' }} />
+                            <div className="h-full rounded-full transition-all" style={{ width: `${collectedPct}%`, background: 'var(--success-fill)' }} />
                         </div>
                         <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>{collectedPct}% {t('collected').toLowerCase()} · {t('allOrders')}</p>
                     </div>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
 
                 {/* Order pipeline — stacked bar + legend */}
                 <div className="wp-card p-5">
-                    <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Boxes size={17} style={{ color: 'var(--brand-700)' }} /> {t('orderPipeline')}</h3>
+                    <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Boxes size={17} style={{ color: 'var(--brand-text)' }} /> {t('orderPipeline')}</h3>
                     <div className="flex h-3 rounded-full overflow-hidden gap-px" style={{ background: 'var(--surface-2)' }}>
                         {(data.statusBreakdown || []).map((s: any) => (
                             <div key={s.status} style={{ width: `${(s.count / pipeTotal) * 100}%`, background: pipeColor[s.status] || 'var(--surface-2)' }} title={`${stLabel(s.status)}: ${s.count}`} />
@@ -150,7 +150,7 @@ export default function DashboardPage() {
                 <div className="wp-card p-5">
                     <div className="flex items-center justify-between mb-1">
                         <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('recentOrders')}</h3>
-                        <Link href="/orders" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
+                        <Link href="/orders" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-text)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
                     </div>
                     {data.recentOrders.length === 0 && <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>{t('noOrdersYet')}</p>}
                     <div>
@@ -177,13 +177,13 @@ export default function DashboardPage() {
     }
 
     const rt = {
-        brand: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
-        amber: { bg: '#fef3c7', fg: 'var(--accent-600)' },
-        green: { bg: '#dcfce7', fg: 'var(--success-600)' },
-        red: { bg: '#fee2e2', fg: 'var(--danger-500)' },
-        sky: { bg: '#e0e7ff', fg: 'var(--brand-700)' },
+        brand: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
+        amber: { bg: 'var(--warning-tint)', fg: 'var(--warning)' },
+        green: { bg: 'var(--success-tint)', fg: 'var(--success)' },
+        red: { bg: 'var(--danger-tint)', fg: 'var(--danger)' },
+        sky: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
     };
-    const invTone = (s: string) => (s === 'paid' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' });
+    const invTone = (s: string) => (s === 'paid' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--warning-tint)', color: 'var(--warning)' });
     // Profit and supplier dues come only for roles allowed to see them (not a cashier).
     const profit = can('profit.view');
     const suppliers = can('purchases.view');
@@ -218,28 +218,28 @@ export default function DashboardPage() {
             {/* Money to settle — receivable vs payable balance */}
             {suppliers && <div className="wp-card p-5">
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('netPosition')}</p>
-                <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: net >= 0 ? 'var(--success-600)' : 'var(--danger-500)' }}>{inr(net)}</p>
+                <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: net >= 0 ? 'var(--success)' : 'var(--danger)' }}>{inr(net)}</p>
                 <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{net >= 0 ? t('inYourFavour') : t('youOweMore')}</p>
                 <div className="mt-4">
                     <div className="flex h-2.5 rounded-full overflow-hidden gap-px" style={{ background: 'var(--surface-2)' }}>
-                        <div style={{ width: `${(receivable / settleTotal) * 100}%`, background: 'var(--success-500)' }} />
-                        <div style={{ width: `${(payable / settleTotal) * 100}%`, background: 'var(--accent-500)' }} />
+                        <div style={{ width: `${(receivable / settleTotal) * 100}%`, background: 'var(--success-fill)' }} />
+                        <div style={{ width: `${(payable / settleTotal) * 100}%`, background: 'var(--warning-bright)' }} />
                     </div>
                     <div className="flex items-center justify-between text-xs mt-2 gap-2">
-                        <Link href="/customers?hasDue=true" className="flex items-center gap-1.5 min-w-0"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--success-500)' }} /><span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('customersOweYou')}</span> <b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(receivable)}</b></Link>
-                        <Link href="/purchases" className="flex items-center gap-1.5 min-w-0"><b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(payable)}</b> <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('youOweSuppliers')}</span><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--accent-500)' }} /></Link>
+                        <Link href="/customers?hasDue=true" className="flex items-center gap-1.5 min-w-0"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--success-fill)' }} /><span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('customersOweYou')}</span> <b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(receivable)}</b></Link>
+                        <Link href="/purchases" className="flex items-center gap-1.5 min-w-0"><b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(payable)}</b> <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('youOweSuppliers')}</span><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--warning-bright)' }} /></Link>
                     </div>
                 </div>
             </div>}
 
             {/* Top products — compact 2-column layout */}
             <div className="wp-card p-5">
-                <h3 className="font-bold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}><Trophy size={18} style={{ color: 'var(--accent-500)' }} /> {t('topProducts')}</h3>
+                <h3 className="font-bold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}><Trophy size={18} style={{ color: 'var(--warning-bright)' }} /> {t('topProducts')}</h3>
                 {data.topProducts.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('noSalesThisMonth')}</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5">
                     {data.topProducts.map((p: any, i: number) => (
                         <div key={i} className="flex items-center gap-2.5">
-                            <span className="h-6 w-6 grid place-items-center rounded-md text-xs font-bold shrink-0" style={{ background: i < 3 ? 'var(--brand-100)' : 'var(--surface-2)', color: i < 3 ? 'var(--brand-800)' : 'var(--text-secondary)' }}>{i + 1}</span>
+                            <span className="h-6 w-6 grid place-items-center rounded-md text-xs font-bold shrink-0" style={{ background: i < 3 ? 'var(--brand-tint)' : 'var(--surface-2)', color: i < 3 ? 'var(--brand-text)' : 'var(--text-secondary)' }}>{i + 1}</span>
                             <p className="text-sm font-medium truncate flex-1" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
                             <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>{p.qty} {t('sold')}</span>
                             <span className="text-sm font-semibold tabular shrink-0 w-20 text-right" style={{ color: 'var(--text-primary)' }}>{inr(p.revenue)}</span>
@@ -252,7 +252,7 @@ export default function DashboardPage() {
             {can('bills.view') && <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-1">
                     <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('recentBills')}</h3>
-                    <Link href="/bills" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
+                    <Link href="/bills" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-text)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
                 </div>
                 {data.recentInvoices.length === 0 && <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>{t('noBillsYet')}</p>}
                 <div>

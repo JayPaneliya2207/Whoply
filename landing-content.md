@@ -51,7 +51,7 @@ Pricing → FAQ → Final CTA → Footer.
 
 **OG image text:** `Billing · Stock · Udhar · Dispatch` over the app dashboard, Whoply mark top-left.
 
-**Canonical:** `https://whoply.in/` · **Locale:** `en_IN` · **Theme colour:** `#4338CA`
+**Canonical:** `https://whoply.in/` · **Locale:** `en_IN` · **Theme colour:** `#0F2B46` (navy — see color.md)
 
 ---
 

@@ -246,6 +246,10 @@ Then `bg-navy`, `text-text-muted`, `border-border`, `hover:bg-accent-hover`,
 
 ## 8. Before you roll this out
 
+> **Status (2026-09-28):** done in `whoply-app` and `whoply-admin` (branch `feat/navy-design`):
+> tokens in each `globals.css`, manifest + viewport `#0F2B46`, dark mode kept (brand text → sand,
+> fills stay navy), muted text `#667085` there because `#6B7280` is 4.38:1 on `--surface-2`.
+
 **1. The app must move too — this is the important one.**
 `whoply-app/src/app/manifest.ts` sets `theme_color: '#4338CA'` and the whole PWA is indigo. If
 the landing goes navy and the app stays indigo, a visitor clicks *Start free* and arrives
