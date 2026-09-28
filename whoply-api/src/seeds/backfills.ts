@@ -11,6 +11,8 @@ import CreditLedger from '../models/CreditLedger.js';
 import PriceList from '../models/PriceList.js';
 import Product from '../models/Product.js';
 import { defaultTierPrice } from '../utils/wholesaler.js';
+import User from '../models/User.js';
+import { sanitizeKyc } from '../utils/kyc.js';
 
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -56,6 +58,21 @@ export async function backfillOrderAdvances(): Promise<number> {
     }
     if (rows.length) await Payment.collection.insertMany(rows);
     return rows.length;
+}
+
+/**
+ * Staff ID details used to be stored as entered — full Aadhaar numbers and
+ * photos of the card. Re-clean every stored KYC with the current rule
+ * (utils/kyc.ts): Aadhaar keeps only its last 4 digits and no photo.
+ */
+export async function maskStoredAadhaar(): Promise<number> {
+    const users = await User.find({ kyc: { $exists: true } }).select('kyc').lean();
+    const ops = users
+        .map((u: any) => ({ u, clean: sanitizeKyc(u.kyc) }))
+        .filter(({ u, clean }) => clean.docType === 'aadhaar' && (u.kyc?.docNumber !== clean.docNumber || u.kyc?.docType !== 'aadhaar' || (u.kyc?.documents || []).length > 0))
+        .map(({ u, clean }) => ({ updateOne: { filter: { _id: u._id }, update: { $set: { kyc: clean } } } }));
+    if (ops.length) await User.bulkWrite(ops);
+    return ops.length;
 }
 
 /**

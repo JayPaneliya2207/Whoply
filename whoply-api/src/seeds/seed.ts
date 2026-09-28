@@ -98,11 +98,11 @@ async function run() {
     /* ---------------- Users ---------------- */
     await User.insertMany([
         { name: 'Rakesh Sharma', mobile: '9000000001', role: 'owner', businessId: retail._id, password: passwordHash },
-        { name: 'Anita Desai', mobile: '9000000002', role: 'cashier', businessId: retail._id, password: passwordHash, salary: 15000, kyc: { docType: 'aadhaar', docNumber: 'XXXX-XXXX-4521', verified: true } },
+        { name: 'Anita Desai', mobile: '9000000002', role: 'cashier', businessId: retail._id, password: passwordHash, salary: 15000, kyc: { docType: 'aadhaar', docNumber: 'XXXX XXXX 4521', verified: true } },
         { name: 'Vijay Rana', mobile: '9000000003', role: 'manager', businessId: retail._id, password: passwordHash, salary: 25000, kyc: { docType: 'pan', docNumber: 'ABCPR1234K', verified: true } },
         { name: 'Mahesh Gupta', mobile: '9000000010', role: 'owner', businessId: wholesale._id, password: passwordHash },
-        { name: 'Ramesh Warehouse', mobile: '9000000011', role: 'warehouse', businessId: wholesale._id, password: passwordHash, salary: 18000, kyc: { docType: 'aadhaar', docNumber: 'XXXX-XXXX-8890', verified: true } },
-        { name: 'Sunil Yadav', mobile: '9000000012', role: 'salesStaff', businessId: wholesale._id, password: passwordHash, salary: 20000, kyc: { docType: 'aadhaar', docNumber: 'XXXX-XXXX-2213', verified: true } },
+        { name: 'Ramesh Warehouse', mobile: '9000000011', role: 'warehouse', businessId: wholesale._id, password: passwordHash, salary: 18000, kyc: { docType: 'aadhaar', docNumber: 'XXXX XXXX 8890', verified: true } },
+        { name: 'Sunil Yadav', mobile: '9000000012', role: 'salesStaff', businessId: wholesale._id, password: passwordHash, salary: 20000, kyc: { docType: 'aadhaar', docNumber: 'XXXX XXXX 2213', verified: true } },
         { name: 'Farhan Sales', mobile: '9000000013', role: 'salesStaff', businessId: wholesale._id, password: passwordHash, salary: 20000, kyc: { docType: 'pan', docNumber: 'FGHPS8821L', verified: false } },
         { name: 'Whoply Admin', mobile: '9000000099', role: 'admin', password: passwordHash },
     ]);

@@ -5,6 +5,7 @@ import { sendSuccess, sendCreated } from '../../utils/response.js';
 import { businessOf } from '../../utils/http.js';
 import { normalizePhone } from '../../utils/phone.js';
 import { passwordSchema } from '../../validators/common.validator.js';
+import { sanitizeKyc } from '../../utils/kyc.js';
 import User from '../../models/User.js';
 import { STAFF_ROLES, type AuthRequest, type roles } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
@@ -40,7 +41,7 @@ export const createStaff = asyncHandler(async (req: AuthRequest, res: Response) 
         role,
         businessId,
         salary: Number(salary) || 0,
-        kyc: kyc || {},
+        kyc: sanitizeKyc(kyc), // Aadhaar: last 4 digits only, no photo
         ...(password && { password }),
     });
     sendCreated(res, { _id: staff._id, name: staff.name, mobile: staff.mobile, role: staff.role, salary: staff.salary, kyc: staff.kyc });
@@ -51,7 +52,7 @@ export const updateStaff = asyncHandler(async (req: AuthRequest, res: Response) 
     const businessId = businessOf(req);
     const patch: any = {};
     ['name', 'role', 'salary', 'kyc'].forEach((k) => {
-        if (req.body[k] !== undefined) patch[k] = k === 'salary' ? Number(req.body[k]) : req.body[k];
+        if (req.body[k] !== undefined) patch[k] = k === 'salary' ? Number(req.body[k]) : k === 'kyc' ? sanitizeKyc(req.body[k]) : req.body[k];
     });
     if (patch.role && !STAFF_ROLES.includes(patch.role)) throw AppError.badRequest('Invalid staff role');
     const staff = await User.findOneAndUpdate(

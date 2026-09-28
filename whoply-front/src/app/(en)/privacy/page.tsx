@@ -41,7 +41,7 @@ const sections: LegalSection[] = [
             <ul>
                 <li><b>Account:</b> your name, mobile number, a password if you set one (stored only as a one-way hash), preferred language and role.</li>
                 <li><b>Business profile:</b> business name and type, GSTIN, address, city, state, PIN code, contact number, UPI ID, an uploaded UPI QR image, and bank account name, number and IFSC if you add them to receive payments.</li>
-                <li><b>Staff you add:</b> name, mobile number, role, salary, and — only if you enter them — an ID document type and number (for example Aadhaar or PAN) and photos of that document.</li>
+                <li><b>Staff you add:</b> name, mobile number, role, salary, and — only if you enter them — an ID document type and number (for example PAN) and photos of that document. For Aadhaar we keep only the last 4 digits and never a copy of the card.</li>
                 <li><b>Business records:</b> products, prices and stock; bills, quotations, returns and credit notes; customers with their mobile, GSTIN and udhar balance; dealers, orders, dispatch and payments; suppliers and purchase orders; expenses.</li>
                 <li><b>Sign-in and security:</b> for each login, the device name and type, browser, operating system, IP address and login / last-activity times — so we can keep your account secure and spot misuse.</li>
                 <li><b>Messages to support:</b> what you send us when you contact us.</li>
@@ -142,7 +142,7 @@ const sections: LegalSection[] = [
                 <p>When you enter data about other people, you must have a lawful reason to do so and tell them how you use it. In particular:</p>
                 <ul>
                     <li>Record only what you need to run your business.</li>
-                    <li>Enter staff ID numbers or upload ID photos only if you really need them, and never ask for more than necessary.</li>
+                    <li>Enter staff ID numbers or upload ID photos only if you really need them, and never ask for more than necessary. Whoply will not store an Aadhaar copy or full Aadhaar number — check the card in person.</li>
                     <li>If someone asks you to correct or delete their data, write to us at {orPending(LEGAL.email)} and we will do it with you.</li>
                 </ul>
             </>

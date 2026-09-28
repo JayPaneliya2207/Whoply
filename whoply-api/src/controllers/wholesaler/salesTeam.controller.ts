@@ -5,6 +5,7 @@ import { sendSuccess, sendCreated } from '../../utils/response.js';
 import { businessOf, monthStart } from '../../utils/http.js';
 import { normalizePhone } from '../../utils/phone.js';
 import { passwordSchema } from '../../validators/common.validator.js';
+import { sanitizeKyc } from '../../utils/kyc.js';
 import User from '../../models/User.js';
 import Visit from '../../models/Visit.js';
 import Order from '../../models/Order.js';
@@ -28,7 +29,7 @@ export const createRep = asyncHandler(async (req: AuthRequest, res: Response) =>
         role: 'salesStaff',
         businessId,
         salary: Number(req.body.salary) || 0,
-        kyc: req.body.kyc || {},
+        kyc: sanitizeKyc(req.body.kyc), // Aadhaar: last 4 digits only, no photo
         ...(req.body.password && { password: req.body.password }),
     });
     sendCreated(res, { _id: rep._id, name: rep.name, mobile: rep.mobile, salary: rep.salary });

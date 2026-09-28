@@ -9,6 +9,9 @@ import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { kycPlaceholder, formatKyc } from '@/lib/forms';
+
+/** The last 4 digits of whatever is entered or stored ("XXXX XXXX 1234" → "1234"). */
+const last4 = (v?: string) => String(v ?? '').replace(/[^0-9]/g, '').slice(-4);
 import { useT } from '@/i18n';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -44,7 +47,7 @@ export default function StaffPage() {
     const openNew = () => { setEditing(null); setForm({ ...empty, role: roleOptions[0] }); setErr(''); setModal(true); };
     const openEdit = (s: any) => {
         setEditing(s);
-        setForm({ name: s.name, mobile: s.mobile, country: s.countryCode || '+91', role: s.role, salary: s.salary || '', password: '', kycDoc: s.kyc?.docType || 'aadhaar', kycNumber: s.kyc?.docNumber || '', kycVerified: s.kyc?.verified || false, kycDocs: s.kyc?.documents || [] });
+        setForm({ name: s.name, mobile: s.mobile, country: s.countryCode || '+91', role: s.role, salary: s.salary || '', password: '', kycDoc: s.kyc?.docType || 'aadhaar', kycNumber: s.kyc?.docType === 'aadhaar' ? last4(s.kyc?.docNumber) : s.kyc?.docNumber || '', kycVerified: s.kyc?.verified || false, kycDocs: s.kyc?.documents || [] });
         setErr(''); setModal(true);
     };
 
@@ -74,7 +77,9 @@ export default function StaffPage() {
 
     const save = useMutation({
         mutationFn: async () => {
-            const kyc = { docType: form.kycDoc, docNumber: form.kycNumber, verified: form.kycVerified, documents: form.kycDocs };
+            // Aadhaar: only the last 4 digits and no photo leave this screen (the server enforces it too).
+            const aadhaar = form.kycDoc === 'aadhaar';
+            const kyc = { docType: form.kycDoc, docNumber: aadhaar ? last4(form.kycNumber) : form.kycNumber, verified: form.kycVerified, documents: aadhaar ? [] : form.kycDocs };
             if (editing) return (await api.patch(`/staff/${editing._id}`, { name: form.name, role: form.role, salary: Number(form.salary) || 0, kyc })).data.data;
             return (await api.post('/staff', { name: form.name, mobile: form.mobile, countryCode: form.country, role: form.role, salary: Number(form.salary) || 0, kyc, password: form.password || undefined })).data.data;
         },
@@ -152,12 +157,17 @@ export default function StaffPage() {
                 <div className="rounded-xl p-3 mt-1" style={{ background: 'var(--surface-2)' }}>
                     <p className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><IdCard size={15} /> {t('kycDocument')} <span className="font-normal text-xs" style={{ color: 'var(--text-muted)' }}>(optional)</span></p>
                     <div className="grid grid-cols-2 gap-3">
-                        <Field label={t('documentLabel')}><select className="wp-input" value={form.kycDoc} onChange={(e) => { const dt = e.target.value; setForm((f: any) => ({ ...f, kycDoc: dt, kycNumber: formatKyc(dt, f.kycNumber) })); }}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-                        <Field label={t('numberLabel')}><input className="wp-input" inputMode={form.kycDoc === 'aadhaar' ? 'numeric' : 'text'} value={form.kycNumber} onChange={(e) => set('kycNumber', formatKyc(form.kycDoc, e.target.value))} placeholder={kycPlaceholder(form.kycDoc)} /></Field>
+                        <Field label={t('documentLabel')}><select className="wp-input" value={form.kycDoc} onChange={(e) => { const dt = e.target.value; setForm((f: any) => ({ ...f, kycDoc: dt, kycNumber: dt === 'aadhaar' ? last4(f.kycNumber) : formatKyc(dt, f.kycNumber), kycDocs: dt === 'aadhaar' ? [] : f.kycDocs })); }}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+                        {form.kycDoc === 'aadhaar'
+                            ? <Field label={t('aadhaarLast4')}><input className="wp-input tabular" inputMode="numeric" maxLength={4} value={form.kycNumber} onChange={(e) => set('kycNumber', last4(e.target.value))} placeholder="1234" /></Field>
+                            : <Field label={t('numberLabel')}><input className="wp-input" inputMode="text" value={form.kycNumber} onChange={(e) => set('kycNumber', formatKyc(form.kycDoc, e.target.value))} placeholder={kycPlaceholder(form.kycDoc)} /></Field>}
                     </div>
 
-                    {/* Document upload — up to 5 */}
-                    <div className="mb-2">
+                    {/* Aadhaar copies may not be kept — say why instead of offering an upload. */}
+                    {form.kycDoc === 'aadhaar' && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{t('aadhaarNoCopy')}</p>}
+
+                    {/* Document upload — up to 5 (not for Aadhaar) */}
+                    {form.kycDoc !== 'aadhaar' && <div className="mb-2">
                         <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>{t('uploadDocuments')} ({form.kycDocs.length}/{MAX_DOCS})</p>
                         <div className="flex flex-wrap gap-2">
                             {form.kycDocs.map((d: string, i: number) => (
@@ -179,7 +189,7 @@ export default function StaffPage() {
                                 </>
                             )}
                         </div>
-                    </div>
+                    </div>}
 
                     <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
                         <input type="checkbox" checked={form.kycVerified} onChange={(e) => set('kycVerified', e.target.checked)} /> {t('markKycVerified')}

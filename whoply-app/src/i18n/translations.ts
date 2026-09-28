@@ -149,7 +149,7 @@ const en: Dict = {
     // staff
     addStaffTitle: 'Add Staff', editStaffTitle: 'Edit staff', totalStaff: 'Total staff', monthlySalaryLabel: 'Monthly salary',
     fullName: 'Full name', roleLabel: 'Role', salaryMonthRs: 'Monthly salary ₹', loginPasswordOptional: 'Login password (optional)',
-    kycDocument: 'KYC document', documentLabel: 'Document', numberLabel: 'Number', uploadDocuments: 'Upload documents',
+    kycDocument: 'KYC document', documentLabel: 'Document', numberLabel: 'Number', uploadDocuments: 'Upload documents', aadhaarLast4: 'Aadhaar — last 4 digits', aadhaarNoCopy: 'By law, Aadhaar card copies and full numbers are not stored. Check the card in person and note only the last 4 digits.',
     takePhoto: 'Take a photo', uploadFromGallery: 'Upload from gallery', markKycVerified: 'Mark KYC as verified', noKyc: 'No KYC', removeStaffTitle: 'Remove staff?',
     // settings
     shopDetails: 'Shop details', businessDetails: 'Business details', shownOnBills: 'These appear on printed bills and WhatsApp invoices.',
@@ -345,7 +345,7 @@ const hi: Dict = {
     // staff
     addStaffTitle: 'स्टाफ जोड़ें', editStaffTitle: 'स्टाफ संपादित करें', totalStaff: 'कुल स्टाफ', monthlySalaryLabel: 'मासिक वेतन',
     fullName: 'पूरा नाम', roleLabel: 'भूमिका', salaryMonthRs: 'मासिक वेतन ₹', loginPasswordOptional: 'लॉगिन पासवर्ड (वैकल्पिक)',
-    kycDocument: 'KYC दस्तावेज़', documentLabel: 'दस्तावेज़', numberLabel: 'नंबर', uploadDocuments: 'दस्तावेज़ अपलोड करें',
+    kycDocument: 'KYC दस्तावेज़', documentLabel: 'दस्तावेज़', numberLabel: 'नंबर', uploadDocuments: 'दस्तावेज़ अपलोड करें', aadhaarLast4: 'आधार — आख़िरी 4 अंक', aadhaarNoCopy: 'कानून के अनुसार आधार कार्ड की कॉपी और पूरा नंबर सेव नहीं होता। कार्ड ख़ुद देखकर जाँचें और सिर्फ़ आख़िरी 4 अंक लिखें।',
     takePhoto: 'फ़ोटो लें', uploadFromGallery: 'गैलरी से अपलोड करें', markKycVerified: 'KYC सत्यापित करें', noKyc: 'KYC नहीं', removeStaffTitle: 'स्टाफ हटाएँ?',
     // settings
     shopDetails: 'दुकान की जानकारी', businessDetails: 'व्यवसाय की जानकारी', shownOnBills: 'ये प्रिंट बिल और WhatsApp बिल पर दिखते हैं।',
@@ -541,7 +541,7 @@ const gu: Dict = {
     // staff
     addStaffTitle: 'સ્ટાફ ઉમેરો', editStaffTitle: 'સ્ટાફ ફેરફાર', totalStaff: 'કુલ સ્ટાફ', monthlySalaryLabel: 'માસિક પગાર',
     fullName: 'પૂરું નામ', roleLabel: 'ભૂમિકા', salaryMonthRs: 'માસિક પગાર ₹', loginPasswordOptional: 'લૉગિન પાસવર્ડ (વૈકલ્પિક)',
-    kycDocument: 'KYC દસ્તાવેજ', documentLabel: 'દસ્તાવેજ', numberLabel: 'નંબર', uploadDocuments: 'દસ્તાવેજ અપલોડ કરો',
+    kycDocument: 'KYC દસ્તાવેજ', documentLabel: 'દસ્તાવેજ', numberLabel: 'નંબર', uploadDocuments: 'દસ્તાવેજ અપલોડ કરો', aadhaarLast4: 'આધાર — છેલ્લા 4 અંક', aadhaarNoCopy: 'કાયદા મુજબ આધાર કાર્ડની નકલ અને પૂરો નંબર સાચવવામાં આવતો નથી. કાર્ડ જાતે જોઈને તપાસો અને ફક્ત છેલ્લા 4 અંક લખો.',
     takePhoto: 'ફોટો લો', uploadFromGallery: 'ગેલેરીમાંથી અપલોડ', markKycVerified: 'KYC ચકાસાયેલ કરો', noKyc: 'KYC નથી', removeStaffTitle: 'સ્ટાફ કાઢવો?',
     // settings
     shopDetails: 'દુકાનની વિગત', businessDetails: 'ધંધાની વિગત', shownOnBills: 'આ પ્રિન્ટ બિલ અને WhatsApp બિલ પર દેખાય છે.',
