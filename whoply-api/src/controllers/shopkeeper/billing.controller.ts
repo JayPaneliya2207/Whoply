@@ -12,6 +12,7 @@ import { applyStockChanges } from '../../utils/stock.js';
 import { priceLines, round2 } from '../../utils/tax.js';
 import { resolvePayments } from '../../utils/payments.js';
 import { lineQty } from '../../utils/qty.js';
+import { normalizePhone } from '../../utils/phone.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
@@ -73,8 +74,9 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
         customerMobile = c.mobile;
         customerGstin = c.gstin || bodyGstin;
     } else if (walkInMobile) {
-        const mobile = String(walkInMobile).replace(/\D/g, '');
-        let c = await Customer.findOne({ businessId, mobile });
+        // Same format as the customer screen saves (10 digits, no +91), and never a removed customer.
+        const mobile = normalizePhone(walkInMobile);
+        let c = await Customer.findOne({ businessId, mobile, isActive: true });
         if (!c) {
             c = await Customer.create({ businessId, name: walkInName?.trim() || 'Walk-in', mobile, gstin: bodyGstin });
         } else if (walkInName?.trim() && (!c.name || c.name === 'Walk-in')) {

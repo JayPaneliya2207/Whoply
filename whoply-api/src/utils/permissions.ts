@@ -21,7 +21,8 @@ export const PERMS = [
     'returns.create', // credit notes
     'returns.view',
     'customers.view',
-    'customers.manage', // add customers, take udhar repayments
+    'customers.manage', // add / edit customers, take udhar repayments
+    'customers.delete', // remove a customer (owner, manager)
     'purchases.view', // suppliers + purchase orders
     'purchases.manage',
     'expenses.view',

@@ -23,6 +23,8 @@ import {
     createCustomer,
     getCustomerLedger,
     recordRepayment,
+    updateCustomer,
+    deleteCustomer,
 } from '../../controllers/shopkeeper/customer.controller.js';
 import {
     listSuppliers,
@@ -84,6 +86,8 @@ router.post('/returns', p('returns.create'), createReturn);
 // Customers & udhar
 router.get('/customers', p('customers.view'), listCustomers);
 router.post('/customers', p('customers.manage'), createCustomer);
+router.patch('/customers/:id', p('customers.manage'), updateCustomer);
+router.delete('/customers/:id', p('customers.delete'), deleteCustomer);
 router.get('/customers/:id/ledger', p('customers.view'), getCustomerLedger);
 router.post('/customers/:id/repayment', p('customers.manage'), recordRepayment);
 

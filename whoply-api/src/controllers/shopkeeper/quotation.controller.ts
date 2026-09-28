@@ -13,6 +13,7 @@ import { applyStockChanges } from '../../utils/stock.js';
 import { priceLines, round2 } from '../../utils/tax.js';
 import { resolvePayments } from '../../utils/payments.js';
 import { lineQty } from '../../utils/qty.js';
+import { normalizePhone } from '../../utils/phone.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
@@ -123,8 +124,9 @@ export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Respo
     // Resolve customer (find-or-create by mobile so udhar & history link).
     let resolvedCustomerId = quote.customerId as any;
     if (!resolvedCustomerId && quote.customerMobile) {
-        let c = await Customer.findOne({ businessId, mobile: quote.customerMobile });
-        if (!c) c = await Customer.create({ businessId, name: quote.customerName || 'Walk-in', mobile: quote.customerMobile, gstin: quote.customerGstin });
+        const mobile = normalizePhone(quote.customerMobile);
+        let c = await Customer.findOne({ businessId, mobile, isActive: true });
+        if (!c) c = await Customer.create({ businessId, name: quote.customerName || 'Walk-in', mobile, gstin: quote.customerGstin });
         resolvedCustomerId = c._id;
     }
 
