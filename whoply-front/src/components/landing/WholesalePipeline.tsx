@@ -7,6 +7,7 @@ import {
     Check,
     CheckCheck,
     ChevronDown,
+    ClipboardList,
     FileCheck2,
     Grid3x3,
     MapPin,
@@ -405,11 +406,14 @@ function Dispatch({ lang }: { lang: Lang }) {
         return () => clearTimeout(id);
     }, [step, reduce]);
 
+    const total = items.reduce((s, [, , a]) => s + a, 0);
+
+    // The app's own order statuses: pending → confirmed → dispatched (→ delivered).
     const steps: [string, string, string, LucideIcon][] = [
-        [`${p.order} #4092`, 'Jain Traders', '10:02', PackageCheck],
-        [p.ewb, 'EWB 3410 2291 8876', '10:05', FileCheck2],
-        [p.driver, 'Suresh · GJ 01 AB 4521', '10:20', UserRound],
-        [p.out, `${items.length} SKUs · 36 ctn`, '10:45', Truck],
+        [`${p.order} #4092`, `Jain Traders · ${inr(total)}`, '10:02', ClipboardList],
+        [p.confirmed, `${items.length} SKUs · 36 ctn`, '10:05', PackageCheck],
+        [p.ewb, `${t.compliance.pipe.vehicle} · GJ 01 AB 4521`, '10:20', FileCheck2],
+        [p.dispatched, 'Jain Traders', '10:45', Truck],
     ];
 
     return (

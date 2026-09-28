@@ -4,7 +4,7 @@
  * Terminology deliberately matches `whoply-app/src/i18n/translations.ts`
  * (उधार, गोदाम, डीलर, बकाया, मुनाफ़ा) so the marketing site and the product
  * don't drift. Technical terms this audience already uses in English —
- * GST, e-way bill, IRN, Tally, POS, UPI — stay in English on purpose.
+ * GST, e-way bill, IRP, CSV, POS, UPI — stay in English on purpose.
  */
 
 export type Lang = 'en' | 'hi' | 'gu';
@@ -83,7 +83,8 @@ export interface LandingCopy {
             /** Live status on each Whoply row, same order as `rows`. */
             live: string[];
             liveLabel: string;
-            autoSent: string;
+            /** Chip in the Whoply panel header: the morning udhar list is ready. */
+            listReady: string;
             /** Label on the phone connector from the paper card to the Whoply card. */
             flow: string;
             /** Scribbled next to struck-out udhar lines in the register. */
@@ -121,7 +122,7 @@ export interface LandingCopy {
         /** Micro-UI inside the four counter metric cards. */
         metrics: {
             avg: string;
-            batch: (n: number, exp: string) => string;
+            left: (name: string, n: number) => string;
             due: (amount: string) => string;
             reminded: string;
             send: string;
@@ -131,8 +132,7 @@ export interface LandingCopy {
         mock: {
             tabsLabel: string;
             pay: [string, string, string];
-            batch: string;
-            expiresIn: (days: number) => string;
+            left: (n: number) => string;
             days: (days: number) => string;
             quote: string;
             invoice: string;
@@ -180,8 +180,8 @@ export interface LandingCopy {
             applied: (tier: string, price: string) => string;
             order: string;
             ewb: string;
-            driver: string;
-            out: string;
+            confirmed: string;
+            dispatched: string;
             agent: (name: string) => string;
             visited: (n: number) => string;
             collected: (amount: string) => string;
@@ -253,13 +253,13 @@ const en: LandingCopy = {
     meta: {
         title: 'Whoply — GST Billing, Stock & Udhar App for Shops & Wholesalers',
         description:
-            'One app for GST billing, inventory, udhar and orders. E-invoice, e-way bill and Tally export built in. Works in Hindi. Start free.',
+            'One app for GST billing, inventory, udhar and orders. GST reports, e-invoice and e-way bill built in. Works in Hindi. Start free.',
         ogTitle: 'Run your whole business from one app — Whoply',
         ogDescription:
             'GST billing, stock, udhar, dealers and dispatch for Indian shopkeepers and wholesalers. E-invoice and e-way bill ready. Free to start.',
     },
     nav: {
-        announcement: 'E-invoice, e-way bill and Tally export — built in, not bolted on.',
+        announcement: 'GST reports, e-invoice and e-way bill — built in, not bolted on.',
         links: [
             { href: '#compliance', label: 'GST & Compliance' },
             { href: '#shopkeepers', label: 'For Shopkeepers' },
@@ -293,10 +293,10 @@ const en: LandingCopy = {
             h1: 'Every order, every dispatch,',
             h1Accent: 'every rupee outstanding.',
             sub: 'Dealer-wise pricing, bulk orders, e-way bills and delivery tracking. Know what shipped, what arrived, and who still owes you.',
-            trust: ['E-way bill & e-invoice', 'Exports to Tally', 'हिंदी & ગુજરાતી too'],
+            trust: ['E-way bill & e-invoice', 'GST reports for your CA', 'हिंदी & ગુજરાતી too'],
         },
         ctaPrimary: 'Start free — no card needed',
-        ctaSecondary: 'See a live demo',
+        ctaSecondary: 'See how it works',
         mock: {
             today: 'Today',
             live: 'Live',
@@ -322,7 +322,7 @@ const en: LandingCopy = {
             retailBusiness: 'Sharma General Store',
             wholesaleBusiness: 'Gupta Distributors',
             alert: 'Running low',
-            reminder: 'Reminder sent',
+            reminder: 'Reminder ready',
             bill: {
                 total: 'Total',
                 sent: 'Bill sent on WhatsApp',
@@ -344,10 +344,10 @@ const en: LandingCopy = {
         items: [
             'GST & E-Invoice ready',
             'E-Way Bill built in',
-            'Exports to Tally',
+            'GST reports as CSV',
             'English + हिंदी + ગુજરાતી',
             'Any phone — no computer needed',
-            'Batch & expiry tracking',
+            'Low-stock alerts',
             'Dealer-wise price lists',
         ],
     },
@@ -360,8 +360,8 @@ const en: LandingCopy = {
                 body: 'A name in a diary, six months old. Whoply keeps every customer’s ledger with aging, and hands you the list to chase each morning.',
             },
             {
-                title: 'The stock that expired',
-                body: 'Cartons at the back, past date, straight to loss. Whoply tracks batches and warns you before expiry.',
+                title: 'The stock that ran out',
+                body: 'You find out it’s finished when a customer asks for it. Whoply flags low stock and tells you how much to reorder.',
             },
             {
                 title: 'The bill that was wrong',
@@ -383,15 +383,15 @@ const en: LandingCopy = {
                     topic: 'Udhar',
                     paper: 'A name in a diary, six months old. Nobody reminds anyone.',
                     paperTag: 'Forgotten',
-                    app: 'Every customer’s ledger with aging. Reminders go out on WhatsApp at 10 AM.',
-                    appTag: 'Auto-reminded',
+                    app: 'Every customer’s ledger with aging. At 10 AM you get the list of who to chase — one tap sends each reminder on WhatsApp.',
+                    appTag: 'Daily chase list',
                 },
                 {
-                    topic: 'Expiry',
-                    paper: 'Cartons at the back, past date — straight to loss.',
-                    paperTag: 'Expired',
-                    app: 'Batch-wise tracking warns you before the date.',
-                    appTag: 'Alert 7 days early',
+                    topic: 'Stock',
+                    paper: 'You find out it’s finished when a customer asks for it.',
+                    paperTag: 'Out of stock',
+                    app: 'Low-stock alerts, and how much to reorder from how fast it sells.',
+                    appTag: 'Low-stock alert',
                 },
                 {
                     topic: 'Billing',
@@ -408,9 +408,9 @@ const en: LandingCopy = {
                     appTag: 'Live tonight',
                 },
             ],
-            live: ['+ ₹500 collected', 'Alert sent · 7 days left', 'Bill sent on WhatsApp', 'Profit ₹6,420 today'],
+            live: ['+ ₹500 collected', 'Low stock · order 24', 'Bill sent on WhatsApp', 'Profit ₹6,420 today'],
             liveLabel: 'Live',
-            autoSent: 'WhatsApp auto-sent',
+            listReady: 'Udhar list ready',
             flow: 'Now the same shop, on Whoply',
             paperNote: 'paid??',
         },
@@ -421,31 +421,31 @@ const en: LandingCopy = {
         sub: 'The compliance work that costs you evenings, handled inside the same screen you bill from.',
         cards: [
             {
-                title: 'E-Invoice (IRN)',
-                body: 'Generate an IRN for any bill or bulk order, straight from the invoice screen.',
+                title: 'E-Invoice',
+                body: 'Build the e-invoice for any bill or bulk order from the invoice screen, ready to upload to the IRP — no re-typing.',
             },
             {
                 title: 'E-Way Bill',
-                body: 'Raise it the moment goods leave your godown — no separate portal, no re-typing.',
+                body: 'Filled in from the order, ready to upload the moment goods leave your godown — no re-typing.',
             },
             {
                 title: 'GSTR-ready reports',
                 body: 'Sales, purchase and tax breakup laid out the way your return needs it.',
             },
             {
-                title: 'Tally export',
-                body: 'Your CA keeps Tally. You keep your phone. One export keeps both of you happy.',
+                title: 'Exports for your CA',
+                body: 'GSTR reports download as CSV files your CA can open in Excel. You keep your phone.',
             },
         ],
         quote: '“Your CA gets his file. You never open a laptop.”',
         pipe: {
-            irn: 'IRN generated',
-            cleared: 'Auto-cleared',
+            irn: 'E-invoice ready',
+            cleared: 'Ready to upload',
             vehicle: 'Vehicle',
             taxable: 'Taxable value',
-            exportBtn: '1-click Tally export',
-            exporting: 'Exporting…',
-            sent: 'Sent to CA',
+            exportBtn: 'Download GST CSV',
+            exporting: 'Preparing…',
+            sent: 'Ready for your CA',
         },
     },
     shopkeepers: {
@@ -454,7 +454,7 @@ const en: LandingCopy = {
         sub: 'Everything between the customer walking in and you counting the cash at night.',
         bullets: [
             'Bill in seconds, GST included — cash, UPI, card, or split across all three on one bill.',
-            'Never throw away expired stock — batch-wise expiry tracking, with alerts before the date.',
+            'Know what’s running low — low-stock alerts before the shelf is empty.',
             'Every rupee of udhar, with aging — oldest dues first, reminders ready at 10 AM daily.',
             'Order before you run out — quantities worked out from how fast each item really sells.',
             'Know your profit tonight — day-close in one tap, not at month-end.',
@@ -465,7 +465,7 @@ const en: LandingCopy = {
         cta: 'Start free — set up in 30 seconds',
         stats: [
             ['Bill time', '< 10 sec'],
-            ['Expiry alerts', 'Batch-wise'],
+            ['Low-stock alerts', 'Before it runs out'],
             ['Udhar aging', 'Oldest first'],
             ['Day close', 'One tap'],
         ],
@@ -481,23 +481,22 @@ const en: LandingCopy = {
         },
         groups: [
             { title: 'GST billing', body: 'Bill in seconds with GST built in, turn quotes into invoices, and handle returns properly.' },
-            { title: 'Stock & expiry alerts', body: 'Batch-wise expiry warnings, and reorder quantities worked out from what really sells.' },
-            { title: 'Udhar & collections', body: 'Every rupee of credit with aging, WhatsApp reminders, and tonight’s profit in one tap.' },
+            { title: 'Stock & reorder alerts', body: 'Low-stock warnings, and reorder quantities worked out from what really sells.' },
+            { title: 'Udhar & collections', body: 'Every rupee of credit with aging, a daily list of who to chase, and tonight’s profit in one tap.' },
             { title: 'Suppliers & purchases', body: 'Purchase orders, goods receipt, and exactly what you still owe each supplier.' },
         ],
         metrics: {
-            avg: '8 sec average',
-            batch: (n, e) => `Batch #${n} • Exp ${e}`,
+            avg: 'Under 10 sec',
+            left: (name, n) => `${name} • ${n} left`,
             due: (a) => `${a} due`,
-            reminded: 'Auto-reminded',
+            reminded: 'Remind on WhatsApp',
             send: 'Send day-close summary',
             sent: 'Summary sent',
         },
         mock: {
             tabsLabel: 'Retail features',
             pay: ['Cash', 'UPI', 'Card'],
-            batch: 'Batch',
-            expiresIn: (d) => `Expires in ${d} days`,
+            left: (n) => `Only ${n} left`,
             days: (d) => `${d} days`,
             quote: 'Quotation',
             invoice: 'Invoice',
@@ -518,12 +517,12 @@ const en: LandingCopy = {
         bullets: [
             'Dealer-wise price tiers — Retailer A ₹95, B ₹92, C ₹90. Applied automatically.',
             'Bulk orders, none missed — WhatsApp, phone or counter into one list.',
-            'Dispatch to delivery, tracked — shipped? received? delayed? paid?',
-            'E-way bill & e-invoice — raised from the order screen as goods leave.',
-            'Outstanding by dealer — with credit limits enforced before the next order.',
+            'Dispatch to delivery, tracked — confirmed? shipped? delivered? paid?',
+            'E-way bill & e-invoice — ready from the order screen as goods leave.',
+            'Outstanding by dealer — every dealer’s dues in one list, with a credit limit set for each.',
             'Collect on the route — your rep records payment against the dealer on the spot.',
             'Know where your team went — visits logged, orders collected, commission calculated.',
-            'Warehouse that matches reality — stock, pick, pack, and what’s on the shelf.',
+            'Warehouse that matches reality — stock in, stock out, and what’s on the shelf.',
         ],
         cta: 'Start free — set up in 30 seconds',
         timelineLabel: 'Dispatch timeline',
@@ -543,7 +542,7 @@ const en: LandingCopy = {
             counter: 'Counter',
             generated: 'Generated',
             limit: 'Limit',
-            onHold: 'Over limit — next order on hold',
+            onHold: 'Over credit limit — check before the next order',
             collected: 'Collected on route',
             visits: 'Visits',
             orders: 'Orders',
@@ -560,8 +559,8 @@ const en: LandingCopy = {
             },
             {
                 title: 'Bulk orders & dispatch',
-                sub: 'Packing list and e-way bill in one go',
-                body: 'Orders from WhatsApp, phone or counter land in one list. The packing list, e-way bill and e-invoice are raised as the goods leave.',
+                sub: 'Order, e-way bill and e-invoice in one flow',
+                body: 'Orders from WhatsApp, phone or counter land in one list. The e-way bill and e-invoice are ready to upload as the goods leave.',
             },
             {
                 title: 'Route & collection',
@@ -571,23 +570,23 @@ const en: LandingCopy = {
             {
                 title: 'Outstanding credit matrix',
                 sub: 'Dealer-wise ledger and limits',
-                body: 'Outstanding by dealer, with credit limits enforced before the next order goes through.',
+                body: 'What every dealer owes, in one list — with a credit limit set for each dealer.',
             },
         ],
         pipe: {
             dealer: 'Dealer',
             applied: (tier, price) => `${tier}: ${price} applied automatically`,
             order: 'Order',
-            ewb: 'E-way bill generated',
-            driver: 'Driver assigned',
-            out: 'Out for delivery',
+            ewb: 'E-way bill ready',
+            confirmed: 'Confirmed',
+            dispatched: 'Dispatched',
             agent: (n) => `Agent ${n}`,
             visited: (n) => `${n} stores visited`,
             collected: (a) => `${a} collected today`,
             outstanding: 'Outstanding',
             available: 'Available',
             ok: 'Within limit',
-            hold: 'On hold',
+            hold: 'Over limit',
         },
     },
     features: {
@@ -596,11 +595,11 @@ const en: LandingCopy = {
         cards: [
             {
                 title: 'GST Billing (POS)',
-                body: 'Fast, correct, GST-ready invoices. Hold a cart, resume it, split the payment.',
+                body: 'Fast, correct, GST-ready invoices — cash, UPI, card, or split across all three.',
             },
             {
                 title: 'Smart Inventory',
-                body: 'Low stock, expiry, fast and slow movers — you find out before it costs you.',
+                body: 'Low stock, fast and slow movers — you find out before it costs you.',
             },
             {
                 title: 'Udhar & Credit',
@@ -615,8 +614,8 @@ const en: LandingCopy = {
                 body: 'Today’s sales, real profit, best and worst products, top customers.',
             },
             {
-                title: 'Staff who see only their work',
-                body: 'Owner, manager, cashier, warehouse, sales staff — separate logins, separate views.',
+                title: 'Separate staff logins',
+                body: 'Owner, manager, cashier, warehouse, sales staff — each with their own login.',
             },
         ],
         ui: {
@@ -682,7 +681,7 @@ const en: LandingCopy = {
         title: 'Running by this evening',
         steps: [
             ['Sign up with your mobile', 'An OTP, thirty seconds, no paperwork, no card.'],
-            ['Add your products', 'Type them in or import the list you already have.'],
+            ['Add your products', 'Type them in on your phone, or scan their barcodes.'],
             ['Start billing', 'Proper GST invoices from your very first sale.'],
         ],
     },
@@ -718,7 +717,7 @@ const en: LandingCopy = {
         cats: ['All questions', 'Hardware & offline', 'Tax & staff access', 'Data & onboarding'],
         proof: {
             devices: 'Android phone & tablet · No laptop needed',
-            export: 'GSTR-ready reports · 1-click Tally export',
+            export: 'GSTR-1 & GSTR-3B · CSV download',
             offline: 'Opens without signal · Offline billing coming soon',
         },
         qa: [
@@ -732,13 +731,16 @@ const en: LandingCopy = {
             ],
             [
                 'Will my CA get what he needs?',
-                'Yes. GSTR-ready reports plus a Tally export, so he keeps working the way he already does.',
+                'Yes. GSTR-1 and GSTR-3B reports download as CSV files he can open in Excel, so he keeps working the way he already does.',
             ],
             [
-                'Can my staff see my profit?',
-                'Only if you allow it. A cashier sees billing and today’s sales — nothing about margins, expenses or reports.',
+                'Can my staff have their own login?',
+                'Yes. Add cashiers, managers, warehouse and sales staff, each with their own mobile number — nobody needs your password.',
             ],
-            ['Can I move my existing product list in?', 'Yes, import it. You don’t retype your catalogue.'],
+            [
+                'How do I add my products?',
+                'Type them in on your phone — name, price, GST rate and stock — and scan the barcode instead of typing it. Importing a whole list from a file isn’t available yet.',
+            ],
             [
                 'What happens if I stop paying?',
                 'Your data stays yours and you can export it. You’re never locked out of your own records.',
@@ -799,13 +801,13 @@ const hi: LandingCopy = {
     meta: {
         title: 'Whoply — दुकानदारों और थोक विक्रेताओं के लिए GST बिलिंग, स्टॉक और उधार ऐप',
         description:
-            'GST बिलिंग, स्टॉक, उधार और ऑर्डर — सब एक ऐप में। E-invoice, e-way bill और Tally export शामिल। पूरा ऐप हिंदी में। मुफ़्त शुरू करें।',
+            'GST बिलिंग, स्टॉक, उधार और ऑर्डर — सब एक ऐप में। GST रिपोर्ट, e-invoice और e-way bill शामिल। पूरा ऐप हिंदी में। मुफ़्त शुरू करें।',
         ogTitle: 'पूरा व्यापार एक ही ऐप से चलाएँ — Whoply',
         ogDescription:
             'भारतीय दुकानदारों और थोक विक्रेताओं के लिए GST बिलिंग, स्टॉक, उधार, डीलर और डिस्पैच। E-invoice और e-way bill तैयार। मुफ़्त शुरुआत।',
     },
     nav: {
-        announcement: 'E-invoice, e-way bill और Tally export — पहले से मौजूद, बाद में जोड़े गए नहीं।',
+        announcement: 'GST रिपोर्ट, e-invoice और e-way bill — पहले से मौजूद, बाद में जोड़े गए नहीं।',
         links: [
             { href: '#compliance', label: 'GST और कम्प्लायंस' },
             { href: '#shopkeepers', label: 'दुकानदारों के लिए' },
@@ -839,10 +841,10 @@ const hi: LandingCopy = {
             h1: 'हर ऑर्डर, हर डिस्पैच,',
             h1Accent: 'हर बकाया रुपया।',
             sub: 'डीलर-वार कीमत, बल्क ऑर्डर, e-way bill और डिलीवरी ट्रैकिंग। जानें क्या भेजा गया, क्या पहुँचा, और किस पर कितना बाकी है।',
-            trust: ['E-way bill और e-invoice', 'Tally में एक्सपोर्ट', 'पूरा ऐप हिंदी में'],
+            trust: ['E-way bill और e-invoice', 'CA के लिए GST रिपोर्ट', 'पूरा ऐप हिंदी में'],
         },
         ctaPrimary: 'मुफ़्त शुरू करें — कार्ड की ज़रूरत नहीं',
-        ctaSecondary: 'डेमो देखें',
+        ctaSecondary: 'देखें कैसे काम करता है',
         mock: {
             today: 'आज',
             live: 'लाइव',
@@ -868,7 +870,7 @@ const hi: LandingCopy = {
             retailBusiness: 'शर्मा जनरल स्टोर',
             wholesaleBusiness: 'गुप्ता डिस्ट्रीब्यूटर्स',
             alert: 'स्टॉक कम',
-            reminder: 'रिमाइंडर भेजा',
+            reminder: 'रिमाइंडर तैयार',
             bill: {
                 total: 'कुल',
                 sent: 'बिल WhatsApp पर भेजा गया',
@@ -890,10 +892,10 @@ const hi: LandingCopy = {
         items: [
             'GST और E-Invoice तैयार',
             'E-Way Bill शामिल',
-            'Tally में एक्सपोर्ट',
+            'GST रिपोर्ट CSV में',
             'हिंदी + ગુજરાતી + English',
             'कोई भी फ़ोन — कंप्यूटर की ज़रूरत नहीं',
-            'बैच और एक्सपायरी ट्रैकिंग',
+            'कम स्टॉक अलर्ट',
             'डीलर-वार मूल्य सूची',
         ],
     },
@@ -906,8 +908,8 @@ const hi: LandingCopy = {
                 body: 'डायरी में लिखा एक नाम, छह महीने पुराना। Whoply हर ग्राहक का हिसाब पुराने बकाया के साथ रखता है, और रोज़ सुबह वसूली की लिस्ट देता है।',
             },
             {
-                title: 'वो स्टॉक जो एक्सपायर हो गया',
-                body: 'पीछे रखे डिब्बे, तारीख निकल गई, सीधा नुकसान। Whoply बैच ट्रैक करता है और एक्सपायरी से पहले चेतावनी देता है।',
+                title: 'वो स्टॉक जो खत्म हो गया',
+                body: 'माल खत्म हुआ, पता तब चला जब ग्राहक ने माँगा। Whoply कम स्टॉक पहले ही बताता है, और कितना मँगाना है वह भी।',
             },
             {
                 title: 'वो बिल जो ग़लत बना',
@@ -929,15 +931,15 @@ const hi: LandingCopy = {
                     topic: 'उधार',
                     paper: 'डायरी में छह महीने पुराना एक नाम। कोई याद नहीं दिलाता।',
                     paperTag: 'भूला हुआ',
-                    app: 'हर ग्राहक का खाता, पुराने बकाये के साथ। सुबह 10 बजे WhatsApp पर रिमाइंडर।',
-                    appTag: 'अपने आप रिमाइंडर',
+                    app: 'हर ग्राहक का खाता, पुराने बकाये के साथ। सुबह 10 बजे वसूली की लिस्ट — एक टैप में WhatsApp पर रिमाइंडर।',
+                    appTag: 'रोज़ वसूली लिस्ट',
                 },
                 {
-                    topic: 'एक्सपायरी',
-                    paper: 'पीछे रखे कार्टन, तारीख निकल गई — सीधा नुकसान।',
-                    paperTag: 'एक्सपायर',
-                    app: 'बैच-वार ट्रैकिंग, तारीख से पहले चेतावनी।',
-                    appTag: '7 दिन पहले अलर्ट',
+                    topic: 'स्टॉक',
+                    paper: 'माल खत्म होने का पता तब चलता है जब ग्राहक माँगता है।',
+                    paperTag: 'खत्म',
+                    app: 'कम स्टॉक अलर्ट, और बिक्री की रफ़्तार से कितना मँगाना है।',
+                    appTag: 'कम स्टॉक अलर्ट',
                 },
                 {
                     topic: 'बिलिंग',
@@ -954,9 +956,9 @@ const hi: LandingCopy = {
                     appTag: 'आज रात ही',
                 },
             ],
-            live: ['+ ₹500 वसूल', 'अलर्ट भेजा · 7 दिन बाकी', 'बिल WhatsApp पर भेजा', 'आज का मुनाफ़ा ₹6,420'],
+            live: ['+ ₹500 वसूल', 'कम स्टॉक · 24 मँगाएँ', 'बिल WhatsApp पर भेजा', 'आज का मुनाफ़ा ₹6,420'],
             liveLabel: 'लाइव',
-            autoSent: 'WhatsApp अपने आप भेजा',
+            listReady: 'उधार लिस्ट तैयार',
             flow: 'अब वही दुकान, Whoply पर',
             paperNote: 'मिला??',
         },
@@ -967,31 +969,31 @@ const hi: LandingCopy = {
         sub: 'जो कम्प्लायंस का काम आपकी शामें खा जाता है, वह उसी स्क्रीन पर हो जाता है जहाँ से आप बिल बनाते हैं।',
         cards: [
             {
-                title: 'E-Invoice (IRN)',
-                body: 'किसी भी बिल या बल्क ऑर्डर का IRN, सीधे इनवॉइस स्क्रीन से बनाएँ।',
+                title: 'E-Invoice',
+                body: 'किसी भी बिल या बल्क ऑर्डर का e-invoice इनवॉइस स्क्रीन से तैयार करें — IRP पर अपलोड के लिए, दोबारा टाइप नहीं।',
             },
             {
                 title: 'E-Way Bill',
-                body: 'माल गोदाम से निकलते ही बनाएँ — अलग पोर्टल नहीं, दोबारा टाइप नहीं।',
+                body: 'ऑर्डर से अपने आप भरा हुआ, माल गोदाम से निकलते ही अपलोड के लिए तैयार — दोबारा टाइप नहीं।',
             },
             {
                 title: 'GSTR-तैयार रिपोर्ट',
                 body: 'बिक्री, खरीद और टैक्स का ब्यौरा — ठीक उसी तरह जैसा आपकी रिटर्न को चाहिए।',
             },
             {
-                title: 'Tally एक्सपोर्ट',
-                body: 'आपके CA के पास Tally रहे। आपके पास फ़ोन। एक एक्सपोर्ट से दोनों खुश।',
+                title: 'CA के लिए एक्सपोर्ट',
+                body: 'GSTR रिपोर्ट CSV फ़ाइल में डाउनलोड होती हैं, जिन्हें आपके CA Excel में खोल सकते हैं। आपके पास फ़ोन ही काफ़ी।',
             },
         ],
         quote: '“आपके CA को उनकी फ़ाइल मिल जाती है। आपको लैपटॉप खोलना ही नहीं पड़ता।”',
         pipe: {
-            irn: 'IRN बन गया',
-            cleared: 'अपने आप क्लियर',
+            irn: 'E-invoice तैयार',
+            cleared: 'अपलोड के लिए तैयार',
             vehicle: 'गाड़ी',
             taxable: 'कर योग्य राशि',
-            exportBtn: '1-क्लिक Tally export',
-            exporting: 'भेजा जा रहा है…',
-            sent: 'CA को भेजा',
+            exportBtn: 'GST CSV डाउनलोड',
+            exporting: 'तैयार हो रहा है…',
+            sent: 'CA के लिए तैयार',
         },
     },
     shopkeepers: {
@@ -1000,7 +1002,7 @@ const hi: LandingCopy = {
         sub: 'ग्राहक के अंदर आने से लेकर रात को कैश गिनने तक — सब कुछ।',
         bullets: [
             'सेकंडों में GST बिल — कैश, UPI, कार्ड, या एक ही बिल में तीनों का बँटवारा।',
-            'एक्सपायर स्टॉक अब बर्बाद नहीं — बैच-वार एक्सपायरी ट्रैकिंग, तारीख से पहले अलर्ट।',
+            'क्या खत्म होने वाला है, पता रहे — शेल्फ़ खाली होने से पहले कम स्टॉक अलर्ट।',
             'हर रुपये का उधार, पुराने पहले — रोज़ सुबह 10 बजे वसूली की लिस्ट तैयार।',
             'खत्म होने से पहले ऑर्डर करें — कौन सा माल कितनी तेज़ी से बिकता है, उसी से मात्रा तय।',
             'आज का मुनाफ़ा आज जानें — एक टैप में day-close, महीने के अंत का इंतज़ार नहीं।',
@@ -1011,7 +1013,7 @@ const hi: LandingCopy = {
         cta: 'मुफ़्त शुरू करें — 30 सेकंड में सेटअप',
         stats: [
             ['बिल का समय', '10 सेकंड से कम'],
-            ['एक्सपायरी अलर्ट', 'बैच-वार'],
+            ['कम स्टॉक अलर्ट', 'खत्म होने से पहले'],
             ['उधार', 'पुराने पहले'],
             ['Day close', 'एक टैप'],
         ],
@@ -1027,23 +1029,22 @@ const hi: LandingCopy = {
         },
         groups: [
             { title: 'GST बिलिंग', body: 'GST के साथ सेकंडों में बिल, कोटेशन से इनवॉइस, और रिटर्न का सही हिसाब।' },
-            { title: 'स्टॉक और एक्सपायरी अलर्ट', body: 'बैच-वार एक्सपायरी चेतावनी, और असली बिक्री से तय होने वाली रीऑर्डर मात्रा।' },
-            { title: 'उधार और वसूली', body: 'हर रुपये का उधार पुराने बकाये के साथ, WhatsApp रिमाइंडर, और एक टैप में आज का मुनाफ़ा।' },
+            { title: 'स्टॉक और रीऑर्डर अलर्ट', body: 'कम स्टॉक की चेतावनी, और असली बिक्री से तय होने वाली रीऑर्डर मात्रा।' },
+            { title: 'उधार और वसूली', body: 'हर रुपये का उधार पुराने बकाये के साथ, रोज़ की वसूली लिस्ट, और एक टैप में आज का मुनाफ़ा।' },
             { title: 'सप्लायर और खरीद', body: 'खरीद ऑर्डर, माल की रसीद, और हर सप्लायर का कितना बाकी है।' },
         ],
         metrics: {
-            avg: 'औसत 8 सेकंड',
-            batch: (n, e) => `बैच #${n} • एक्सपायरी ${e}`,
+            avg: '10 सेकंड से कम',
+            left: (name, n) => `${name} • ${n} बाकी`,
             due: (a) => `${a} बाकी`,
-            reminded: 'अपने आप रिमाइंडर',
+            reminded: 'WhatsApp पर याद दिलाएँ',
             send: 'डे-क्लोज़ सारांश भेजें',
             sent: 'सारांश भेजा गया',
         },
         mock: {
             tabsLabel: 'रिटेल फ़ीचर',
             pay: ['नकद', 'UPI', 'कार्ड'],
-            batch: 'बैच',
-            expiresIn: (d) => `${d} दिन में एक्सपायर`,
+            left: (n) => `सिर्फ़ ${n} बचे`,
             days: (d) => `${d} दिन`,
             quote: 'कोटेशन',
             invoice: 'इनवॉइस',
@@ -1064,12 +1065,12 @@ const hi: LandingCopy = {
         bullets: [
             'डीलर-वार कीमत — रिटेलर A ₹95, B ₹92, C ₹90। हर बार अपने आप लागू।',
             'बल्क ऑर्डर, एक भी न छूटे — WhatsApp, फ़ोन या काउंटर, सब एक लिस्ट में।',
-            'डिस्पैच से डिलीवरी तक ट्रैकिंग — भेजा? पहुँचा? देरी? भुगतान हुआ?',
+            'डिस्पैच से डिलीवरी तक ट्रैकिंग — कन्फ़र्म? भेजा? पहुँचा? भुगतान हुआ?',
             'e-way bill और e-invoice — माल निकलते ही ऑर्डर स्क्रीन से।',
-            'डीलर-वार बकाया — अगले ऑर्डर से पहले क्रेडिट लिमिट लागू।',
+            'डीलर-वार बकाया — हर डीलर का बकाया एक लिस्ट में, और हर डीलर के लिए क्रेडिट लिमिट।',
             'रूट पर ही वसूली — आपका रेप मौके पर डीलर के नाम भुगतान दर्ज करे।',
             'टीम कहाँ गई, पता रहे — विज़िट दर्ज, ऑर्डर लिए गए, कमीशन की गिनती।',
-            'गोदाम जो हकीकत से मेल खाए — स्टॉक, पिक, पैक, और शेल्फ़ पर क्या है।',
+            'गोदाम जो हकीकत से मेल खाए — माल आया, माल गया, और शेल्फ़ पर क्या है।',
         ],
         cta: 'मुफ़्त शुरू करें — 30 सेकंड में सेटअप',
         timelineLabel: 'डिस्पैच टाइमलाइन',
@@ -1089,7 +1090,7 @@ const hi: LandingCopy = {
             counter: 'काउंटर',
             generated: 'बन गया',
             limit: 'लिमिट',
-            onHold: 'लिमिट पार — अगला ऑर्डर रुका',
+            onHold: 'क्रेडिट लिमिट पार — अगले ऑर्डर से पहले देखें',
             collected: 'रूट पर वसूली',
             visits: 'विज़िट',
             orders: 'ऑर्डर',
@@ -1106,8 +1107,8 @@ const hi: LandingCopy = {
             },
             {
                 title: 'बल्क ऑर्डर और डिस्पैच',
-                sub: 'पैकिंग लिस्ट और e-way bill एक साथ',
-                body: 'WhatsApp, फ़ोन या काउंटर के ऑर्डर एक लिस्ट में। माल निकलते ही पैकिंग लिस्ट, e-way bill और e-invoice तैयार।',
+                sub: 'ऑर्डर, e-way bill और e-invoice एक साथ',
+                body: 'WhatsApp, फ़ोन या काउंटर के ऑर्डर एक लिस्ट में। माल निकलते ही e-way bill और e-invoice अपलोड के लिए तैयार।',
             },
             {
                 title: 'रूट और वसूली',
@@ -1117,23 +1118,23 @@ const hi: LandingCopy = {
             {
                 title: 'बकाया क्रेडिट मैट्रिक्स',
                 sub: 'डीलर-वार खाता और लिमिट',
-                body: 'डीलर-वार बकाया, और अगले ऑर्डर से पहले क्रेडिट लिमिट लागू।',
+                body: 'हर डीलर पर कितना बकाया, एक लिस्ट में — और हर डीलर के लिए क्रेडिट लिमिट।',
             },
         ],
         pipe: {
             dealer: 'डीलर',
             applied: (tier, price) => `${tier}: ${price} अपने आप लागू`,
             order: 'ऑर्डर',
-            ewb: 'e-way bill बना',
-            driver: 'ड्राइवर तय',
-            out: 'डिलीवरी के लिए निकला',
+            ewb: 'e-way bill तैयार',
+            confirmed: 'कन्फ़र्म',
+            dispatched: 'डिस्पैच हुआ',
             agent: (n) => `एजेंट ${n}`,
             visited: (n) => `${n} दुकानों पर विज़िट`,
             collected: (a) => `आज ${a} वसूल`,
             outstanding: 'बकाया',
             available: 'उपलब्ध',
             ok: 'लिमिट में',
-            hold: 'रुका हुआ',
+            hold: 'लिमिट पार',
         },
     },
     features: {
@@ -1142,11 +1143,11 @@ const hi: LandingCopy = {
         cards: [
             {
                 title: 'GST बिलिंग (POS)',
-                body: 'तेज़ और सही GST बिल। कार्ट रोकें, फिर से शुरू करें, भुगतान बाँटें।',
+                body: 'तेज़ और सही GST बिल — कैश, UPI, कार्ड, या तीनों में बँटवारा।',
             },
             {
                 title: 'स्मार्ट स्टॉक',
-                body: 'कम स्टॉक, एक्सपायरी, तेज़ और धीमा बिकने वाला माल — नुकसान से पहले पता चले।',
+                body: 'कम स्टॉक, तेज़ और धीमा बिकने वाला माल — नुकसान से पहले पता चले।',
             },
             {
                 title: 'उधार और क्रेडिट',
@@ -1161,8 +1162,8 @@ const hi: LandingCopy = {
                 body: 'आज की बिक्री, असली मुनाफ़ा, सबसे अच्छा और सबसे खराब माल, टॉप ग्राहक।',
             },
             {
-                title: 'स्टाफ़ को सिर्फ़ अपना काम दिखे',
-                body: 'मालिक, मैनेजर, कैशियर, गोदाम, सेल्स स्टाफ़ — अलग लॉगिन, अलग नज़र।',
+                title: 'हर स्टाफ़ का अलग लॉगिन',
+                body: 'मालिक, मैनेजर, कैशियर, गोदाम, सेल्स स्टाफ़ — हर किसी का अपना लॉगिन।',
             },
         ],
         ui: {
@@ -1228,7 +1229,7 @@ const hi: LandingCopy = {
         title: 'आज शाम तक चालू',
         steps: [
             ['मोबाइल से साइन अप', 'एक OTP, तीस सेकंड, न कागज़ी काम, न कार्ड।'],
-            ['अपना माल जोड़ें', 'टाइप करें या पहले से बनी लिस्ट इम्पोर्ट करें।'],
+            ['अपना माल जोड़ें', 'फ़ोन पर टाइप करें, या बारकोड स्कैन करें।'],
             ['बिलिंग शुरू', 'पहली ही बिक्री से पूरे GST बिल।'],
         ],
     },
@@ -1264,7 +1265,7 @@ const hi: LandingCopy = {
         cats: ['सभी सवाल', 'हार्डवेयर और ऑफ़लाइन', 'टैक्स और स्टाफ़ एक्सेस', 'डेटा और शुरुआत'],
         proof: {
             devices: 'Android फ़ोन और टैबलेट · लैपटॉप ज़रूरी नहीं',
-            export: 'GSTR-रेडी रिपोर्ट · 1-क्लिक Tally export',
+            export: 'GSTR-1 और GSTR-3B · CSV डाउनलोड',
             offline: 'बिना सिग्नल खुलता है · ऑफ़लाइन बिलिंग जल्द',
         },
         qa: [
@@ -1278,13 +1279,16 @@ const hi: LandingCopy = {
             ],
             [
                 'क्या मेरे CA को वह मिलेगा जो चाहिए?',
-                'हाँ। GSTR-तैयार रिपोर्ट और Tally एक्सपोर्ट, ताकि वे अपने तरीके से ही काम करते रहें।',
+                'हाँ। GSTR-1 और GSTR-3B रिपोर्ट CSV फ़ाइल में डाउनलोड होती हैं, जिन्हें वे Excel में खोल सकते हैं — ताकि वे अपने तरीके से ही काम करते रहें।',
             ],
             [
-                'क्या मेरा स्टाफ़ मुनाफ़ा देख सकता है?',
-                'सिर्फ़ तब जब आप इजाज़त दें। कैशियर को बिलिंग और आज की बिक्री दिखती है — मार्जिन, खर्च या रिपोर्ट नहीं।',
+                'क्या स्टाफ़ का अलग लॉगिन हो सकता है?',
+                'हाँ। कैशियर, मैनेजर, गोदाम और सेल्स स्टाफ़ को उनके अपने मोबाइल नंबर से जोड़ें — किसी को आपका पासवर्ड नहीं चाहिए।',
             ],
-            ['क्या पुरानी प्रोडक्ट लिस्ट लाई जा सकती है?', 'हाँ, इम्पोर्ट कर लें। दोबारा टाइप करने की ज़रूरत नहीं।'],
+            [
+                'अपना माल कैसे जोड़ूँ?',
+                'फ़ोन पर ही टाइप करें — नाम, कीमत, GST दर और स्टॉक — और बारकोड टाइप करने की जगह स्कैन करें। फ़ाइल से पूरी लिस्ट इम्पोर्ट करना अभी उपलब्ध नहीं है।',
+            ],
             [
                 'अगर मैंने पैसे देना बंद कर दिया तो?',
                 'आपका डेटा आपका ही रहता है और आप उसे एक्सपोर्ट कर सकते हैं। अपने ही रिकॉर्ड से बाहर कभी नहीं होंगे।',
@@ -1345,13 +1349,13 @@ const gu: LandingCopy = {
     meta: {
         title: 'Whoply — દુકાનદારો અને જથ્થાબંધ વેપારીઓ માટે GST બિલિંગ, સ્ટોક અને ઉધાર એપ',
         description:
-            'GST બિલિંગ, સ્ટોક, ઉધાર અને ઓર્ડર — બધું એક જ એપમાં. E-invoice, e-way bill અને Tally export સામેલ. આખી એપ ગુજરાતીમાં. મફત શરૂ કરો.',
+            'GST બિલિંગ, સ્ટોક, ઉધાર અને ઓર્ડર — બધું એક જ એપમાં. GST રિપોર્ટ, e-invoice અને e-way bill સામેલ. આખી એપ ગુજરાતીમાં. મફત શરૂ કરો.',
         ogTitle: 'આખો ધંધો એક જ એપથી ચલાવો — Whoply',
         ogDescription:
             'ભારતના દુકાનદારો અને જથ્થાબંધ વેપારીઓ માટે GST બિલિંગ, સ્ટોક, ઉધાર, ડીલર અને ડિસ્પેચ. E-invoice અને e-way bill તૈયાર. મફત શરૂઆત.',
     },
     nav: {
-        announcement: 'E-invoice, e-way bill અને Tally export — પહેલેથી જ સામેલ, પછીથી ઉમેરેલા નહીં.',
+        announcement: 'GST રિપોર્ટ, e-invoice અને e-way bill — પહેલેથી જ સામેલ, પછીથી ઉમેરેલા નહીં.',
         links: [
             { href: '#compliance', label: 'GST અને કમ્પ્લાયન્સ' },
             { href: '#shopkeepers', label: 'દુકાનદારો માટે' },
@@ -1385,10 +1389,10 @@ const gu: LandingCopy = {
             h1: 'દરેક ઓર્ડર, દરેક ડિસ્પેચ,',
             h1Accent: 'દરેક બાકી રૂપિયો.',
             sub: 'ડીલર પ્રમાણે ભાવ, જથ્થાબંધ ઓર્ડર, e-way bill અને ડિલિવરી ટ્રેકિંગ. જાણો શું મોકલાયું, શું પહોંચ્યું, અને કોના પર કેટલું બાકી છે.',
-            trust: ['E-way bill અને e-invoice', 'Tally માં એક્સપોર્ટ', 'આખી એપ ગુજરાતીમાં'],
+            trust: ['E-way bill અને e-invoice', 'CA માટે GST રિપોર્ટ', 'આખી એપ ગુજરાતીમાં'],
         },
         ctaPrimary: 'મફત શરૂ કરો — કાર્ડની જરૂર નથી',
-        ctaSecondary: 'ડેમો જુઓ',
+        ctaSecondary: 'જુઓ કેવી રીતે ચાલે છે',
         mock: {
             today: 'આજે',
             live: 'લાઇવ',
@@ -1414,7 +1418,7 @@ const gu: LandingCopy = {
             retailBusiness: 'શર્મા જનરલ સ્ટોર',
             wholesaleBusiness: 'ગુપ્તા ડિસ્ટ્રિબ્યુટર્સ',
             alert: 'સ્ટોક ઓછો',
-            reminder: 'રિમાઇન્ડર મોકલ્યું',
+            reminder: 'રિમાઇન્ડર તૈયાર',
             bill: {
                 total: 'કુલ',
                 sent: 'બિલ WhatsApp પર મોકલ્યું',
@@ -1436,10 +1440,10 @@ const gu: LandingCopy = {
         items: [
             'GST અને E-Invoice તૈયાર',
             'E-Way Bill સામેલ',
-            'Tally માં એક્સપોર્ટ',
+            'GST રિપોર્ટ CSVમાં',
             'ગુજરાતી + हिंदी + English',
             'કોઈ પણ ફોન — કમ્પ્યુટરની જરૂર નથી',
-            'બેચ અને એક્સપાયરી ટ્રેકિંગ',
+            'ઓછા સ્ટોકની ચેતવણી',
             'ડીલર પ્રમાણે ભાવ યાદી',
         ],
     },
@@ -1452,8 +1456,8 @@ const gu: LandingCopy = {
                 body: 'ડાયરીમાં લખેલું એક નામ, છ મહિના જૂનું. Whoply દરેક ગ્રાહકનું ખાતું જૂના બાકી સાથે રાખે છે, અને રોજ સવારે વસૂલાતની યાદી આપે છે.',
             },
             {
-                title: 'એ સ્ટોક જે એક્સપાયર થઈ ગયો',
-                body: 'પાછળ પડેલા ખોખાં, તારીખ વીતી ગઈ, સીધું નુકસાન. Whoply બેચ ટ્રેક કરે છે અને એક્સપાયરી પહેલાં ચેતવે છે.',
+                title: 'એ સ્ટોક જે ખલાસ થઈ ગયો',
+                body: 'માલ ખલાસ થયો, ખબર ત્યારે પડી જ્યારે ગ્રાહકે માંગ્યો. Whoply ઓછો સ્ટોક પહેલેથી જ જણાવે છે, અને કેટલો મંગાવવો એ પણ.',
             },
             {
                 title: 'એ બિલ જે ખોટું બન્યું',
@@ -1475,15 +1479,15 @@ const gu: LandingCopy = {
                     topic: 'ઉધાર',
                     paper: 'ડાયરીમાં છ મહિના જૂનું એક નામ. કોઈ યાદ નથી કરાવતું.',
                     paperTag: 'ભૂલાયેલું',
-                    app: 'દરેક ગ્રાહકનું ખાતું, જૂના બાકી સાથે. સવારે 10 વાગ્યે WhatsApp પર રિમાઇન્ડર.',
-                    appTag: 'આપોઆપ રિમાઇન્ડર',
+                    app: 'દરેક ગ્રાહકનું ખાતું, જૂના બાકી સાથે. સવારે 10 વાગ્યે વસૂલાતની યાદી — એક ટૅપમાં WhatsApp પર રિમાઇન્ડર.',
+                    appTag: 'રોજની વસૂલાત યાદી',
                 },
                 {
-                    topic: 'એક્સપાયરી',
-                    paper: 'પાછળ પડેલાં ખોખાં, તારીખ વીતી ગઈ — સીધું નુકસાન.',
-                    paperTag: 'એક્સપાયર',
-                    app: 'બેચ પ્રમાણે ટ્રેકિંગ, તારીખ પહેલાં ચેતવણી.',
-                    appTag: '7 દિવસ પહેલાં એલર્ટ',
+                    topic: 'સ્ટોક',
+                    paper: 'માલ ખલાસ થયાની ખબર ત્યારે પડે જ્યારે ગ્રાહક માંગે.',
+                    paperTag: 'ખલાસ',
+                    app: 'ઓછા સ્ટોકની ચેતવણી, અને વેચાણની ઝડપ પરથી કેટલો મંગાવવો.',
+                    appTag: 'ઓછા સ્ટોકની ચેતવણી',
                 },
                 {
                     topic: 'બિલિંગ',
@@ -1500,9 +1504,9 @@ const gu: LandingCopy = {
                     appTag: 'આજે રાત્રે જ',
                 },
             ],
-            live: ['+ ₹500 વસૂલ', 'એલર્ટ મોકલ્યું · 7 દિવસ બાકી', 'બિલ WhatsApp પર મોકલ્યું', 'આજનો નફો ₹6,420'],
+            live: ['+ ₹500 વસૂલ', 'ઓછો સ્ટોક · 24 મંગાવો', 'બિલ WhatsApp પર મોકલ્યું', 'આજનો નફો ₹6,420'],
             liveLabel: 'લાઇવ',
-            autoSent: 'WhatsApp આપોઆપ મોકલ્યું',
+            listReady: 'ઉધાર યાદી તૈયાર',
             flow: 'હવે એ જ દુકાન, Whoply પર',
             paperNote: 'મળ્યા??',
         },
@@ -1513,31 +1517,31 @@ const gu: LandingCopy = {
         sub: 'કમ્પ્લાયન્સનું જે કામ તમારી સાંજ ખાઈ જાય છે, તે એ જ સ્ક્રીન પર થઈ જાય છે જ્યાંથી તમે બિલ બનાવો છો.',
         cards: [
             {
-                title: 'E-Invoice (IRN)',
-                body: 'કોઈ પણ બિલ કે જથ્થાબંધ ઓર્ડરનું IRN, સીધું ઇનવોઇસ સ્ક્રીનથી બનાવો.',
+                title: 'E-Invoice',
+                body: 'કોઈ પણ બિલ કે જથ્થાબંધ ઓર્ડરનું e-invoice ઇનવોઇસ સ્ક્રીનથી તૈયાર કરો — IRP પર અપલોડ માટે, ફરી ટાઇપ નહીં.',
             },
             {
                 title: 'E-Way Bill',
-                body: 'માલ ગોદામથી નીકળે કે તરત બનાવો — અલગ પોર્ટલ નહીં, ફરી ટાઇપ નહીં.',
+                body: 'ઓર્ડર પરથી આપોઆપ ભરાયેલું, માલ ગોદામથી નીકળે કે તરત અપલોડ માટે તૈયાર — ફરી ટાઇપ નહીં.',
             },
             {
                 title: 'GSTR-તૈયાર રિપોર્ટ',
                 body: 'વેચાણ, ખરીદી અને ટેક્સનો હિસાબ — બરાબર એ રીતે જે તમારા રિટર્નને જોઈએ.',
             },
             {
-                title: 'Tally એક્સપોર્ટ',
-                body: 'તમારા CA પાસે Tally રહે. તમારી પાસે ફોન. એક એક્સપોર્ટથી બંને ખુશ.',
+                title: 'CA માટે એક્સપોર્ટ',
+                body: 'GSTR રિપોર્ટ CSV ફાઇલમાં ડાઉનલોડ થાય છે, જે તમારા CA Excelમાં ખોલી શકે. તમારી પાસે ફોન જ પૂરતો.',
             },
         ],
         quote: '“તમારા CA ને એમની ફાઇલ મળી જાય છે. તમારે લેપટોપ ખોલવું જ પડતું નથી.”',
         pipe: {
-            irn: 'IRN બની ગયું',
-            cleared: 'આપોઆપ ક્લિયર',
+            irn: 'E-invoice તૈયાર',
+            cleared: 'અપલોડ માટે તૈયાર',
             vehicle: 'વાહન',
             taxable: 'કરપાત્ર રકમ',
-            exportBtn: '1-ક્લિક Tally export',
-            exporting: 'મોકલાય છે…',
-            sent: 'CAને મોકલ્યું',
+            exportBtn: 'GST CSV ડાઉનલોડ',
+            exporting: 'તૈયાર થાય છે…',
+            sent: 'CA માટે તૈયાર',
         },
     },
     shopkeepers: {
@@ -1546,7 +1550,7 @@ const gu: LandingCopy = {
         sub: 'ગ્રાહક અંદર આવે ત્યાંથી લઈને રાત્રે રોકડ ગણો ત્યાં સુધી — બધું જ.',
         bullets: [
             'સેકન્ડોમાં GST બિલ — રોકડ, UPI, કાર્ડ, કે એક જ બિલમાં ત્રણેયનું વિભાજન.',
-            'એક્સપાયર સ્ટોક હવે બગડે નહીં — બેચ પ્રમાણે એક્સપાયરી ટ્રેકિંગ, તારીખ પહેલાં ચેતવણી.',
+            'શું ખલાસ થવાનું છે, ખબર રહે — શેલ્ફ ખાલી થાય એ પહેલાં ઓછા સ્ટોકની ચેતવણી.',
             'દરેક રૂપિયાનું ઉધાર, જૂનું પહેલાં — રોજ સવારે 10 વાગ્યે વસૂલાતની યાદી તૈયાર.',
             'ખલાસ થાય એ પહેલાં ઓર્ડર કરો — કયો માલ કેટલી ઝડપે વેચાય છે એના પરથી જથ્થો નક્કી.',
             'આજનો નફો આજે જાણો — એક ટેપમાં day-close, મહિનાના અંતની રાહ નહીં.',
@@ -1557,7 +1561,7 @@ const gu: LandingCopy = {
         cta: 'મફત શરૂ કરો — 30 સેકન્ડમાં સેટઅપ',
         stats: [
             ['બિલનો સમય', '10 સેકન્ડથી ઓછો'],
-            ['એક્સપાયરી ચેતવણી', 'બેચ પ્રમાણે'],
+            ['ઓછા સ્ટોકની ચેતવણી', 'ખલાસ થાય એ પહેલાં'],
             ['ઉધાર', 'જૂનું પહેલાં'],
             ['Day close', 'એક ટેપ'],
         ],
@@ -1573,23 +1577,22 @@ const gu: LandingCopy = {
         },
         groups: [
             { title: 'GST બિલિંગ', body: 'GST સાથે સેકન્ડોમાં બિલ, ક્વોટેશનથી ઇન્વૉઇસ, અને રિટર્નનો સાચો હિસાબ.' },
-            { title: 'સ્ટોક અને એક્સપાયરી એલર્ટ', body: 'બેચ પ્રમાણે એક્સપાયરી ચેતવણી, અને સાચા વેચાણ પરથી નક્કી થતો રીઓર્ડર જથ્થો.' },
-            { title: 'ઉધાર અને વસૂલાત', body: 'દરેક રૂપિયાનું ઉધાર જૂના બાકી સાથે, WhatsApp રિમાઇન્ડર, અને એક ટૅપમાં આજનો નફો.' },
+            { title: 'સ્ટોક અને રીઓર્ડર એલર્ટ', body: 'ઓછા સ્ટોકની ચેતવણી, અને સાચા વેચાણ પરથી નક્કી થતો રીઓર્ડર જથ્થો.' },
+            { title: 'ઉધાર અને વસૂલાત', body: 'દરેક રૂપિયાનું ઉધાર જૂના બાકી સાથે, રોજની વસૂલાત યાદી, અને એક ટૅપમાં આજનો નફો.' },
             { title: 'સપ્લાયર અને ખરીદી', body: 'ખરીદ ઓર્ડર, માલની રસીદ, અને દરેક સપ્લાયરનું કેટલું બાકી છે.' },
         ],
         metrics: {
-            avg: 'સરેરાશ 8 સેકન્ડ',
-            batch: (n, e) => `બેચ #${n} • એક્સપાયરી ${e}`,
+            avg: '10 સેકન્ડથી ઓછો',
+            left: (name, n) => `${name} • ${n} બાકી`,
             due: (a) => `${a} બાકી`,
-            reminded: 'આપોઆપ રિમાઇન્ડર',
+            reminded: 'WhatsApp પર યાદ કરાવો',
             send: 'ડે-ક્લોઝ સારાંશ મોકલો',
             sent: 'સારાંશ મોકલાયો',
         },
         mock: {
             tabsLabel: 'રિટેલ ફીચર',
             pay: ['રોકડ', 'UPI', 'કાર્ડ'],
-            batch: 'બેચ',
-            expiresIn: (d) => `${d} દિવસમાં એક્સપાયર`,
+            left: (n) => `ફક્ત ${n} બાકી`,
             days: (d) => `${d} દિવસ`,
             quote: 'ક્વોટેશન',
             invoice: 'ઇન્વૉઇસ',
@@ -1610,12 +1613,12 @@ const gu: LandingCopy = {
         bullets: [
             'ડીલર પ્રમાણે ભાવ — રિટેલર A ₹95, B ₹92, C ₹90. દર વખતે આપોઆપ લાગુ.',
             'જથ્થાબંધ ઓર્ડર, એક પણ છૂટે નહીં — WhatsApp, ફોન કે કાઉન્ટર, બધું એક યાદીમાં.',
-            'ડિસ્પેચથી ડિલિવરી સુધી ટ્રેકિંગ — મોકલાયું? પહોંચ્યું? મોડું? ચુકવણી થઈ?',
+            'ડિસ્પેચથી ડિલિવરી સુધી ટ્રેકિંગ — કન્ફર્મ? મોકલાયું? પહોંચ્યું? ચુકવણી થઈ?',
             'e-way bill અને e-invoice — માલ નીકળે કે તરત ઓર્ડર સ્ક્રીનથી.',
-            'ડીલર પ્રમાણે બાકી — આગલા ઓર્ડર પહેલાં ક્રેડિટ લિમિટ લાગુ.',
+            'ડીલર પ્રમાણે બાકી — દરેક ડીલરનું બાકી એક યાદીમાં, અને દરેક ડીલર માટે ક્રેડિટ લિમિટ.',
             'રૂટ પર જ વસૂલાત — તમારો રેપ જગ્યા પર જ ડીલરના નામે ચુકવણી નોંધે.',
             'ટીમ ક્યાં ગઈ એની ખબર રહે — વિઝિટ નોંધાય, ઓર્ડર લેવાયા, કમિશનની ગણતરી.',
-            'ગોદામ જે હકીકત સાથે મળે — સ્ટોક, પિક, પેક, અને શેલ્ફ પર શું છે.',
+            'ગોદામ જે હકીકત સાથે મળે — માલ આવ્યો, માલ ગયો, અને શેલ્ફ પર શું છે.',
         ],
         cta: 'મફત શરૂ કરો — 30 સેકન્ડમાં સેટઅપ',
         timelineLabel: 'ડિસ્પેચ ટાઇમલાઇન',
@@ -1635,7 +1638,7 @@ const gu: LandingCopy = {
             counter: 'કાઉન્ટર',
             generated: 'બની ગયું',
             limit: 'લિમિટ',
-            onHold: 'લિમિટ પાર — આગલો ઓર્ડર અટક્યો',
+            onHold: 'ક્રેડિટ લિમિટ પાર — આગલા ઓર્ડર પહેલાં જુઓ',
             collected: 'રૂટ પર વસૂલાત',
             visits: 'વિઝિટ',
             orders: 'ઓર્ડર',
@@ -1652,8 +1655,8 @@ const gu: LandingCopy = {
             },
             {
                 title: 'જથ્થાબંધ ઓર્ડર અને ડિસ્પેચ',
-                sub: 'પેકિંગ લિસ્ટ અને e-way bill એકસાથે',
-                body: 'WhatsApp, ફોન કે કાઉન્ટરના ઓર્ડર એક યાદીમાં. માલ નીકળે કે તરત પેકિંગ લિસ્ટ, e-way bill અને e-invoice તૈયાર.',
+                sub: 'ઓર્ડર, e-way bill અને e-invoice એકસાથે',
+                body: 'WhatsApp, ફોન કે કાઉન્ટરના ઓર્ડર એક યાદીમાં. માલ નીકળે કે તરત e-way bill અને e-invoice અપલોડ માટે તૈયાર.',
             },
             {
                 title: 'રૂટ અને વસૂલાત',
@@ -1663,23 +1666,23 @@ const gu: LandingCopy = {
             {
                 title: 'બાકી ક્રેડિટ મેટ્રિક્સ',
                 sub: 'ડીલર પ્રમાણે ખાતું અને લિમિટ',
-                body: 'ડીલર પ્રમાણે બાકી, અને આગલા ઓર્ડર પહેલાં ક્રેડિટ લિમિટ લાગુ.',
+                body: 'દરેક ડીલર પર કેટલું બાકી, એક યાદીમાં — અને દરેક ડીલર માટે ક્રેડિટ લિમિટ.',
             },
         ],
         pipe: {
             dealer: 'ડીલર',
             applied: (tier, price) => `${tier}: ${price} આપોઆપ લાગુ`,
             order: 'ઓર્ડર',
-            ewb: 'e-way bill બન્યું',
-            driver: 'ડ્રાઇવર નક્કી',
-            out: 'ડિલિવરી માટે નીકળ્યો',
+            ewb: 'e-way bill તૈયાર',
+            confirmed: 'કન્ફર્મ',
+            dispatched: 'ડિસ્પેચ થયો',
             agent: (n) => `એજન્ટ ${n}`,
             visited: (n) => `${n} દુકાનોની વિઝિટ`,
             collected: (a) => `આજે ${a} વસૂલ`,
             outstanding: 'બાકી',
             available: 'ઉપલબ્ધ',
             ok: 'લિમિટમાં',
-            hold: 'અટકેલું',
+            hold: 'લિમિટ પાર',
         },
     },
     features: {
@@ -1688,11 +1691,11 @@ const gu: LandingCopy = {
         cards: [
             {
                 title: 'GST બિલિંગ (POS)',
-                body: 'ઝડપી અને સાચાં GST બિલ. કાર્ટ રોકો, ફરી શરૂ કરો, ચુકવણી વહેંચો.',
+                body: 'ઝડપી અને સાચાં GST બિલ — રોકડ, UPI, કાર્ડ, કે ત્રણેયમાં વિભાજન.',
             },
             {
                 title: 'સ્માર્ટ સ્ટોક',
-                body: 'ઓછો સ્ટોક, એક્સપાયરી, ઝડપી અને ધીમો વેચાતો માલ — નુકસાન પહેલાં ખબર પડે.',
+                body: 'ઓછો સ્ટોક, ઝડપી અને ધીમો વેચાતો માલ — નુકસાન પહેલાં ખબર પડે.',
             },
             {
                 title: 'ઉધાર અને ક્રેડિટ',
@@ -1707,8 +1710,8 @@ const gu: LandingCopy = {
                 body: 'આજનું વેચાણ, સાચો નફો, સૌથી સારો અને સૌથી ખરાબ માલ, ટોચના ગ્રાહકો.',
             },
             {
-                title: 'સ્ટાફને ફક્ત પોતાનું કામ દેખાય',
-                body: 'માલિક, મેનેજર, કેશિયર, ગોદામ, સેલ્સ સ્ટાફ — અલગ લોગિન, અલગ નજર.',
+                title: 'દરેક સ્ટાફનું અલગ લોગિન',
+                body: 'માલિક, મેનેજર, કેશિયર, ગોદામ, સેલ્સ સ્ટાફ — દરેકનું પોતાનું લોગિન.',
             },
         ],
         ui: {
@@ -1774,7 +1777,7 @@ const gu: LandingCopy = {
         title: 'આજે સાંજ સુધીમાં ચાલુ',
         steps: [
             ['મોબાઇલથી સાઇન અપ', 'એક OTP, ત્રીસ સેકન્ડ, ન કાગળિયાં, ન કાર્ડ.'],
-            ['તમારો માલ ઉમેરો', 'ટાઇપ કરો કે પહેલેથી બનેલી યાદી ઇમ્પોર્ટ કરો.'],
+            ['તમારો માલ ઉમેરો', 'ફોન પર ટાઇપ કરો, કે બારકોડ સ્કેન કરો.'],
             ['બિલિંગ શરૂ', 'પહેલા જ વેચાણથી પૂરાં GST બિલ.'],
         ],
     },
@@ -1810,7 +1813,7 @@ const gu: LandingCopy = {
         cats: ['બધા પ્રશ્નો', 'હાર્ડવેર અને ઑફલાઇન', 'ટેક્સ અને સ્ટાફ ઍક્સેસ', 'ડેટા અને શરૂઆત'],
         proof: {
             devices: 'Android ફોન અને ટેબ્લેટ · લેપટોપ જરૂરી નથી',
-            export: 'GSTR-રેડી રિપોર્ટ · 1-ક્લિક Tally export',
+            export: 'GSTR-1 અને GSTR-3B · CSV ડાઉનલોડ',
             offline: 'સિગ્નલ વગર ખૂલે છે · ઑફલાઇન બિલિંગ ટૂંક સમયમાં',
         },
         qa: [
@@ -1824,13 +1827,16 @@ const gu: LandingCopy = {
             ],
             [
                 'મારા CA ને જે જોઈએ તે મળશે?',
-                'હા. GSTR-તૈયાર રિપોર્ટ અને Tally એક્સપોર્ટ, જેથી તેઓ પોતાની રીતે જ કામ કરતા રહે.',
+                'હા. GSTR-1 અને GSTR-3B રિપોર્ટ CSV ફાઇલમાં ડાઉનલોડ થાય છે, જે તેઓ Excelમાં ખોલી શકે — જેથી તેઓ પોતાની રીતે જ કામ કરતા રહે.',
             ],
             [
-                'શું મારો સ્ટાફ નફો જોઈ શકે?',
-                'ફક્ત તમે પરવાનગી આપો તો. કેશિયરને બિલિંગ અને આજનું વેચાણ દેખાય છે — માર્જિન, ખર્ચ કે રિપોર્ટ નહીં.',
+                'શું સ્ટાફનું અલગ લોગિન થઈ શકે?',
+                'હા. કેશિયર, મેનેજર, ગોદામ અને સેલ્સ સ્ટાફને એમના પોતાના મોબાઇલ નંબરથી ઉમેરો — કોઈને તમારો પાસવર્ડ નથી જોઈતો.',
             ],
-            ['જૂની પ્રોડક્ટ યાદી લાવી શકાય?', 'હા, ઇમ્પોર્ટ કરી લો. ફરીથી ટાઇપ કરવાની જરૂર નથી.'],
+            [
+                'મારો માલ કેવી રીતે ઉમેરું?',
+                'ફોન પર જ ટાઇપ કરો — નામ, કિંમત, GST દર અને સ્ટોક — અને બારકોડ ટાઇપ કરવાને બદલે સ્કેન કરો. ફાઇલમાંથી આખી યાદી ઇમ્પોર્ટ કરવાનું હજુ ઉપલબ્ધ નથી.',
+            ],
             [
                 'જો હું પૈસા ભરવાનું બંધ કરું તો?',
                 'તમારો ડેટા તમારો જ રહે છે અને તમે એને એક્સપોર્ટ કરી શકો છો. તમારા પોતાના રેકોર્ડથી કદી બહાર નહીં થાઓ.',

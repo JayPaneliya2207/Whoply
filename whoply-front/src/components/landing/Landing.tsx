@@ -7,7 +7,7 @@ import { Faq } from '@/components/landing/Faq';
 import { Reveal, RevealWords } from '@/components/landing/Reveal';
 import { Backdrop, type BackdropVariant } from '@/components/landing/Backdrop';
 import { cn } from '@/lib/cn';
-import { getCopy, HREF_LANG, type Lang } from '@/i18n/landing';
+import { getCopy, type Lang } from '@/i18n/landing';
 import { appEntry } from '@/lib/links';
 import { StickyCta } from '@/components/landing/StickyCta';
 import { CounterKit } from '@/components/landing/CounterKit';
@@ -155,7 +155,7 @@ export async function Landing({ lang }: { lang: Lang }) {
 
 
     return (
-        <div lang={HREF_LANG[lang]}>
+        <div>
             <Nav lang={lang} />
             <main>
                 <Hero lang={lang} />

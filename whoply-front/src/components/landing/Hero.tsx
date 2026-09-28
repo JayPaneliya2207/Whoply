@@ -18,12 +18,14 @@ import {
     CheckCheck,
     Factory,
     FileCheck2,
+    FileSpreadsheet,
     Languages,
     ReceiptIndianRupee,
     ShieldCheck,
     Smartphone,
     Store,
     Wallet,
+    type LucideIcon,
 } from 'lucide-react';
 import { getCopy, type Lang } from '@/i18n/landing';
 import { MEDIA } from '@/lib/media';
@@ -31,7 +33,11 @@ import { appEntry, type Role } from '@/lib/links';
 import { cn } from '@/lib/cn';
 import { CountUp, Magnetic, useFinePointer } from './Motion';
 
-const TRUST_ICONS = [ShieldCheck, Languages, Smartphone];
+/* One icon per trust item, in the order of each role's `trust` list. */
+const TRUST_ICONS: Record<Role, LucideIcon[]> = {
+    retail: [ShieldCheck, Languages, Smartphone],
+    wholesale: [ShieldCheck, FileSpreadsheet, Languages],
+};
 
 /**
  * Word-by-word rise. Pure CSS (`.word-rise` in globals.css), so it plays from
@@ -182,7 +188,7 @@ export function Hero({ lang }: { lang: Lang }) {
                             className="fade-in mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted lg:justify-start"
                         >
                             {c.trust.map((label, i) => {
-                                const Icon = TRUST_ICONS[i];
+                                const Icon = TRUST_ICONS[role][i];
                                 return (
                                     <li key={label} className="flex items-center gap-1.5">
                                         <Icon size={15} className="text-navy" aria-hidden="true" />
@@ -252,7 +258,7 @@ const GLASS_DARK = 'border border-white/20 bg-navy/90 shadow-xl shadow-navy/25 b
 
 /**
  * The shopkeeper, standing in front of a navy dome, with the product floating
- * around him: money owed with its reminder out, the bill being built, a
+ * around him: money owed with its reminder ready, the bill being built, a
  * reorder alert, and the compliance document for the chosen role.
  */
 function HeroStage({
@@ -313,7 +319,7 @@ function HeroStage({
                 />
             </Layer>
 
-            {/* Money owed, reminder already out */}
+            {/* Money owed, reminder ready to send */}
             <Layer {...layer} depth={16} drift={-45} className="absolute top-[5%] -right-4 z-10 sm:top-[17%] sm:right-auto sm:-left-8">
                 <Floater delay={400} bob={-1200}>
                     <div className={cn('card', GLASS, 'w-[10.5rem] p-3 sm:w-[13.5rem] sm:p-3.5')}>

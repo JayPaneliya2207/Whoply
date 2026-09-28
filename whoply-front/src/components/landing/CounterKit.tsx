@@ -32,7 +32,7 @@ const ICONS: LucideIcon[] = [TabletSmartphone, Printer, ScanBarcode, QrCode];
 const ZOOM = [1.25, 1.55, 1.6, 1.5];
 
 /* Metric cards, in the order of `shopkeepers.stats`, and the device each one
-   is wired to: printer → bill time, scanner → batch expiry, UPI → udhar,
+   is wired to: printer → bill time, scanner → low stock, UPI → udhar,
    tablet → day close. */
 const CARD_DEVICE = [1, 2, 3, 0];
 const deviceCard = (d: number) => CARD_DEVICE.indexOf(d);
@@ -270,7 +270,7 @@ export function CounterKit({ lang }: { lang: Lang }) {
 function Metric({ k, lang, on }: { k: number; lang: Lang; on: boolean }) {
     const m = getCopy(lang).shopkeepers.metrics;
     if (k === 0) return <BillTimer label={m.avg} on={on} />;
-    if (k === 1) return <BatchTags make={m.batch} on={on} />;
+    if (k === 1) return <StockTags make={m.left} on={on} />;
     if (k === 2) return <DebtTag due={m.due('₹1,200')} reminded={m.reminded} on={on} />;
     return <DayClose send={m.send} sent={m.sent} on={on} />;
 }
@@ -312,18 +312,18 @@ function BillTimer({ label, on }: { label: string; on: boolean }) {
     );
 }
 
-/** Colour-coded batch tags, nearest expiry highlighted. */
-function BatchTags({ make, on }: { make: (n: number, exp: string) => string; on: boolean }) {
-    const tags: [number, string, string][] = [
-        [78, '10/26', 'border-warning/40 bg-warning-tint text-warning'],
-        [81, '03/27', 'border-success/40 bg-success-tint text-success'],
-        [64, '09/26', 'border-danger/40 bg-danger-tint text-danger'],
+/** Colour-coded stock tags, the item closest to running out highlighted. */
+function StockTags({ make, on }: { make: (name: string, n: number) => string; on: boolean }) {
+    const tags: [string, number, string][] = [
+        ['Parle-G', 6, 'border-warning/40 bg-warning-tint text-warning'],
+        ['Tata Salt', 18, 'border-success/40 bg-success-tint text-success'],
+        ['Colgate', 2, 'border-danger/40 bg-danger-tint text-danger'],
     ];
     return (
         <ul className="space-y-1.5">
-            {tags.map(([n, exp, tone], i) => (
+            {tags.map(([name, n, tone], i) => (
                 <motion.li
-                    key={n}
+                    key={name}
                     initial={{ opacity: 0, x: -8 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
@@ -334,14 +334,14 @@ function BatchTags({ make, on }: { make: (n: number, exp: string) => string; on:
                         on && i === 2 && 'animate-pulse'
                     )}
                 >
-                    {make(n, exp)}
+                    {make(name, n)}
                 </motion.li>
             ))}
         </ul>
     );
 }
 
-/** A ledger line with its reminder already out. */
+/** A ledger line with its one-tap WhatsApp reminder. */
 function DebtTag({ due, reminded, on }: { due: string; reminded: string; on: boolean }) {
     return (
         <div className="space-y-1.5">
@@ -360,7 +360,6 @@ function DebtTag({ due, reminded, on }: { due: string; reminded: string; on: boo
             >
                 <MessageCircle size={12} aria-hidden="true" />
                 {reminded}
-                <CheckCheck size={12} aria-hidden="true" />
             </motion.span>
         </div>
     );
