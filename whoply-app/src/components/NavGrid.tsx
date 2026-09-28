@@ -38,15 +38,17 @@ export function NavGrid() {
                             const tone = TONES[i++ % TONES.length];
                             return (
                                 <motion.div key={item.href} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                                    {/* Phones: icon above the label so the label gets the tile's full width
+                                        (side by side left it 40px — "Quotations" showed as "Quota"). */}
                                     <Link href={item.href}
-                                        className="group flex items-center gap-3 rounded-2xl p-3 transition-all active:scale-[0.98] hover:-translate-y-0.5"
+                                        className="group flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 rounded-2xl p-3 h-full transition-all active:scale-[0.98] hover:-translate-y-0.5"
                                         style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-sm)' }}>
                                         <div className="h-11 w-11 grid place-items-center rounded-xl shrink-0 transition-transform group-hover:scale-105"
                                             style={{ background: tone.bg, color: tone.fg }}>
                                             <Icon size={22} />
                                         </div>
-                                        <span className="text-sm font-semibold leading-tight line-clamp-2 flex-1 min-w-0" style={{ color: 'var(--text-primary)' }}>{t(item.key)}</span>
-                                        <ChevronRight size={16} className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-muted)' }} />
+                                        <span className="text-sm font-semibold leading-tight line-clamp-2 w-full sm:w-auto sm:flex-1 min-w-0" style={{ color: 'var(--text-primary)' }}>{t(item.key)}</span>
+                                        <ChevronRight size={16} className="hidden sm:block shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-muted)' }} />
                                     </Link>
                                 </motion.div>
                             );

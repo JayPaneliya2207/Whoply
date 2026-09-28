@@ -105,7 +105,8 @@ export default function DashboardPage() {
 
                 {/* Money to collect — collection progress */}
                 {money && <div className="wp-card p-5">
-                    <div className="flex items-start justify-between gap-3">
+                    {/* Wraps on phones: a 7-digit amount and the button don't fit on one line. */}
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('moneyToCollect')}</p>
                             <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: 'var(--warning)' }}>{inr(outstanding)}</p>
