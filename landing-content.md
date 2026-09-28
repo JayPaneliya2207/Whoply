@@ -359,12 +359,14 @@ Everything in this deck is backed by shipped code. Before adding a claim, check 
 
 ### ✅ Safe to claim — verified in code
 
-E-invoice (IRN) · e-way bill · GSTR reports · Tally export · GST POS billing with split payments ·
-batch & expiry (FEFO) · udhar ledger with aging · quotation→invoice · purchase orders with goods
-receipt · returns & credit notes · day-close report · reorder suggestions · dealer price tiers ·
-bulk orders · dispatch & delivery timeline · dealer collection · sales-rep visits & commission ·
-role-based access with per-role device limits · full Hindi UI · installable PWA · UPI QR per bill ·
-nightly 9 PM summary, 10 AM udhar list, Monday 9 AM payables.
+E-invoice and e-way bill JSON ready to upload to the portal · GSTR-1 / GSTR-3B reports as CSV ·
+GST POS billing with split payments (cash + UPI + card on one bill, rest on udhar) · MRP-style
+(GST-inclusive) prices · low-stock alerts · udhar ledger with aging · quotation→invoice · purchase
+orders with goods receipt · returns & credit notes · day-close report · reorder suggestions ·
+dealer price tiers · bulk orders · dispatch & delivery timeline · dealer collection by the rep ·
+separate staff logins · full Hindi & Gujarati UI · installable PWA · UPI QR per bill · barcode
+scanning (USB or camera) · 58mm / 80mm / A4 printing · nightly 9 PM summary, 10 AM udhar list,
+Monday 9 AM payables (in-app notifications).
 
 ### ❌ Do not claim — not true today
 
@@ -375,6 +377,13 @@ nightly 9 PM summary, 10 AM udhar list, Monday 9 AM payables.
 | "12,000+ shopkeepers · 4.2M invoices · 22 states" | Invented placeholders, hardcoded in the page **and** in `/api/public/stats`. | Use the §5 capability trust bar until real numbers exist. Fabricated traction is ASCI-actionable in India. |
 | "AI-powered forecasting" | `ai.service.ts` says it plainly: *"Not an LLM — a transparent heuristic."* | "Order before you run out — with the maths shown, not hidden." Stronger anyway. |
 | "Multi-shop" as a headline | Modelled but not proven end-to-end. | Keep it inside the Business plan feature list only. |
+| "Tally export" | Only an in-app account tally (billed = collected + outstanding). No Tally XML/import file. | "GSTR reports as CSV your CA can open in Excel." |
+| "IRN generated" / "no separate portal" | The app builds the e-invoice / e-way JSON; the IRN and EWB number come from the government portal after upload. | "E-invoice and e-way bill ready to upload — no re-typing." |
+| Expiry / batch alerts | The Batch model is never used and no expiry alert is created. | "Low-stock alerts". |
+| "Import your product list" | No import endpoint or file upload for products. | "Type them in or scan the barcode." |
+| Visit logging / route tracking / commission | No screen logs a visit; reps aren't assigned to dealers, so commission is 0. | "Each rep has their own login to take orders and record collections." |
+| "Your cashier never sees your profit" / device limits | Nav and API don't restrict by role; no device limits exist. | "Separate staff logins." |
+| Credit limits enforced / driver assigned / out for delivery | Credit limit is stored but never checked; orders have no driver field or that status. | "Outstanding by dealer"; statuses pending → confirmed → dispatched → delivered. |
 
 ### 🔌 Wire these up
 `GET /api/public/plans` (already used) · `GET /api/public/stats` and `GET /api/public/features`

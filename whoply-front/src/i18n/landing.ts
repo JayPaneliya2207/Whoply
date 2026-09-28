@@ -183,7 +183,8 @@ export interface LandingCopy {
             confirmed: string;
             dispatched: string;
             agent: (name: string) => string;
-            visited: (n: number) => string;
+            /** "2 payments recorded" — on the rep's badge. */
+            recorded: (n: number) => string;
             collected: (amount: string) => string;
             outstanding: string;
             available: string;
@@ -521,7 +522,7 @@ const en: LandingCopy = {
             'E-way bill & e-invoice — ready from the order screen as goods leave.',
             'Outstanding by dealer — every dealer’s dues in one list, with a credit limit set for each.',
             'Collect on the route — your rep records payment against the dealer on the spot.',
-            'Know where your team went — visits logged, orders collected, commission calculated.',
+            'Your team on one app — each rep gets their own login to take orders and record collections.',
             'Warehouse that matches reality — stock in, stock out, and what’s on the shelf.',
         ],
         cta: 'Start free — set up in 30 seconds',
@@ -564,8 +565,8 @@ const en: LandingCopy = {
             },
             {
                 title: 'Route & collection',
-                sub: 'Field agents, tracked',
-                body: 'Your agent logs every visit and records payment against the dealer on the spot. You see what came in before they’re back.',
+                sub: 'Reps record payments on the spot',
+                body: 'Your rep records payment against the dealer on the spot, from their own login. You see what came in before they’re back.',
             },
             {
                 title: 'Outstanding credit matrix',
@@ -581,7 +582,7 @@ const en: LandingCopy = {
             confirmed: 'Confirmed',
             dispatched: 'Dispatched',
             agent: (n) => `Agent ${n}`,
-            visited: (n) => `${n} stores visited`,
+            recorded: (n) => `${n} payments recorded`,
             collected: (a) => `${a} collected today`,
             outstanding: 'Outstanding',
             available: 'Available',
@@ -1069,7 +1070,7 @@ const hi: LandingCopy = {
             'e-way bill और e-invoice — माल निकलते ही ऑर्डर स्क्रीन से।',
             'डीलर-वार बकाया — हर डीलर का बकाया एक लिस्ट में, और हर डीलर के लिए क्रेडिट लिमिट।',
             'रूट पर ही वसूली — आपका रेप मौके पर डीलर के नाम भुगतान दर्ज करे।',
-            'टीम कहाँ गई, पता रहे — विज़िट दर्ज, ऑर्डर लिए गए, कमीशन की गिनती।',
+            'पूरी टीम एक ऐप पर — हर रेप का अपना लॉगिन, ऑर्डर लेने और वसूली दर्ज करने के लिए।',
             'गोदाम जो हकीकत से मेल खाए — माल आया, माल गया, और शेल्फ़ पर क्या है।',
         ],
         cta: 'मुफ़्त शुरू करें — 30 सेकंड में सेटअप',
@@ -1112,8 +1113,8 @@ const hi: LandingCopy = {
             },
             {
                 title: 'रूट और वसूली',
-                sub: 'फ़ील्ड एजेंट की पूरी ट्रैकिंग',
-                body: 'आपका एजेंट हर विज़िट दर्ज करता है और मौके पर डीलर के नाम भुगतान लिखता है। उसके लौटने से पहले आपको वसूली दिख जाती है।',
+                sub: 'रेप मौके पर भुगतान दर्ज करे',
+                body: 'आपका रेप अपने लॉगिन से मौके पर डीलर के नाम भुगतान दर्ज करता है। उसके लौटने से पहले आपको वसूली दिख जाती है।',
             },
             {
                 title: 'बकाया क्रेडिट मैट्रिक्स',
@@ -1129,7 +1130,7 @@ const hi: LandingCopy = {
             confirmed: 'कन्फ़र्म',
             dispatched: 'डिस्पैच हुआ',
             agent: (n) => `एजेंट ${n}`,
-            visited: (n) => `${n} दुकानों पर विज़िट`,
+            recorded: (n) => `${n} भुगतान दर्ज`,
             collected: (a) => `आज ${a} वसूल`,
             outstanding: 'बकाया',
             available: 'उपलब्ध',
@@ -1617,7 +1618,7 @@ const gu: LandingCopy = {
             'e-way bill અને e-invoice — માલ નીકળે કે તરત ઓર્ડર સ્ક્રીનથી.',
             'ડીલર પ્રમાણે બાકી — દરેક ડીલરનું બાકી એક યાદીમાં, અને દરેક ડીલર માટે ક્રેડિટ લિમિટ.',
             'રૂટ પર જ વસૂલાત — તમારો રેપ જગ્યા પર જ ડીલરના નામે ચુકવણી નોંધે.',
-            'ટીમ ક્યાં ગઈ એની ખબર રહે — વિઝિટ નોંધાય, ઓર્ડર લેવાયા, કમિશનની ગણતરી.',
+            'આખી ટીમ એક એપ પર — દરેક રેપનું પોતાનું લોગિન, ઓર્ડર લેવા અને વસૂલાત નોંધવા માટે.',
             'ગોદામ જે હકીકત સાથે મળે — માલ આવ્યો, માલ ગયો, અને શેલ્ફ પર શું છે.',
         ],
         cta: 'મફત શરૂ કરો — 30 સેકન્ડમાં સેટઅપ',
@@ -1660,8 +1661,8 @@ const gu: LandingCopy = {
             },
             {
                 title: 'રૂટ અને વસૂલાત',
-                sub: 'ફીલ્ડ એજન્ટનું પૂરું ટ્રેકિંગ',
-                body: 'તમારો એજન્ટ દરેક વિઝિટ નોંધે છે અને જગ્યા પર જ ડીલરના નામે ચુકવણી લખે છે. એ પાછો આવે એ પહેલાં વસૂલાત દેખાય છે.',
+                sub: 'રેપ જગ્યા પર જ ચુકવણી નોંધે',
+                body: 'તમારો રેપ પોતાના લોગિનથી જગ્યા પર જ ડીલરના નામે ચુકવણી નોંધે છે. એ પાછો આવે એ પહેલાં વસૂલાત દેખાય છે.',
             },
             {
                 title: 'બાકી ક્રેડિટ મેટ્રિક્સ',
@@ -1677,7 +1678,7 @@ const gu: LandingCopy = {
             confirmed: 'કન્ફર્મ',
             dispatched: 'ડિસ્પેચ થયો',
             agent: (n) => `એજન્ટ ${n}`,
-            visited: (n) => `${n} દુકાનોની વિઝિટ`,
+            recorded: (n) => `${n} ચુકવણી નોંધાઈ`,
             collected: (a) => `આજે ${a} વસૂલ`,
             outstanding: 'બાકી',
             available: 'ઉપલબ્ધ',

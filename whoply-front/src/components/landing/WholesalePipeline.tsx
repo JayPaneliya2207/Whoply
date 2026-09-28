@@ -10,7 +10,6 @@ import {
     ClipboardList,
     FileCheck2,
     Grid3x3,
-    MapPin,
     PackageCheck,
     Route,
     Tags,
@@ -467,93 +466,33 @@ function Dispatch({ lang }: { lang: Lang }) {
     );
 }
 
-/* ── 3 · Field agent on the route ─────────────────────── */
+/* ── 3 · Collections on the route ─────────────────────── */
 
-const STOPS: [number, number, boolean][] = [
-    [12, 78, true],
-    [30, 55, true],
-    [48, 44, true],
-    [66, 60, true],
-    [84, 52, true],
-    [84, 28, true],
-    [70, 16, true],
-    [50, 12, true],
-    [30, 24, false],
-];
-
-/** One cubic Bézier per hop between stores; joined, a smooth Catmull-Rom curve through them. */
-function hops(pts: [number, number][]): string[] {
-    const out: string[] = [];
-    for (let i = 0; i < pts.length - 1; i++) {
-        const [x0, y0] = pts[i - 1] ?? pts[i];
-        const [x1, y1] = pts[i];
-        const [x2, y2] = pts[i + 1];
-        const [x3, y3] = pts[i + 2] ?? pts[i + 1];
-        const c1 = [x1 + (x2 - x0) / 6, y1 + (y2 - y0) / 6];
-        const c2 = [x2 - (x3 - x1) / 6, y2 - (y3 - y1) / 6];
-        out.push(`M${x1} ${y1} C${c1[0]} ${c1[1]}, ${c2[0]} ${c2[1]}, ${x2} ${y2}`);
-    }
-    return out;
-}
-const ALL_HOPS = hops(STOPS.map(([x, y]) => [x, y]));
-/* The whole route (dashed), and the hops already walked, up to the last visited store. */
-const ROUTE = ALL_HOPS.join(' ');
-const WALKED = ALL_HOPS.slice(0, STOPS.filter(([, , v]) => v).length - 1);
+/**
+ * A rep recording payments against dealers from their own login — the part the
+ * app really does. (No route map: the app doesn't log visits or locations.)
+ */
 function RouteCollection({ lang }: { lang: Lang }) {
     const t = getCopy(lang);
     const p = t.wholesalers.pipe;
-    const reduce = useReducedMotion();
+    const collections: [string, number, string][] = [
+        ['Sharma General Store', 12000, 'UPI'],
+        ['Patel Mart', 8500, t.shopkeepers.mock.pay[0]],
+    ];
     return (
         <div className="space-y-3">
-            {/* Agent badge */}
+            {/* Rep badge */}
             <div className="flex flex-wrap items-center gap-2 rounded-xl bg-accent/15 px-3 py-2.5 ring-1 ring-accent-bright/40">
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-xs font-extrabold text-white">R</span>
                 <span className="text-sm font-bold text-white">{p.agent('Rahul')}</span>
                 <span className="text-white/30">•</span>
-                <span className="text-xs font-semibold text-white/80">{p.visited(8)}</span>
+                <span className="text-xs font-semibold text-white/80">{p.recorded(collections.length)}</span>
                 <span className="text-white/30">•</span>
-                <span className="text-xs font-bold text-emerald-300">{p.collected(inr(42000))}</span>
-            </div>
-
-            {/* Mini route map */}
-            <div className="relative h-40 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-800/40">
-                <div aria-hidden="true" className="ledger-mesh absolute inset-0 opacity-70 [mask-image:none]" />
-                <svg viewBox="0 0 100 90" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
-                    <path d={ROUTE} fill="none" stroke="rgb(148 163 184 / 0.35)" strokeWidth="1.2" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
-{WALKED.map((seg, i) => (                        <motion.path                            key={i}                            d={seg}                            fill="none"                            stroke="var(--color-accent-bright)"                            strokeWidth="2"                            strokeLinecap="round"                            vectorEffect="non-scaling-stroke"                            initial={{ opacity: 0 }}                            animate={{ opacity: 1 }}                            transition={{ delay: reduce ? 0 : 0.25 + i * 0.22, duration: 0.25 }}                        />                    ))}
-                </svg>
-                {STOPS.map(([x, y, done], i) => (
-                    <motion.span
-                        key={i}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: reduce ? 0 : 0.2 + i * 0.2 }}
-                        className={cn(
-                            'absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2',
-                            done ? 'bg-emerald-400 ring-emerald-400/30' : 'bg-slate-500 ring-slate-500/30'
-                        )}
-                        style={{ left: `${x}%`, top: `${(y / 90) * 100}%` }}
-                    />
-                ))}
-                {/* The agent, at the last store visited — lands once the route has drawn. */}
-                <motion.span
-                    className="absolute grid h-7 w-7 -translate-x-1/2 -translate-y-full place-items-center rounded-full bg-accent text-white shadow-lg shadow-accent/40"
-                    style={{ left: '50%', top: `${(12 / 90) * 100}%` }}
-                    initial={{ scale: 0, y: -10 }}
-                    animate={{ scale: 1, y: 0 }}
-                    transition={{ delay: reduce ? 0 : 2, type: 'spring', stiffness: 400, damping: 16 }}
-                >
-                    <MapPin size={14} aria-hidden="true" />
-                </motion.span>
+                <span className="text-xs font-bold text-emerald-300">{p.collected(inr(collections.reduce((s, [, amt]) => s + amt, 0)))}</span>
             </div>
 
             <ul className="space-y-2">
-                {(
-                    [
-                        ['Sharma General Store', 12000, 'UPI'],
-                        ['Patel Mart', 8500, t.shopkeepers.mock.pay[0]],
-                    ] as [string, number, string][]
-                ).map(([name, amt, via]) => (
+                {collections.map(([name, amt, via]) => (
                     <li key={name} className="flex items-center justify-between gap-2 text-sm">
                         <span className="min-w-0">
                             <span className="block truncate font-semibold text-white">{name}</span>
