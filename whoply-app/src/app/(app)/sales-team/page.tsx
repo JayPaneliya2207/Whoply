@@ -10,12 +10,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { useT } from '@/i18n';
 import { useCan } from '@/lib/permissions';
-
-const outcomeTone: Record<string, any> = {
-    order: { background: 'var(--success-tint)', color: 'var(--success)' },
-    no_order: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
-    follow_up: { background: 'var(--warning-tint)', color: 'var(--warning)' },
-};
+import { VisitModal, outcomeKey, outcomeTone } from '@/components/VisitModal';
 const statusTone: Record<string, any> = {
     pending: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
     confirmed: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
@@ -36,6 +31,10 @@ export default function SalesTeamPage() {
     const [del, setDel] = useState<any>(null);
     const [detailId, setDetailId] = useState<string | null>(null);
     const [detailTab, setDetailTab] = useState<'visits' | 'orders'>('visits');
+    const [logging, setLogging] = useState(false);
+    // Owner / manager see the whole team; a sales rep sees only their own numbers and visits.
+    const team = can('team.view');
+    const openDetail = (id: string, tab: 'visits' | 'orders') => { if (team) { setDetailId(id); setDetailTab(tab); } };
 
     const { data: reps } = useQuery({ queryKey: ['reps'], queryFn: async () => (await api.get('/wholesaler/sales-team')).data.data });
     const { data: visits } = useQuery({ queryKey: ['visits'], queryFn: async () => (await api.get('/wholesaler/sales-team/visits')).data.data });
@@ -63,8 +62,11 @@ export default function SalesTeamPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('salesTeamTitle')}</h1>
-                {can('staff.manage') && <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addRep')}</button>}
+                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{team ? t('salesTeamTitle') : t('mySalesTitle')}</h1>
+                <div className="flex gap-2">
+                    {can('visits.record') && <button className="wp-btn wp-btn-ghost" onClick={() => setLogging(true)}><MapPin size={16} /> {t('logVisit')}</button>}
+                    {can('staff.manage') && <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addRep')}</button>}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -77,20 +79,25 @@ export default function SalesTeamPage() {
                             {can('staff.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(r)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
                         </div>
                         {/* clickable stats → open detail */}
-                        <button className="grid grid-cols-3 gap-2 text-center w-full" onClick={() => { setDetailId(r._id); setDetailTab('visits'); }}>
+                        <button className="grid grid-cols-3 gap-2 text-center w-full" disabled={!team} onClick={() => openDetail(r._id, 'visits')}>
                             <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{r.visits}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('visitsWord')}</p></div>
                             <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}>{r.orders}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('ordersWord')}</p></div>
                             <div className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}><p className="text-lg font-extrabold" style={{ color: 'var(--success)' }}>{inr2(r.commission)}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('commission')}</p></div>
                         </button>
-                        <button className="text-sm mt-3 flex items-center gap-1 font-semibold" style={{ color: 'var(--brand-text)' }} onClick={() => { setDetailId(r._id); setDetailTab('orders'); }}>
-                            <RupeeIcon size={13} /> {inr2(r.sales)} {t('salesWordLc')} · {t('viewDetail')} <ChevronRight size={14} />
-                        </button>
+                        <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>{r.commissionPct}% {t('commissionRule')} · {t('dealersLookedAfter')}: {r.dealers}</p>
+                        {team ? (
+                            <button className="text-sm mt-3 flex items-center gap-1 font-semibold" style={{ color: 'var(--brand-text)' }} onClick={() => openDetail(r._id, 'orders')}>
+                                <RupeeIcon size={13} /> {inr2(r.sales)} {t('salesBeforeGst')} · {t('viewDetail')} <ChevronRight size={14} />
+                            </button>
+                        ) : (
+                            <p className="text-sm mt-3 flex items-center gap-1 font-semibold" style={{ color: 'var(--text-secondary)' }}><RupeeIcon size={13} /> {inr2(r.sales)} {t('salesBeforeGst')}</p>
+                        )}
                     </div>
                 ))}
             </div>
 
             <div>
-                <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><MapPin size={17} /> {t('recentFieldVisits')}</h3>
+                <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><MapPin size={17} /> {team ? t('recentFieldVisits') : t('myVisits')}</h3>
                 {(visits || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noVisits')}</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(visits || []).map((v: any) => (
@@ -100,11 +107,13 @@ export default function SalesTeamPage() {
                                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{v.salesRepName} → {v.dealerName}</p>
                                 <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{new Date(v.visitedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{v.note ? ` · ${v.note}` : ''}</p>
                             </div>
-                            <span className="wp-chip capitalize shrink-0" style={outcomeTone[v.outcome]}>{v.outcome.replace('_', ' ')}</span>
+                            <span className="wp-chip shrink-0" style={outcomeTone[v.outcome]}>{t(outcomeKey[v.outcome])}</span>
                         </div>
                     ))}
                 </div>
             </div>
+
+            <VisitModal open={logging} onClose={() => setLogging(false)} />
 
             {/* Add/Edit rep */}
             <Modal open={modal} onClose={() => setModal(false)} title={editing ? t('editRepTitle') : t('addRepTitle')}
@@ -141,7 +150,7 @@ export default function SalesTeamPage() {
                             <div key={v._id} className="p-2.5 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                 <div className="flex items-start justify-between gap-2">
                                     <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{v.dealerName}</p>
-                                    <span className="wp-chip capitalize shrink-0" style={outcomeTone[v.outcome]}>{v.outcome.replace('_', ' ')}</span>
+                                    <span className="wp-chip shrink-0" style={outcomeTone[v.outcome]}>{t(outcomeKey[v.outcome])}</span>
                                 </div>
                                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{new Date(v.visitedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                             </div>

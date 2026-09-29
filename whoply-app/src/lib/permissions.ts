@@ -104,7 +104,7 @@ export const PAGE_PERMS: Record<string, Perm[]> = {
     '/dealers': ['dealers.view'],
     '/payments': ['payments.view'],
     '/price-lists': ['priceList.view'],
-    '/sales-team': ['team.view'],
+    '/sales-team': ['team.view', 'visits.record'], // a rep sees only their own numbers
 };
 
 /** May this role open the screen at `href`? */
