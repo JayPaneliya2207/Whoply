@@ -320,8 +320,12 @@ export function billsToCsv(bills: any[]): string {
     return [header.map(esc).join(','), ...lines].join('\n');
 }
 
-/** Payment status of an order from its paid/due split. */
-export function orderPayStatus(o: any): 'Paid' | 'Partial' | 'Unpaid' {
+/**
+ * Payment status of an order from its paid/due split. A cancelled order owes
+ * nothing because it was cancelled, not because it was paid.
+ */
+export function orderPayStatus(o: any): 'Paid' | 'Partial' | 'Unpaid' | 'Cancelled' {
+    if (o.status === 'cancelled') return 'Cancelled';
     if ((o.dueAmount || 0) <= 0) return 'Paid';
     if ((o.paidAmount || 0) > 0) return 'Partial';
     return 'Unpaid';

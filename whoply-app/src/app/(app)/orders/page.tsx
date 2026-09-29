@@ -2,7 +2,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle, QrCode, FileJson, Truck, RotateCcw } from 'lucide-react';
+import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle, QrCode, FileJson, Truck, RotateCcw, Pencil, Ban } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
@@ -12,6 +12,7 @@ import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
 import { useCan } from '@/lib/permissions';
 import { Modal, Field } from '@/components/Modal';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { UpiQr } from '@/components/UpiQr';
 import { ScanButton, useWedgeScanner } from '@/components/BarcodeScanner';
 import { ordersToCsv, orderPayStatus, printOrder, printEInvoice, printEwayBill, printCreditNote, downloadFile, buildOrderText, whatsappLink } from '@/lib/bill';
@@ -42,6 +43,9 @@ export default function OrdersPage() {
     const initialStatus = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('status') || 'all' : 'all';
 
     const [creating, setCreating] = useState(false);
+    const [editingOrder, setEditingOrder] = useState<any>(null); // an order whose items are open in the sheet
+    const [cancelFor, setCancelFor] = useState<any>(null);
+    const [cancelErr, setCancelErr] = useState('');
     const [dealerId, setDealerId] = useState('');
     const [source, setSource] = useState('manual');
     const [cart, setCart] = useState<any[]>([]);
@@ -121,9 +125,43 @@ export default function OrdersPage() {
     useWedgeScanner(scanAdd, creating);
 
     const create = useMutation({
-        mutationFn: async () => (await api.post('/wholesaler/orders', { dealerId, source, items: cart.map((r) => ({ productId: r.productId, quantity: r.qty })) })).data.data,
-        onSuccess: (order) => { setCreating(false); setDone(order); setCart([]); setDealerId(''); setError(''); qc.invalidateQueries({ queryKey: ['orders'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); },
+        mutationFn: async () => {
+            const items = cart.map((r) => ({ productId: r.productId, quantity: r.qty }));
+            if (editingOrder) return (await api.patch(`/wholesaler/orders/${editingOrder._id}`, { items })).data.data;
+            return (await api.post('/wholesaler/orders', { dealerId, source, items })).data.data;
+        },
+        onSuccess: (order) => {
+            const wasEdit = !!editingOrder;
+            setCreating(false); setCart([]); setDealerId(''); setError(''); setEditingOrder(null);
+            if (wasEdit) setDetail(order); else setDone(order);
+            ['orders', 'dashboard', 'dealers'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+        },
         onError: (e) => setError(apiErr(e)),
+    });
+    /** Put an order's lines in the sheet to change them (pending / confirmed only). */
+    const openEdit = (o: any) => {
+        setEditingOrder(o);
+        setDealerId(String(o.dealerId?._id || o.dealerId));
+        // One row per product: the sheet keys rows by product, so a product on two lines becomes one.
+        const rows = new Map<string, any>();
+        for (const i of o.items) {
+            const id = String(i.productId);
+            const row = rows.get(id);
+            if (row) row.qty = Math.round((row.qty + i.quantity) * 1000) / 1000;
+            else rows.set(id, { productId: id, name: i.name, price: i.price, unit: i.unit, qty: i.quantity });
+        }
+        setCart([...rows.values()]);
+        setError(''); setDetail(null); setCreating(true);
+    };
+    /** Close the sheet. An abandoned edit doesn't stay behind as a new-order draft. */
+    const closeSheet = () => { setCreating(false); if (editingOrder) { setEditingOrder(null); setCart([]); setDealerId(''); } };
+    const cancelOrder = useMutation({
+        mutationFn: async () => (await api.patch(`/wholesaler/orders/${cancelFor._id}/status`, { status: 'cancelled' })).data.data,
+        onSuccess: (order) => {
+            setCancelFor(null); setDetail(order);
+            ['orders', 'dashboard', 'dealers', 'payments', 'ws-tally', 'ws-products'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+        },
+        onError: (e) => setCancelErr(apiErr(e)),
     });
 
     const collect = useMutation({
@@ -206,6 +244,13 @@ export default function OrdersPage() {
                             {can('einvoice') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => setEwayOpen((v) => !v)}><Truck size={15} className="shrink-0" /> <span className="truncate">{t('ewayBill')}</span></button>}
                             {can('returns.create') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>}
                         </div>
+                        {/* Change the items before it ships; cancel until delivered (after that, record a return). */}
+                        {((can('orders.create') && ['pending', 'confirmed'].includes(detail.status)) || (can('orders.status') && !['delivered', 'cancelled'].includes(detail.status))) && (
+                            <div className="grid grid-cols-2 gap-2">
+                                {can('orders.create') && ['pending', 'confirmed'].includes(detail.status) && <button className="wp-btn wp-btn-ghost !py-2 text-sm" onClick={() => openEdit(detail)}><Pencil size={15} /> {t('editItems')}</button>}
+                                {can('orders.status') && !['delivered', 'cancelled'].includes(detail.status) && <button className="wp-btn wp-btn-ghost !py-2 text-sm" onClick={() => { setCancelErr(''); setCancelFor(detail); }}><Ban size={15} style={{ color: 'var(--danger)' }} /> {t('cancelOrder')}</button>}
+                            </div>
+                        )}
                     </div>
                 )}>
                 {detail && (
@@ -213,7 +258,7 @@ export default function OrdersPage() {
                         <div className="flex items-center justify-between text-sm">
                             <span style={{ color: 'var(--text-secondary)' }}>{detail.dealerName}</span>
                             <div className="flex items-center gap-1.5">
-                                <span className="wp-chip" style={payTone[orderPayStatus(detail)]}>{t('pay' + orderPayStatus(detail))}</span>
+                                {detail.status !== 'cancelled' && <span className="wp-chip" style={payTone[orderPayStatus(detail)]}>{t('pay' + orderPayStatus(detail))}</span>}
                                 <span className="wp-chip capitalize" style={statusTone[detail.status]}>{detail.source} · {stLabel(detail.status)}</span>
                             </div>
                         </div>
@@ -314,12 +359,15 @@ export default function OrdersPage() {
             {/* Create order */}
             <AnimatePresence>
                 {creating && (
-                    <div className="fixed inset-0 bg-black/40 grid place-items-center z-50 p-4" onClick={() => setCreating(false)}>
+                    <div className="fixed inset-0 bg-black/40 grid place-items-center z-50 p-4" onClick={closeSheet}>
                         <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="wp-card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto wp-scroll" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{t('newBulkOrder')}</h3>
-                                <button onClick={() => setCreating(false)}><X size={20} style={{ color: 'var(--text-muted)' }} /></button>
+                                <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{editingOrder ? `${t('editOrderTitle')} · ${editingOrder.orderNo}` : t('newBulkOrder')}</h3>
+                                <button onClick={closeSheet} aria-label="Close"><X size={20} style={{ color: 'var(--text-muted)' }} /></button>
                             </div>
+                            {editingOrder ? (
+                                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-secondary)' }}>{editingOrder.dealerName}</p>
+                            ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                                 <select className="wp-input" value={dealerId} onChange={(e) => setDealerId(e.target.value)}>
                                     <option value="">{t('selectDealer')}</option>
@@ -329,6 +377,7 @@ export default function OrdersPage() {
                                     {['manual', 'whatsapp', 'phone', 'field'].map((s) => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </div>
+                            )}
                             <div className="flex gap-2 mb-2">
                                 <div className="relative flex-1">
                                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
@@ -374,12 +423,16 @@ export default function OrdersPage() {
                                 <span className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(total)}</span>
                             </div>
                             {error && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{error}</p>}
-                            <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || create.isPending} onClick={() => create.mutate()}><Check size={16} /> {t('createOrder')} · {inr2(total)}</button>
-                            <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{t('pricesAutoApply')}</p>
+                            <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || create.isPending} onClick={() => create.mutate()}><Check size={16} /> {editingOrder ? t('saveChanges') : t('createOrder')} · {inr2(total)}</button>
+                            <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{editingOrder ? t('editPricesNote') : t('pricesAutoApply')}</p>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
+
+            <ConfirmDialog open={!!cancelFor} onClose={() => setCancelFor(null)} onConfirm={() => cancelOrder.mutate()} loading={cancelOrder.isPending} danger
+                title={t('cancelOrderTitle')} confirmLabel={t('cancelOrder')}
+                message={cancelErr || (cancelFor ? [t('cancelOrderMsg'), cancelFor.status === 'dispatched' ? t('cancelStockBack') : '', cancelFor.paidAmount > 0 ? `${inr2(cancelFor.paidAmount)} ${t('cancelPaidWarn')}` : ''].filter(Boolean).join(' ') : '')} />
 
             {/* scan flash */}
             <AnimatePresence>

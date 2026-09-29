@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CatIcon, catEmoji } from '@/lib/icons';
 import { SearchInput } from '@/components/SearchInput';
 import { ScanButton } from '@/components/BarcodeScanner';
+import { StockSheet } from '@/components/StockSheet';
 import { useT } from '@/i18n';
 
 // New products: shop prices are MRP (GST included), wholesale prices have GST added on top.
@@ -29,6 +30,7 @@ export default function ProductsPage() {
     const [catFilter, setCatFilter] = useState('');
     const [lowOnly, setLowOnly] = useState(false);
 
+    const [stockFor, setStockFor] = useState<any>(null);
     const [prodModal, setProdModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
     const [form, setForm] = useState<any>(() => emptyProduct(isWholesale));
@@ -140,7 +142,11 @@ export default function ProductsPage() {
                                 <p className="font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.sellPrice)}</p>
                                 <p className="text-[11px] tabular hidden sm:block" style={{ color: 'var(--text-muted)' }}>{can('products.cost') && <>cost {inr2(p.costPrice)} · </>}GST {p.gstRate}%</p>
                             </div>
-                            <span className="wp-chip tabular shrink-0" style={low ? { background: 'var(--warning-tint)', color: 'var(--warning)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}</span>
+                            {/* Tap the stock to see its history — and adjust it, for roles that manage stock. */}
+                            <button type="button" onClick={() => setStockFor(p)} title={t('stockTitle')} aria-label={`${t('stockTitle')} · ${p.name}: ${p.currentStock} ${p.unit}`}
+                                className="wp-chip tabular shrink-0 cursor-pointer hover:brightness-95" style={low ? { background: 'var(--warning-tint)', color: 'var(--warning)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                                {low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}
+                            </button>
                             {manage && <div className="flex items-center gap-0.5 shrink-0">
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(p)}><Pencil size={14} /></button>
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
@@ -152,6 +158,8 @@ export default function ProductsPage() {
             {hasNextPage && (
                 <button className="wp-btn wp-btn-ghost w-full" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>{t('loadMore')}</button>
             )}
+
+            <StockSheet product={stockFor} base={base} canAdjust={manage} onClose={() => setStockFor(null)} />
 
             {/* Product modal */}
             <Modal open={prodModal} onClose={() => setProdModal(false)} title={editing ? t('editProductTitle') : t('addProduct')}
