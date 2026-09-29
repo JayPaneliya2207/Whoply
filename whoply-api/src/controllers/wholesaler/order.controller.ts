@@ -89,6 +89,43 @@ export const listOrders = asyncHandler(async (req: AuthRequest, res: Response) =
 });
 
 /**
+ * PATCH /orders/:id — change what's on an order before it ships (pending or
+ * confirmed; no stock has left yet). body: { items: [{ productId, quantity }] }
+ * Priced like a new order — today's price list for the dealer's price group.
+ * Money already received stays; the total can't drop below it.
+ */
+export const updateOrderItems = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const { items } = req.body;
+    if (!Array.isArray(items) || !items.length) throw AppError.badRequest('At least one item is required');
+
+    const order = await Order.findOne({ _id: req.params.id, businessId });
+    if (!order) throw AppError.notFound('Order not found');
+    if (order.status !== 'pending' && order.status !== 'confirmed') {
+        throw AppError.badRequest(
+            order.status === 'cancelled'
+                ? 'A cancelled order cannot be edited'
+                : `This order is already ${order.status} — its goods have left, so record a return instead`
+        );
+    }
+    const dealer = await Dealer.findOne({ _id: order.dealerId, businessId });
+    if (!dealer) throw AppError.badRequest('Dealer not found');
+
+    const { lineItems, subtotal, totalGst, grandTotal: total } = await priceDealerItems(businessId, dealer, items);
+    if (total < order.paidAmount - 0.005) {
+        throw AppError.badRequest(`₹${order.paidAmount.toFixed(2)} is already paid on this order — the new total (₹${total.toFixed(2)}) can't be less`);
+    }
+    // Only while it's still in the status we read, so a dispatch at the same moment can't be edited under it.
+    const updated = await Order.findOneAndUpdate(
+        { _id: order._id, businessId, status: order.status },
+        { $set: { items: lineItems, subtotal, totalGst, total, dueAmount: round2(total - order.paidAmount), dealerGstin: dealer.gstin } },
+        { new: true }
+    );
+    if (!updated) throw AppError.conflict('The order changed while you were editing it — open it again');
+    sendSuccess(res, updated, 'Order updated');
+});
+
+/**
  * PATCH /orders/:id/status — move the order along its lifecycle (see NEXT_STATUS).
  * Leaving pending/confirmed for dispatched or delivered takes the stock — and
  * refuses if there isn't enough. Cancelling a dispatched order puts it back.

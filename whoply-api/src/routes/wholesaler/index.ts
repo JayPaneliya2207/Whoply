@@ -11,7 +11,7 @@ import {
     dealerOrders,
     collectPayment,
 } from '../../controllers/wholesaler/dealer.controller.js';
-import { createOrder, listOrders, updateOrderStatus, orderEInvoiceJson, orderEWayJson, wholesalerGstReport, createOrderReturn, listOrderReturns } from '../../controllers/wholesaler/order.controller.js';
+import { createOrder, listOrders, updateOrderStatus, updateOrderItems, orderEInvoiceJson, orderEWayJson, wholesalerGstReport, createOrderReturn, listOrderReturns } from '../../controllers/wholesaler/order.controller.js';
 import { recordOrderPayment, listPayments, tallyReport } from '../../controllers/wholesaler/payment.controller.js';
 import { createWsQuote, listWsQuotes, deleteWsQuote, convertWsQuote } from '../../controllers/wholesaler/quotation.controller.js';
 import { getPriceList, setPrice } from '../../controllers/wholesaler/pricelist.controller.js';
@@ -33,6 +33,7 @@ import {
     updateProduct,
     deleteProduct,
     adjustStock,
+    productMovements,
     listCategories,
     createCategory,
     updateCategory,
@@ -56,6 +57,7 @@ router.get('/products/:id', p('products.view'), getProduct);
 router.patch('/products/:id', p('products.manage'), updateProduct);
 router.delete('/products/:id', p('products.manage'), deleteProduct);
 router.post('/products/:id/adjust-stock', p('products.manage'), adjustStock);
+router.get('/products/:id/movements', p('products.view'), productMovements);
 router.get('/categories', p('products.view'), listCategories);
 router.post('/categories', p('products.manage'), createCategory);
 router.patch('/categories/:id', p('products.manage'), updateCategory);
@@ -72,6 +74,7 @@ router.post('/dealers/:id/collect', p('payments.collect'), collectPayment);
 // Orders + dispatch/delivery
 router.get('/orders', p('orders.view'), listOrders);
 router.post('/orders', p('orders.create'), createOrder);
+router.patch('/orders/:id', p('orders.create'), updateOrderItems);
 router.patch('/orders/:id/status', p('orders.status'), updateOrderStatus);
 router.post('/orders/:id/collect', p('payments.collect'), recordOrderPayment);
 router.get('/orders/:id/einvoice', p('einvoice'), orderEInvoiceJson);

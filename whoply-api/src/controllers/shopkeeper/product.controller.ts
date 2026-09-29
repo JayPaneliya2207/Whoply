@@ -10,6 +10,7 @@ import { syncLowStock } from '../../utils/stock.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { can } from '../../utils/permissions.js';
 import { containsText } from '../../utils/search.js';
+import { lineQty } from '../../utils/qty.js';
 
 /** Cost price shows the margin, so only roles allowed to see it get it (not a cashier or sales rep). */
 function hideCost<T extends { costPrice?: number }>(req: AuthRequest, p: T): T {
@@ -113,25 +114,85 @@ export const updateProduct = asyncHandler(async (req: AuthRequest, res: Response
     sendSuccess(res, product, 'Product updated');
 });
 
-/** POST /products/:id/adjust-stock — manual adjustment/damage */
+/**
+ * POST /products/:id/adjust-stock — correct stock by hand.
+ * body: { quantity } to add (+) or remove (−) — or { countedStock } after a
+ * physical count; reason 'damage' (broken / expired — removes stock) or
+ * 'adjustment' (default); note?
+ * Applied as one conditional update, so a sale at the same moment is never
+ * lost and stock never goes below zero. Quantities follow the product's unit
+ * (whole numbers for pcs, decimals for kg / litre…).
+ */
 export const adjustStock = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { quantity, note } = req.body;
     const reason = req.body.reason === 'damage' ? 'damage' : 'adjustment';
-    const qty = Number(quantity);
-    if (!qty || !Number.isFinite(qty)) throw AppError.badRequest('quantity is required');
-
-    const product = await Product.findOne({ _id: req.params.id, businessId });
+    const note = String(req.body.note ?? '').trim().slice(0, 200) || undefined;
+    const product = await Product.findOne({ _id: req.params.id, businessId }).select('name unit currentStock').lean();
     if (!product) throw AppError.notFound('Product not found');
-    if (product.currentStock + qty < 0) {
-        throw AppError.badRequest(`Only ${product.currentStock} ${product.unit || 'pcs'} in stock — can't remove ${-qty}`);
-    }
+    const unit = product.unit || 'pcs';
+    const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
-    product.currentStock += qty;
-    product.isLowStock = product.currentStock <= product.lowStockThreshold;
-    await product.save();
-    await StockMovement.create({ businessId, productId: product._id, reason, quantity: qty, note });
-    sendSuccess(res, product, 'Stock adjusted');
+    const byCount = req.body.countedStock !== undefined && req.body.countedStock !== '';
+    const filter: Record<string, any> = { _id: product._id, businessId };
+    let delta: number;
+    let counted = 0;
+    if (byCount) {
+        const n = Number(req.body.countedStock);
+        if (!Number.isFinite(n) || n < 0) throw AppError.badRequest('Counted stock must be 0 or more');
+        counted = n === 0 ? 0 : lineQty(n, product);
+        delta = round3(counted - product.currentStock);
+        if (delta === 0) {
+            sendSuccess(res, product, 'Stock already matches the count');
+            return;
+        }
+        // Only if nothing was sold or bought since the stock we compared with.
+        filter.currentStock = product.currentStock;
+    } else {
+        const n = Number(req.body.quantity);
+        if (!n || !Number.isFinite(n)) throw AppError.badRequest('Enter how many to add or remove');
+        const size = lineQty(Math.abs(n), product);
+        delta = n < 0 ? -size : size;
+        if (delta < 0) filter.currentStock = { $gte: -delta };
+    }
+    if (reason === 'damage' && delta > 0) throw AppError.badRequest('Damage removes stock — enter the quantity lost');
+
+    const updated = await Product.findOneAndUpdate(filter, { $inc: { currentStock: delta } }, { new: true });
+    if (!updated) {
+        const now = await Product.findById(product._id).select('currentStock').lean();
+        if (byCount) {
+            throw AppError.conflict(`Stock changed while you were counting (a sale or purchase just happened) — it is now ${now?.currentStock ?? 0} ${unit}. Check the count and save again.`);
+        }
+        throw AppError.badRequest(`Only ${now?.currentStock ?? 0} ${unit} in stock — can't remove ${-delta}`);
+    }
+    // Stored to 3 decimals so kg / litre stock doesn't drift (0.1 + 0.2 …).
+    if (updated.currentStock !== round3(updated.currentStock)) {
+        await Product.updateOne({ _id: updated._id }, { $set: { currentStock: round3(updated.currentStock) } });
+    }
+    await Promise.all([
+        syncLowStock([updated._id]),
+        StockMovement.create({
+            businessId,
+            productId: updated._id,
+            reason,
+            quantity: delta,
+            note: byCount ? [`Counted ${counted} ${unit}`, note].filter(Boolean).join(' — ') : note,
+        }),
+    ]);
+    const fresh = await Product.findById(updated._id).lean();
+    sendSuccess(res, fresh, 'Stock adjusted');
+});
+
+/** GET /products/:id/movements — the product's last 50 stock changes, newest first. */
+export const productMovements = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const product = await Product.findOne({ _id: req.params.id, businessId }).select('name unit currentStock').lean();
+    if (!product) throw AppError.notFound('Product not found');
+    const movements = await StockMovement.find({ businessId, productId: product._id })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .select('reason quantity note refType createdAt')
+        .lean();
+    sendSuccess(res, { product, movements });
 });
 
 /** DELETE /products/:id — soft delete */

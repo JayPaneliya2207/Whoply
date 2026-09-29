@@ -10,6 +10,7 @@ import {
     updateProduct,
     deleteProduct,
     adjustStock,
+    productMovements,
     listCategories,
     createCategory,
     updateCategory,
@@ -59,6 +60,7 @@ router.get('/products/:id', p('products.view'), getProduct);
 router.patch('/products/:id', p('products.manage'), updateProduct);
 router.delete('/products/:id', p('products.manage'), deleteProduct);
 router.post('/products/:id/adjust-stock', p('products.manage'), adjustStock);
+router.get('/products/:id/movements', p('products.view'), productMovements);
 router.get('/categories', p('products.view'), listCategories);
 router.post('/categories', p('products.manage'), createCategory);
 router.patch('/categories/:id', p('products.manage'), updateCategory);
