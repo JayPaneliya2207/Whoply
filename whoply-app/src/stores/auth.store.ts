@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { useLang } from '@/i18n';
 import { dictionaries } from '@/i18n/translations';
+import { clearQueryCache } from '@/lib/queryClient';
+
+/** Where a logged-in person belongs: setup until their business exists, then the dashboard. */
+export const homeFor = (user?: { needsOnboarding?: boolean; business?: unknown } | null) =>
+    user && (user.needsOnboarding || !user.business) ? '/onboarding' : '/dashboard';
+
+/** The user saved on this device, read straight from storage (for redirects before hydrate). */
+export const storedUser = (): AuthUser | null => {
+    try { return JSON.parse(localStorage.getItem('whoply_user') || 'null'); } catch { return null; }
+};
 
 /** Apply an account's saved language to the active i18n store (per-account, per-device). */
 const applyUserLang = (lang?: string) => {
@@ -42,6 +52,7 @@ export const useAuth = create<AuthState>((set) => ({
     token: null,
     hydrated: false,
     setSession: (token, user) => {
+        clearQueryCache(); // a new login never sees screens cached for someone else
         if (typeof window !== 'undefined') {
             localStorage.setItem('whoply_token', token);
             localStorage.setItem('whoply_user', JSON.stringify(user));
@@ -67,6 +78,7 @@ export const useAuth = create<AuthState>((set) => ({
             localStorage.removeItem('whoply_user');
             localStorage.removeItem('whoply_pos_cart'); // don't carry a half-built bill to the next login
         }
+        clearQueryCache(); // shop data on screen (bills, customers, dashboard) goes too
         set({ token: null, user: null });
     },
 }));

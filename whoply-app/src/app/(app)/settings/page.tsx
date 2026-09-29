@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import { User, Lock, Globe, Building2, Check, Store, ReceiptText, QrCode, Upload, Landmark, LayoutTemplate, Eye, LogOut, BellRing } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
@@ -26,8 +25,10 @@ export default function SettingsPage() {
     const t = useT();
     const can = useCan();
     const { user, setUser, logout } = useAuth();
-    const router = useRouter();
-    const doLogout = async () => { try { await api.post('/auth/logout'); } catch { /* ignore */ } logout(); router.replace('/login'); };
+    // A full page load (not router.replace): screens still on the page would
+    // otherwise refetch into the just-cleared cache, and every bit of in-memory
+    // state from this login goes with it.
+    const doLogout = async () => { try { await api.post('/auth/logout'); } catch { /* ignore */ } logout(); window.location.replace('/login'); };
     const { lang, setLang } = useLang();
     const qc = useQueryClient();
     const base = user?.business?.type === 'wholesale' ? '/wholesaler' : '/shopkeeper';

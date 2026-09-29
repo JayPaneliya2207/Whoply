@@ -12,7 +12,7 @@ import { Logo } from '@/components/Logo';
 import { OTPInput } from '@/components/OTPInput';
 import { PhoneInput } from '@/components/PhoneInput';
 import { api, apiErr } from '@/lib/api';
-import { useAuth } from '@/stores/auth.store';
+import { useAuth, homeFor, storedUser } from '@/stores/auth.store';
 import { useT, useLang, LANGS, type Lang } from '@/i18n';
 
 type Method = 'otp' | 'password';
@@ -36,7 +36,7 @@ export default function LoginPage() {
     const [canResend, setCanResend] = useState(false);
     const [cooldown, setCooldown] = useState(30);
 
-    useEffect(() => { hydrate(); if (localStorage.getItem('whoply_token')) router.replace('/dashboard'); }, [hydrate, router]);
+    useEffect(() => { hydrate(); if (localStorage.getItem('whoply_token')) router.replace(homeFor(storedUser())); }, [hydrate, router]);
 
     // Deep link from the marketing site: /login?start=1&lang=hi&role=wholesale.
     // The visitor already saw the pitch there, so skip the intro slide, keep the
@@ -56,7 +56,7 @@ export default function LoginPage() {
         return () => clearInterval(id);
     }, [otpSent, canResend, cooldown]);
 
-    const finish = (token: string, user: any) => { setSession(token, user); router.replace(user.needsOnboarding ? '/onboarding' : '/dashboard'); };
+    const finish = (token: string, user: any) => { setSession(token, user); router.replace(homeFor(user)); };
 
     const sendOtp = async () => {
         if (mobile.length < 10) { setError('Please enter a valid 10-digit mobile'); return; }

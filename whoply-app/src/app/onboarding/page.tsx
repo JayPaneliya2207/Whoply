@@ -5,7 +5,7 @@ import { Store, Building2 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { api, apiErr } from '@/lib/api';
 import { GSTIN_PLACEHOLDER, maskGstin, isValidGstin } from '@/lib/gstin';
-import { useAuth } from '@/stores/auth.store';
+import { useAuth, homeFor, storedUser } from '@/stores/auth.store';
 
 export default function OnboardingPage() {
     const router = useRouter();
@@ -15,6 +15,22 @@ export default function OnboardingPage() {
     const [gstin, setGstin] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Only for a login whose business isn't set up: logged out → login,
+    // already set up → dashboard (the API would refuse a second business anyway).
+    useEffect(() => {
+        if (!localStorage.getItem('whoply_token')) { router.replace('/login'); return; }
+        const saved = storedUser();
+        if (saved && homeFor(saved) !== '/onboarding') { router.replace('/dashboard'); return; }
+        // The saved user may be stale — the business may have been set up on another phone.
+        api.get('/auth/me')
+            .then(({ data }) => {
+                const fresh = data.data.user;
+                setUser(fresh);
+                if (homeFor(fresh) !== '/onboarding') router.replace('/dashboard');
+            })
+            .catch(() => { /* offline: stay; a 401 logs out in lib/api */ });
+    }, [router, setUser]);
 
     // Role picked on the marketing site's hero toggle (stored by /login).
     useEffect(() => {
