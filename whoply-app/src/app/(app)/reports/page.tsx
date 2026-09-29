@@ -272,7 +272,12 @@ function ShopReports() {
             <div className="wp-card p-5 grid grid-cols-3 gap-4 text-center">
                 <div><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('costOfItemsSold')}</p><p className="text-lg font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr(summary?.cogs || 0)}</p></div>
                 <div><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('otherExpenses')}</p><p className="text-lg font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr(summary?.otherExpenses || 0)}</p></div>
-                <div><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('staffSalaryLabel')}</p><p className="text-lg font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr(summary?.staffSalaryForPeriod || 0)}</p></div>
+                <div>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('staffSalaryLabel')}</p>
+                    <p className="text-lg font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr(summary?.staffSalaryForPeriod || 0)}</p>
+                    {/* Counted once: salary recorded as expenses if any, else the staff-list estimate. */}
+                    {summary?.salarySource && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t(summary.salarySource === 'expenses' ? 'salaryFromExpenses' : 'salaryEstimated')}</p>}
+                </div>
             </div>
 
             {/* Sales bars — this month */}

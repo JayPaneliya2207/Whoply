@@ -37,18 +37,18 @@ export default function GstPage() {
     };
     const exportRateWise = () => {
         if (!data) return;
-        const rows = data.rateWise.map((r: any) => [rate(r.rate), r.taxable, r.cgst, r.sgst, 0, r.gst]);
+        const rows = data.rateWise.map((r: any) => [rate(r.rate), r.taxable, r.cgst, r.sgst, r.igst ?? 0, r.gst]);
         downloadFile(`gstr1-b2c-ratewise-${month}.csv`, toCsv(['Rate', 'Taxable', 'CGST', 'SGST', 'IGST', 'Total Tax'], rows));
     };
     const exportHsn = () => {
         if (!data) return;
-        const rows = data.hsnWise.map((h: any) => [h.hsn, h.name, rate(h.rate), h.qty, h.taxable, h.gst]);
-        downloadFile(`gst-hsn-${month}.csv`, toCsv(['HSN', 'Description', 'Rate', 'Qty', 'Taxable', 'Tax'], rows));
+        const rows = data.hsnWise.map((h: any) => [h.hsn, h.name, rate(h.rate), h.qty, h.taxable, h.cgst ?? 0, h.sgst ?? 0, h.igst ?? 0, h.gst]);
+        downloadFile(`gst-hsn-${month}.csv`, toCsv(['HSN', 'Description', 'Rate', 'Qty', 'Taxable', 'CGST', 'SGST', 'IGST', 'Total Tax'], rows));
     };
     const exportB2b = () => {
         if (!data) return;
-        const rows = data.b2b.map((b: any) => [b.gstin, b.name, b.invoices, b.taxable, b.gst, b.total]);
-        downloadFile(`gstr1-b2b-${month}.csv`, toCsv(['GSTIN', 'Party', 'Invoices', 'Taxable', 'Tax', 'Invoice Value'], rows));
+        const rows = data.b2b.map((b: any) => [b.gstin, b.name, b.invoices, b.taxable, b.gst, b.igst ?? 0, b.total]);
+        downloadFile(`gstr1-b2b-${month}.csv`, toCsv(['GSTIN', 'Party', 'Invoices', 'Taxable', 'Tax', 'of which IGST', 'Invoice Value'], rows));
     };
 
     const tiles = [
@@ -108,8 +108,9 @@ export default function GstPage() {
                                     <p className="text-base font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{inr(r.gst)}</p>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[[t('taxableValue'), r.taxable], ['CGST', r.cgst], ['SGST', r.sgst]].map(([l, v]: any) => (
+                            {/* IGST only shows when this rate has sales to other-state buyers. */}
+                            <div className={`grid gap-2 ${r.igst > 0 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+                                {[[t('taxableValue'), r.taxable], ['CGST', r.cgst], ['SGST', r.sgst], ...(r.igst > 0 ? [['IGST', r.igst]] : [])].map(([l, v]: any) => (
                                     <div key={l}>
                                         <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{l}</p>
                                         <p className="text-sm font-semibold tabular" style={{ color: 'var(--text-secondary)' }}>{inr(v)}</p>
