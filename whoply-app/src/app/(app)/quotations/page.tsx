@@ -15,6 +15,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ScanButton, useWedgeScanner } from '@/components/BarcodeScanner';
 import { printQuote, buildQuoteText, whatsappLink } from '@/lib/bill';
 import { GSTIN_PLACEHOLDER, isValidGstin } from '@/lib/gstin';
+import { PriceSummary } from '@/components/PriceSummary';
+import { useDealerPricing } from '@/lib/dealerPricing';
 
 const statusTone: Record<string, any> = {
     open: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
@@ -230,7 +232,8 @@ function WholesaleQuotes() {
     const setQty = (id: string, d: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: stepQty(r.qty, d, r.unit) } : r));
     const setQtyTo = (id: string, n: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: n } : r));
     const inCart = useMemo(() => new Map(cart.map((r) => [r.productId, r.qty])), [cart]);
-    const total = useMemo(() => cart.reduce((s, r) => s + r.price * r.qty, 0), [cart]);
+    // Real prices (dealer's price group + GST) come from the server once a dealer is picked.
+    const pricing = useDealerPricing(dealerId, cart);
 
     // Barcode scan (camera / USB wedge) — add the matching product to the quote cart.
     const scanAdd = useCallback(async (code: string) => {
@@ -358,17 +361,14 @@ function WholesaleQuotes() {
                                 {cart.map((r) => (
                                     <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                         <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
-                                        <span className="text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
+                                        <span className="text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{pricing.byProduct.has(r.productId) ? inr2(pricing.byProduct.get(r.productId)!.lineTotal) : '…'}</span>
                                         <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                                     </div>
                                 ))}
                             </div>
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('subtotal')} <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>(+GST)</span></span>
-                                <span className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(total)}</span>
-                            </div>
+                            <PriceSummary pricing={pricing} dealerChosen={!!dealerId} empty={!cart.length} />
                             {error && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{error}</p>}
-                            <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || save.isPending} onClick={() => save.mutate()}><Check size={16} /> {t('saveQuote')}</button>
+                            <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || save.isPending || !!pricing.error} onClick={() => save.mutate()}><Check size={16} /> {t('saveQuote')}{pricing.data ? ` · ${inr2(pricing.data.grandTotal)}` : ''}</button>
                         </motion.div>
                     </div>
                 )}

@@ -13,6 +13,8 @@ import { useT } from '@/i18n';
 import { useCan } from '@/lib/permissions';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PriceSummary } from '@/components/PriceSummary';
+import { useDealerPricing } from '@/lib/dealerPricing';
 import { UpiQr } from '@/components/UpiQr';
 import { ScanButton, useWedgeScanner } from '@/components/BarcodeScanner';
 import { ordersToCsv, orderPayStatus, printOrder, printEInvoice, printEwayBill, printCreditNote, downloadFile, buildOrderText, whatsappLink } from '@/lib/bill';
@@ -113,7 +115,9 @@ export default function OrdersPage() {
     const add = useCallback((p: any) => setCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c.map((r) => r.productId === p._id ? { ...r, qty: r.qty + 10 } : r); return [...c, { productId: p._id, name: p.name, price: p.wholesalePrice || p.sellPrice, unit: p.unit, qty: 10 }]; }), []);
     const setQty = (id: string, d: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: stepQty(r.qty, d, r.unit) } : r));
     const setQtyTo = (id: string, n: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: n } : r));
-    const total = useMemo(() => cart.reduce((s, r) => s + r.price * r.qty, 0), [cart]);
+    // Real prices (dealer's price group + GST) come from the server once a dealer is picked.
+    const pricing = useDealerPricing(dealerId, cart);
+    const payable = pricing.data?.grandTotal;
     const inCart = useMemo(() => new Map(cart.map((r) => [r.productId, r.qty])), [cart]);
 
     const scanAdd = useCallback(async (code: string) => {
@@ -413,17 +417,14 @@ export default function OrdersPage() {
                                         <button onClick={() => setQty(r.productId, -10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Minus size={12} /></button>
                                         <QtyInput value={r.qty} unit={r.unit} onChange={(n) => setQtyTo(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-14" />
                                         <button onClick={() => setQty(r.productId, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Plus size={12} /></button>
-                                        <span className="w-20 text-right text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
+                                        <span className="w-20 text-right text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{pricing.byProduct.has(r.productId) ? inr2(pricing.byProduct.get(r.productId)!.lineTotal) : '…'}</span>
                                         <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                                     </div>
                                 ))}
                             </div>
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('total')}</span>
-                                <span className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(total)}</span>
-                            </div>
+                            <PriceSummary pricing={pricing} dealerChosen={!!dealerId} empty={!cart.length} />
                             {error && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{error}</p>}
-                            <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || create.isPending} onClick={() => create.mutate()}><Check size={16} /> {editingOrder ? t('saveChanges') : t('createOrder')} · {inr2(total)}</button>
+                            <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || create.isPending || !!pricing.error} onClick={() => create.mutate()}><Check size={16} /> {editingOrder ? t('saveChanges') : t('createOrder')}{payable != null ? ` · ${inr2(payable)}` : ''}</button>
                             <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{editingOrder ? t('editPricesNote') : t('pricesAutoApply')}</p>
                         </motion.div>
                     </div>

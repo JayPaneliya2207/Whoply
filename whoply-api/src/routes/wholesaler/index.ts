@@ -11,7 +11,7 @@ import {
     dealerOrders,
     collectPayment,
 } from '../../controllers/wholesaler/dealer.controller.js';
-import { createOrder, listOrders, updateOrderStatus, updateOrderItems, orderEInvoiceJson, orderEWayJson, wholesalerGstReport, createOrderReturn, listOrderReturns } from '../../controllers/wholesaler/order.controller.js';
+import { createOrder, previewDealerPrices, listOrders, updateOrderStatus, updateOrderItems, orderEInvoiceJson, orderEWayJson, wholesalerGstReport, createOrderReturn, listOrderReturns } from '../../controllers/wholesaler/order.controller.js';
 import { recordOrderPayment, listPayments, tallyReport } from '../../controllers/wholesaler/payment.controller.js';
 import { createWsQuote, listWsQuotes, deleteWsQuote, convertWsQuote } from '../../controllers/wholesaler/quotation.controller.js';
 import { getPriceList, setPrice } from '../../controllers/wholesaler/pricelist.controller.js';
@@ -72,6 +72,7 @@ router.get('/dealers/:id/orders', p('dealers.view'), dealerOrders);
 router.post('/dealers/:id/collect', p('payments.collect'), collectPayment);
 
 // Orders + dispatch/delivery
+router.post('/price-preview', p('orders.create', 'quotations'), previewDealerPrices);
 router.get('/orders', p('orders.view'), listOrders);
 router.post('/orders', p('orders.create'), createOrder);
 router.patch('/orders/:id', p('orders.create'), updateOrderItems);

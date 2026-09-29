@@ -150,6 +150,36 @@ const stockOf = async (tok, base, id) => d(await api('GET', `${base}/products/${
     check('sales rep cannot cancel (403)', r.status === 403, `${r.status}`);
     r = await api('PATCH', `${W}/orders/${o3._id}/status`, wh.tok, { status: 'cancelled' });
     check('warehouse can cancel', r.status === 200, `${r.status}`);
+
+    suite('orders:price-preview');
+    // A Premium (A) dealer with a special price on rice: the preview must match the saved order exactly.
+    r = await api('POST', `${W}/dealers`, ws, { name: 'Premium Dealer', mobile: '9822255005', tier: 'A' });
+    const prem = d(r);
+    await api('PUT', `${W}/price-lists`, ws, { productId: rice._id, tier: 'A', price: 44 });
+    const cartItems = [{ productId: rice._id, quantity: 25 }, { productId: dal._id, quantity: 7 }];
+    const countBefore = (await api('GET', `${W}/orders?limit=1`, ws)).json.data.meta.total;
+    r = await api('POST', `${W}/price-preview`, ws, { dealerId: prem._id, items: cartItems });
+    const pv = d(r);
+    check('preview ok', r.status === 200 && pv?.lines?.length === 2 && pv.tier === 'A', `${r.status} ${msg(r)}`);
+    check("uses the dealer's price-group price (₹44 rice)", pv?.lines?.find((l) => String(l.productId) === rice._id)?.price === 44, JSON.stringify(pv?.lines?.[0]));
+    check('includes GST (5% on rice, 0% on dal)', pv && near(pv.totalGst, 25 * 44 * 0.05) && near(pv.grandTotal, pv.subtotal + pv.totalGst), JSON.stringify({ s: pv?.subtotal, g: pv?.totalGst, t: pv?.grandTotal }));
+    check('preview saves nothing', (await api('GET', `${W}/orders?limit=1`, ws)).json.data.meta.total === countBefore);
+    r = await api('POST', `${W}/orders`, ws, { dealerId: prem._id, items: cartItems, source: 'manual' });
+    check('saved order total = preview total', r.status === 201 && near(d(r).total, pv.grandTotal) && near(d(r).totalGst, pv.totalGst), `${d(r)?.total} vs ${pv?.grandTotal}`);
+    r = await api('POST', `${W}/quotations`, ws, { dealerId: prem._id, items: cartItems });
+    check('saved quotation total = preview total', r.status === 201 && near(d(r).grandTotal, pv.grandTotal), `${d(r)?.grandTotal} vs ${pv?.grandTotal}`);
+    r = await api('POST', `${W}/price-preview`, ws, { dealerId: dealer._id, items: cartItems });
+    check('a Standard (B) dealer gets a different price', r.status === 200 && d(r).lines.find((l) => String(l.productId) === rice._id)?.price !== 44, JSON.stringify(d(r)?.lines?.[0]));
+    r = await api('POST', `${W}/price-preview`, ws, { dealerId: prem._id, items: [] });
+    check('empty cart → zeros', r.status === 200 && d(r).grandTotal === 0, `${r.status}`);
+    r = await api('POST', `${W}/price-preview`, ws, { items: cartItems });
+    check('no dealer → asks for one (400)', r.status === 400, `${r.status} ${msg(r)}`);
+    r = await api('POST', `${W}/price-preview`, ws, { dealerId: prem._id, items: [{ productId: dal._id, quantity: 0 }] });
+    check('bad quantity → 400 with the reason', r.status === 400 && /quantity/i.test(msg(r)), `${r.status} ${msg(r)}`);
+    r = await api('POST', `${W}/price-preview`, rep.tok, { dealerId: prem._id, items: cartItems });
+    check('sales rep can preview', r.status === 200, `${r.status}`);
+    r = await api('POST', `${W}/price-preview`, wh.tok, { dealerId: prem._id, items: cartItems });
+    check('warehouse cannot preview (403)', r.status === 403, `${r.status}`);
     for (const x of [rep, wh]) await api('DELETE', `/staff/${x.id}`, ws);
 
     const fails = results.filter((x) => !x.pass);

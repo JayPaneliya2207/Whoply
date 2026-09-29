@@ -19,6 +19,24 @@ import { istYm, gstMonth } from '../../utils/ist.js';
 import { interStateExpr, splitTax } from '../../utils/gstSplit.js';
 
 /**
+ * POST /price-preview — what an order or quotation for this dealer would cost,
+ * priced exactly as saving it would (the dealer's price group, each product's
+ * GST). Saves nothing. body: { dealerId, items: [{ productId, quantity }] }
+ */
+export const previewDealerPrices = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const { dealerId, items } = req.body;
+    if (!Array.isArray(items) || !items.length) {
+        sendSuccess(res, { lines: [], subtotal: 0, totalGst: 0, grandTotal: 0 });
+        return;
+    }
+    const dealer = await Dealer.findOne({ _id: dealerId, businessId, isActive: true });
+    if (!dealer) throw AppError.badRequest('Pick a dealer to see their prices');
+    const { lineItems, subtotal, totalGst, grandTotal } = await priceDealerItems(businessId, dealer, items);
+    sendSuccess(res, { tier: dealer.tier, lines: lineItems, subtotal, totalGst, grandTotal });
+});
+
+/**
  * POST /orders — create a wholesale bulk order.
  * body: { dealerId, items:[{productId, quantity}], source?, paidAmount?, paymentMode? }
  * Prices auto-resolve from the dealer's tier price-list. Stock is not taken here —
