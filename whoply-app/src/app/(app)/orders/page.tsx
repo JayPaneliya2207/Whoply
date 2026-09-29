@@ -246,7 +246,7 @@ export default function OrdersPage() {
                         <div className="grid grid-cols-3 gap-2">
                             {can('einvoice') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => genEInvoice(detail)}><FileJson size={15} className="shrink-0" /> <span className="truncate">{t('eInvoiceJson')}</span></button>}
                             {can('einvoice') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={() => setEwayOpen((v) => !v)}><Truck size={15} className="shrink-0" /> <span className="truncate">{t('ewayBill')}</span></button>}
-                            {can('returns.create') && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>}
+                            {can('returns.create') && ['dispatched', 'delivered'].includes(detail.status) && <button className="wp-btn wp-btn-ghost !py-2 !px-2 text-sm min-w-0" onClick={openReturn}><RotateCcw size={15} className="shrink-0" /> <span className="truncate">{t('returnItems')}</span></button>}
                         </div>
                         {/* Change the items before it ships; cancel until delivered (after that, record a return). */}
                         {((can('orders.create') && ['pending', 'confirmed'].includes(detail.status)) || (can('orders.status') && !['delivered', 'cancelled'].includes(detail.status))) && (

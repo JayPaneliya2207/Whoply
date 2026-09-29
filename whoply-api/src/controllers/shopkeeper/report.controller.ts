@@ -9,7 +9,7 @@ import CreditLedger from '../../models/CreditLedger.js';
 import CreditNote from '../../models/CreditNote.js';
 import User from '../../models/User.js';
 import Business from '../../models/Business.js';
-import { interStateExpr, splitTax } from '../../utils/gstSplit.js';
+import { interStateExpr, splitTax, netRows, rateKey, hsnKey, rateTable, hsnTable } from '../../utils/gstSplit.js';
 import { STAFF_ROLES, type AuthRequest } from '../../interfaces/index.js';
 import { can } from '../../utils/permissions.js';
 import { Types, type PipelineStage } from 'mongoose';
@@ -342,22 +342,8 @@ export const gstReport = asyncHandler(async (req: AuthRequest, res: Response) =>
     const r2 = (n: number) => +n.toFixed(2);
 
     // Rate-wise and HSN tables, net of the month's returns.
-    const cnByRate = new Map(cnRateAgg.map((r) => [r._id || 0, r]));
-    const rateWise = rateAgg
-        .map((r) => {
-            const c = cnByRate.get(r._id || 0);
-            const gst = r.gst - (c?.gst || 0);
-            return { rate: r._id || 0, taxable: r2(r.taxable - (c?.taxable || 0)), ...splitTax(gst, r.igst - (c?.igst || 0)), gst: r2(gst) };
-        })
-        .sort((a, b) => a.rate - b.rate);
-    const cnByHsn = new Map(cnHsnAgg.map((h) => [`${h._id.hsn}|${h._id.rate}`, h]));
-    const hsnWise = hsnAgg
-        .map((h) => {
-            const c = cnByHsn.get(`${h._id.hsn}|${h._id.rate}`);
-            const gst = h.gst - (c?.gst || 0);
-            return { hsn: h._id.hsn, name: h.name, rate: h._id.rate || 0, qty: h.qty - (c?.qty || 0), taxable: r2(h.taxable - (c?.taxable || 0)), ...splitTax(gst, h.igst - (c?.igst || 0)), gst: r2(gst) };
-        })
-        .sort((a, b) => b.taxable - a.taxable);
+    const rateWise = rateTable(netRows(rateAgg, cnRateAgg, rateKey));
+    const hsnWise = hsnTable(netRows(hsnAgg, cnHsnAgg, hsnKey));
 
     const b2b = b2bAgg.map((b) => ({ gstin: b._id, name: b.name, invoices: b.count, taxable: r2(b.taxable), gst: r2(b.gst), igst: r2(b.igst), total: r2(b.total) }));
     const cdnr = cdnrAgg.map((b) => ({ gstin: b._id, name: b.name, notes: b.count, taxable: r2(b.taxable), gst: r2(b.gst), igst: r2(b.igst), total: r2(b.total) }));

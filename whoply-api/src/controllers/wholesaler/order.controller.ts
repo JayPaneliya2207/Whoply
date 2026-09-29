@@ -14,9 +14,9 @@ import CreditNote from '../../models/CreditNote.js';
 import { nextSequence } from '../../models/Counter.js';
 import { buildEInvoiceJson, buildEWayBillJson, orderToGstDoc } from '../../utils/gstJson.js';
 import type { AuthRequest } from '../../interfaces/index.js';
-import { Types } from 'mongoose';
+import { Types, type PipelineStage } from 'mongoose';
 import { istYm, gstMonth } from '../../utils/ist.js';
-import { interStateExpr, splitTax } from '../../utils/gstSplit.js';
+import { interStateExpr, splitTax, netRows, rateKey, hsnKey, rateTable, hsnTable } from '../../utils/gstSplit.js';
 
 /**
  * POST /price-preview — what an order or quotation for this dealer would cost,
@@ -182,9 +182,11 @@ export const updateOrderStatus = asyncHandler(async (req: AuthRequest, res: Resp
     }
     if (status === 'cancelled') {
         if (stockTaken) {
+            // Put back what is still out — returned units already came back with their credit note.
+            const returned = await returnedQty(businessId, order._id);
             await applyStockChanges(
                 businessId,
-                order.items.map((li) => ({ productId: li.productId, delta: li.quantity })),
+                order.items.map((li) => ({ productId: li.productId, delta: +(li.quantity - (returned.get(String(li.productId)) || 0)).toFixed(3) })),
                 { reason: 'return', refType: 'Order', refId: order._id, note: `Cancelled ${order.orderNo}` }
             );
         }
@@ -222,47 +224,115 @@ export const orderEWayJson = asyncHandler(async (req: AuthRequest, res: Response
  * GET /reports/gst?month=YYYY-MM — wholesale GST returns from orders (GST added on top).
  * GSTR-3B summary + rate-wise + HSN + B2B (by dealer GSTIN). IGST for dealers in another state,
  * CGST + SGST otherwise (utils/gstSplit.ts). Month by the Indian calendar.
+ * Orders count at the value they were issued for. Dealer returns (credit notes) dated in the
+ * month come off the summary, rate-wise and HSN tables and B2C, as in the shop report; B2B
+ * stays gross, with its credit notes listed under `cdnr`. Cancelled orders and their returns
+ * are left out.
  */
 /** Line taxable value — stored `taxableValue` where present (GST-inclusive products), else price × qty. */
 const ITEM_TAXABLE = { $ifNull: ['$items.taxableValue', { $multiply: ['$items.price', '$items.quantity'] }] };
+/** A return lowers its order's saved totals — add every return on the order back for the value it was issued for. */
+const ORDER_AS_ISSUED: PipelineStage[] = [
+    { $lookup: { from: CreditNote.collection.name, localField: '_id', foreignField: 'orderId', pipeline: [{ $project: { subtotal: 1, totalGst: 1, total: 1 } }], as: 'cn' } },
+    {
+        $addFields: {
+            // $ifNull → legacy orders (created before GST fields existed) fall back to total as taxable, 0 GST.
+            subtotal: { $add: [{ $ifNull: ['$subtotal', '$total'] }, { $sum: '$cn.subtotal' }] },
+            totalGst: { $add: [{ $ifNull: ['$totalGst', 0] }, { $sum: '$cn.totalGst' }] },
+            total: { $add: ['$total', { $sum: '$cn.total' }] },
+        },
+    },
+];
+/** Keeps the credit notes whose order still counts (not cancelled). */
+const ON_LIVE_ORDER: PipelineStage[] = [
+    { $lookup: { from: Order.collection.name, localField: 'orderId', foreignField: '_id', pipeline: [{ $project: { status: 1 } }], as: 'order' } },
+    { $match: { 'order.status': { $ne: 'cancelled' } } },
+];
 
 export const wholesalerGstReport = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bId = new Types.ObjectId(String(businessOf(req)));
     const { from, to, label } = gstMonth(req.query.month);
     const biz = await Business.findById(bId).select('gstin').lean();
     // Dealer in another state → IGST; same state (or no dealer GSTIN) → CGST + SGST.
-    const INTER = interStateExpr(biz?.gstin, '$dealerGstin');
-    const igstOf = (amount: any) => ({ $sum: { $cond: [INTER, amount, 0] } });
-    const match = { businessId: bId, status: { $ne: 'cancelled' }, createdAt: { $gte: from, $lt: to } };
+    // Orders keep the dealer's GSTIN as dealerGstin, their credit notes as customerGstin.
+    const igstBy = (buyerField: string) => (amount: string) => ({ $sum: { $cond: [interStateExpr(biz?.gstin, buyerField), amount, 0] } });
+    const orderIgst = igstBy('$dealerGstin');
+    const cnIgst = igstBy('$customerGstin');
+    type IgstOf = typeof orderIgst;
 
-    const [summaryAgg, rateAgg, hsnAgg, b2bAgg] = await Promise.all([
-        // $ifNull → legacy orders (created before GST fields existed) fall back to total as taxable, 0 GST.
-        Order.aggregate([{ $match: match }, { $group: { _id: null, count: { $sum: 1 }, taxable: { $sum: { $ifNull: ['$subtotal', '$total'] } }, gst: { $sum: { $ifNull: ['$totalGst', 0] } }, igst: igstOf({ $ifNull: ['$totalGst', 0] }), total: { $sum: '$total' } } }]),
-        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: '$items.gstRate', taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' }, igst: igstOf('$items.gstAmount') } }, { $sort: { _id: 1 } }]),
-        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' }, igst: igstOf('$items.gstAmount') } }, { $sort: { taxable: -1 } }]),
-        Order.aggregate([{ $match: { ...match, dealerGstin: { $exists: true, $nin: [null, ''] } } }, { $group: { _id: '$dealerGstin', name: { $first: '$dealerName' }, count: { $sum: 1 }, taxable: { $sum: '$subtotal' }, gst: { $sum: '$totalGst' }, igst: igstOf('$totalGst'), total: { $sum: '$total' } } }, { $sort: { taxable: -1 } }]),
+    const inMonth = { businessId: bId, createdAt: { $gte: from, $lt: to } };
+    const orders: PipelineStage[] = [{ $match: { ...inMonth, status: { $ne: 'cancelled' } } }];
+    const returns: PipelineStage[] = [{ $match: { ...inMonth, orderId: { $exists: true, $ne: null } } }, ...ON_LIVE_ORDER];
+    const totals = (igstOf: IgstOf): PipelineStage[] => [{ $group: { _id: null, count: { $sum: 1 }, taxable: { $sum: '$subtotal' }, gst: { $sum: '$totalGst' }, igst: igstOf('$totalGst'), total: { $sum: '$total' } } }];
+    const byRate = (igstOf: IgstOf): PipelineStage[] => [{ $unwind: '$items' }, { $group: { _id: '$items.gstRate', taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' }, igst: igstOf('$items.gstAmount') } }];
+    const byHsn = (igstOf: IgstOf): PipelineStage[] => [
+        { $unwind: '$items' },
+        { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' }, igst: igstOf('$items.gstAmount') } },
+    ];
+    const byGstin = (gstinField: string, nameField: string, igstOf: IgstOf): PipelineStage[] => [
+        { $match: { [gstinField]: { $exists: true, $nin: [null, ''] } } },
+        { $group: { _id: `$${gstinField}`, name: { $first: `$${nameField}` }, count: { $sum: 1 }, taxable: { $sum: '$subtotal' }, gst: { $sum: '$totalGst' }, igst: igstOf('$totalGst'), total: { $sum: '$total' } } },
+        { $sort: { taxable: -1 } },
+    ];
+
+    const [summaryAgg, rateAgg, hsnAgg, b2bAgg, cnSummaryAgg, cnRateAgg, cnHsnAgg, cdnrAgg] = await Promise.all([
+        Order.aggregate([...orders, ...ORDER_AS_ISSUED, ...totals(orderIgst)]),
+        Order.aggregate([...orders, ...byRate(orderIgst)]),
+        Order.aggregate([...orders, ...byHsn(orderIgst)]),
+        Order.aggregate([...orders, ...ORDER_AS_ISSUED, ...byGstin('dealerGstin', 'dealerName', orderIgst)]),
+        CreditNote.aggregate([...returns, ...totals(cnIgst)]),
+        CreditNote.aggregate([...returns, ...byRate(cnIgst)]),
+        CreditNote.aggregate([...returns, ...byHsn(cnIgst)]),
+        CreditNote.aggregate([...returns, ...byGstin('customerGstin', 'customerName', cnIgst)]),
     ]);
 
-    const s = summaryAgg[0] || { count: 0, taxable: 0, gst: 0, igst: 0, total: 0 };
-    const b2b = b2bAgg.map((b) => ({ gstin: b._id, name: b.name, invoices: b.count, taxable: +b.taxable.toFixed(2), gst: +b.gst.toFixed(2), igst: +b.igst.toFixed(2), total: +b.total.toFixed(2) }));
+    const zero = { count: 0, taxable: 0, gst: 0, igst: 0, total: 0 };
+    const s = summaryAgg[0] || zero;
+    const cn = cnSummaryAgg[0] || zero;
+    const b2b = b2bAgg.map((b) => ({ gstin: b._id, name: b.name, invoices: b.count, taxable: round2(b.taxable), gst: round2(b.gst), igst: round2(b.igst), total: round2(b.total) }));
+    const cdnr = cdnrAgg.map((b) => ({ gstin: b._id, name: b.name, notes: b.count, taxable: round2(b.taxable), gst: round2(b.gst), igst: round2(b.igst), total: round2(b.total) }));
     const b2bTaxable = b2b.reduce((a, x) => a + x.taxable, 0);
     const b2bGst = b2b.reduce((a, x) => a + x.gst, 0);
+    const cdnrTaxable = cdnr.reduce((a, x) => a + x.taxable, 0);
+    const cdnrGst = cdnr.reduce((a, x) => a + x.gst, 0);
+    const netGst = s.gst - cn.gst;
 
     sendSuccess(res, {
         month: label,
-        summary: { invoices: s.count, taxableValue: +s.taxable.toFixed(2), ...splitTax(s.gst, s.igst), totalTax: +s.gst.toFixed(2), discount: 0, invoiceValue: +s.total.toFixed(2) },
-        rateWise: rateAgg.map((r) => ({ rate: r._id || 0, taxable: +r.taxable.toFixed(2), ...splitTax(r.gst, r.igst), gst: +r.gst.toFixed(2) })),
-        hsnWise: hsnAgg.map((h) => ({ hsn: h._id.hsn, name: h.name, rate: h._id.rate || 0, qty: h.qty, taxable: +h.taxable.toFixed(2), ...splitTax(h.gst, h.igst), gst: +h.gst.toFixed(2) })),
-        b2b, b2bTaxable: +b2bTaxable.toFixed(2), b2bGst: +b2bGst.toFixed(2),
-        b2cTaxable: +(s.taxable - b2bTaxable).toFixed(2), b2cGst: +(s.gst - b2bGst).toFixed(2),
+        summary: {
+            invoices: s.count,
+            taxableValue: round2(s.taxable - cn.taxable),
+            ...splitTax(netGst, s.igst - cn.igst),
+            totalTax: round2(netGst),
+            discount: 0,
+            invoiceValue: round2(s.total - cn.total),
+            creditNotes: { count: cn.count, taxable: round2(cn.taxable), gst: round2(cn.gst), total: round2(cn.total) },
+        },
+        rateWise: rateTable(netRows(rateAgg, cnRateAgg, rateKey)),
+        hsnWise: hsnTable(netRows(hsnAgg, cnHsnAgg, hsnKey)),
+        b2b,
+        cdnr,
+        b2bTaxable: round2(b2bTaxable),
+        b2bGst: round2(b2bGst),
+        b2cTaxable: round2(s.taxable - b2bTaxable - (cn.taxable - cdnrTaxable)),
+        b2cGst: round2(s.gst - b2bGst - (cn.gst - cdnrGst)),
     });
 });
+
+/** Units of each product already returned on an order, across its credit notes. */
+async function returnedQty(businessId: Types.ObjectId | string, orderId: Types.ObjectId): Promise<Map<string, number>> {
+    const notes = await CreditNote.find({ businessId, orderId }).select('items.productId items.quantity').lean();
+    const qty = new Map<string, number>();
+    notes.forEach((n) => n.items.forEach((it) => qty.set(String(it.productId), (qty.get(String(it.productId)) || 0) + it.quantity)));
+    return qty;
+}
 
 /**
  * POST /orders/:id/return — record a dealer return (credit note against an order).
  * body: { items:[{ productId, quantity }], reason? }
- * Restores stock (only if the order was dispatched/delivered), reduces the order's
- * value & the dealer's outstanding; any overpaid amount becomes a cash refund owed.
+ * Only once the goods have left (dispatched/delivered) — before that the order is
+ * edited or cancelled instead. Restores stock, reduces the order's value & the
+ * dealer's outstanding; any overpaid amount becomes a cash refund owed.
  */
 export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
@@ -271,10 +341,15 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
 
     const order = await Order.findOne({ _id: req.params.id, businessId });
     if (!order) throw AppError.notFound('Order not found');
+    if (order.status !== 'dispatched' && order.status !== 'delivered') {
+        throw AppError.badRequest(
+            order.status === 'cancelled'
+                ? 'A cancelled order cannot have a return'
+                : 'This order has not shipped yet — edit or cancel it instead of recording a return'
+        );
+    }
 
-    const priorNotes = await CreditNote.find({ businessId, orderId: order._id }).lean();
-    const alreadyReturned = new Map<string, number>();
-    priorNotes.forEach((n) => n.items.forEach((it) => alreadyReturned.set(String(it.productId), (alreadyReturned.get(String(it.productId)) || 0) + it.quantity)));
+    const alreadyReturned = await returnedQty(businessId, order._id);
 
     let subtotal = 0, totalGst = 0;
     const lineItems = items.map((i: any) => {
@@ -301,15 +376,12 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
     order.dueAmount = +Math.max(0, order.total - order.paidAmount).toFixed(2);
     await order.save();
 
-    // Restore stock only if it was actually decremented (dispatch happened).
-    const stockWasReduced = order.status === 'dispatched' || order.status === 'delivered';
-    if (stockWasReduced) {
-        await applyStockChanges(
-            businessId,
-            lineItems.map((li) => ({ productId: li.productId, delta: li.quantity })),
-            { reason: 'return', refType: 'CreditNote', refId: order._id }
-        );
-    }
+    // The goods left on dispatch, so they come back into stock.
+    await applyStockChanges(
+        businessId,
+        lineItems.map((li) => ({ productId: li.productId, delta: li.quantity })),
+        { reason: 'return', refType: 'CreditNote', refId: order._id }
+    );
 
     const ym = istYm();
     const seq = await nextSequence(`creditnote:${businessId}:${ym}`);
@@ -320,7 +392,7 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
         items: lineItems, subtotal: +subtotal.toFixed(2), totalGst: +totalGst.toFixed(2), total, reason,
         refundMode: cashRefund > 0 ? 'cash' : 'udhar_adjust', cashRefund, createdBy: req.user!._id,
     });
-    sendCreated(res, { creditNote: note, cashRefund, stockRestored: stockWasReduced }, 'Return recorded');
+    sendCreated(res, { creditNote: note, cashRefund, stockRestored: true }, 'Return recorded');
 });
 
 /** GET /returns — wholesale credit notes (against orders). */
