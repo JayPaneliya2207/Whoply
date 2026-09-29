@@ -9,7 +9,8 @@
  *    they appear on the landing page's pricing cards.
  * 4. Money & stock fixes (seeds/backfills.ts): order advances get Payment rows,
  *    return ledger rows stop counting as collections, credit notes get their
- *    cash refund, auto-filled price-list rows are dropped.
+ *    cash refund, auto-filled price-list rows are dropped, bills already paid
+ *    back through udhar repayments stop showing as due.
  * 5. Privacy: staff Aadhaar numbers are cut to the last 4 digits and Aadhaar
  *    card photos deleted (utils/kyc.ts).
  *
@@ -33,7 +34,7 @@ import Payment from '../models/Payment.js';
 import JobLock from '../models/JobLock.js';
 import Plan from '../models/Plan.js';
 import { PLAN_FEATURE_RENAMES } from './plans.js';
-import { backfillOrderAdvances, relabelReturnLedgerRows, backfillCashRefunds, dropDefaultTierRows, maskStoredAadhaar } from './backfills.js';
+import { backfillOrderAdvances, relabelReturnLedgerRows, backfillCashRefunds, dropDefaultTierRows, maskStoredAadhaar, settleRepaidBills } from './backfills.js';
 
 const MODELS = [
     ['Product', Product], ['Invoice', Invoice], ['Order', Order], ['StockMovement', StockMovement],
@@ -80,6 +81,7 @@ async function run() {
     console.log(`   ✓ ${await relabelReturnLedgerRows()} return ledger row(s) relabelled (no longer counted as collected)`);
     console.log(`   ✓ ${await backfillCashRefunds()} credit note(s) given their cash refund`);
     console.log(`   ✓ ${await dropDefaultTierRows()} auto-filled price-list row(s) dropped (defaults now follow the base price)`);
+    console.log(`   ✓ ${await settleRepaidBills()} bill(s) cleared by udhar the customer had already paid back`);
 
     console.log('\n→ Privacy fixes…');
     console.log(`   ✓ ${await maskStoredAadhaar()} staff Aadhaar record(s) cut to the last 4 digits, card photos removed`);

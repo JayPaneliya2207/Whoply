@@ -10,6 +10,7 @@ import { applyStockChanges } from '../../utils/stock.js';
 import { lineQty } from '../../utils/qty.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { istYm } from '../../utils/ist.js';
 
 /* ---- Suppliers ---- */
 export const listSuppliers = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -80,7 +81,7 @@ export const createPurchase = asyncHandler(async (req: AuthRequest, res: Respons
         return { productId: p._id, name: p.name, quantity: qty, costPrice: cost, lineTotal };
     });
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`po:${businessId}:${ym}`);
     const poNo = `PO/${ym}/${String(seq).padStart(4, '0')}`;
     // Paid can't be negative or more than the order — else the supplier ends up owing you.

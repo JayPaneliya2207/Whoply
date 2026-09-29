@@ -15,6 +15,7 @@ import { lineQty } from '../../utils/qty.js';
 import { normalizePhone } from '../../utils/phone.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { istYm } from '../../utils/ist.js';
 
 /**
  * POST /billing — create a POS sale.
@@ -96,7 +97,7 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A mobile number is required for credit (udhar) sales');
 
     // Invoice number: INV/<YYYYMM>/<seq>
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`invoice:${businessId}:${ym}`);
     const biz = await Business.findById(businessId).select('settings').lean();
     const prefix = biz?.settings?.invoicePrefix || 'INV';

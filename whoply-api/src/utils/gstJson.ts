@@ -7,6 +7,7 @@
  * Works for BOTH retail invoices and wholesale orders via a normalized `GstDoc`.
  */
 import type { IBusinessDocument } from '../models/Business.js';
+import { istDmy } from './ist.js';
 
 export interface GstDocItem {
     name: string;
@@ -47,10 +48,8 @@ export function orderToGstDoc(o: any): GstDoc {
     };
 }
 
-const ddmmyyyy = (d: Date) => {
-    const x = new Date(d);
-    return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}/${x.getFullYear()}`;
-};
+/** Document date for the portal, by the Indian calendar. */
+const ddmmyyyy = (d: Date) => istDmy(new Date(d));
 const stateCode = (gstin?: string) => (gstin && /^\d{2}/.test(gstin) ? gstin.slice(0, 2) : '');
 const r2 = (n: number) => +(+n || 0).toFixed(2);
 

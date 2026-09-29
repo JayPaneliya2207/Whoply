@@ -23,14 +23,8 @@ import Order from '../models/Order.js';
 import Notification from '../models/Notification.js';
 import { withJobLock } from '../models/JobLock.js';
 import { sendWhatsApp } from '../services/messaging.service.js';
+import { todayRange } from '../utils/http.js';
 
-const todayRange = () => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    return { start, end };
-};
 
 const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
 const idStr = (v: unknown) => String(v);

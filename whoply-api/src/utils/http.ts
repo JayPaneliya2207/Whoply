@@ -1,5 +1,6 @@
 import { AppError } from './AppError.js';
 import type { AuthRequest, IPaginationMeta } from '../interfaces/index.js';
+import { istDayRange, istMonthStart } from './ist.js';
 
 /** Resolve the caller's businessId or throw. */
 export const businessOf = (req: AuthRequest) => {
@@ -21,17 +22,8 @@ export const paginate = (query: any) => {
     return { page, limit, skip, meta };
 };
 
-/** Start/end of today in server local time. */
-export const todayRange = () => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    return { start, end };
-};
+/** [start, end) of today in India time (see utils/ist.ts). */
+export const todayRange = () => istDayRange();
 
-/** Start of current month. */
-export const monthStart = () => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
-};
+/** Start of the current month in India time. */
+export const monthStart = () => istMonthStart();

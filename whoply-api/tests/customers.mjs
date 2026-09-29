@@ -93,7 +93,8 @@ async function login(mobile, password = 'whoply123') {
     const L = d(r);
     check('ledger has the udhar and the repayment', L?.ledger?.length === 2 && L.ledger[0].type === 'repayment' && L.ledger[1].type === 'credit', JSON.stringify(L?.ledger?.map((e) => e.type)));
     check('ledger balance after each entry', L?.ledger?.[1]?.balanceAfter === 300 && L?.ledger?.[0]?.balanceAfter === 200, JSON.stringify(L?.ledger?.map((e) => e.balanceAfter)));
-    check('ledger lists the bill', L?.bills?.length === 1 && L.bills[0].invoiceNo === bill.invoiceNo && L.bills[0].dueAmount === 300, JSON.stringify(L?.bills?.[0] || {}));
+    // The ₹100 repayment clears part of the ₹300 udhar bill (utils/udhar.ts).
+    check('ledger lists the bill, part-paid by the repayment', L?.bills?.length === 1 && L.bills[0].invoiceNo === bill.invoiceNo && L.bills[0].dueAmount === 200 && L.bills[0].status === 'partial', JSON.stringify(L?.bills?.[0] || {}));
     check('customer balance 200', L?.customer?.creditBalance === 200, L?.customer?.creditBalance);
 
     suite('customers:remove');

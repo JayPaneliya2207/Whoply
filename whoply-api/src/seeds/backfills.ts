@@ -13,6 +13,9 @@ import Product from '../models/Product.js';
 import { defaultTierPrice } from '../utils/wholesaler.js';
 import User from '../models/User.js';
 import { sanitizeKyc } from '../utils/kyc.js';
+import Invoice from '../models/Invoice.js';
+import Customer from '../models/Customer.js';
+import { settleDueBills } from '../utils/udhar.js';
 
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -126,4 +129,27 @@ export async function dropDefaultTierRows(): Promise<number> {
     if (!ids.length) return 0;
     const r = await PriceList.deleteMany({ _id: { $in: ids } });
     return r.deletedCount;
+}
+
+/**
+ * Udhar repayments (and returns adjusted against udhar) used to lower only the
+ * customer's balance, so their bills kept showing "due" after they had paid.
+ * A customer's bills can't be owed more than the customer owes: clear the
+ * excess, oldest bill first — the rule new repayments follow (utils/udhar.ts).
+ */
+export async function settleRepaidBills(): Promise<number> {
+    const dues = await Invoice.aggregate([
+        { $match: { dueAmount: { $gt: 0 }, customerId: { $ne: null } } },
+        { $group: { _id: { businessId: '$businessId', customerId: '$customerId' }, due: { $sum: '$dueAmount' } } },
+    ]);
+    if (!dues.length) return 0;
+    const customers = await Customer.find({ _id: { $in: dues.map((d) => d._id.customerId) } }).select('creditBalance').lean();
+    const balance = new Map(customers.map((c) => [String(c._id), c.creditBalance || 0]));
+    let bills = 0;
+    for (const d of dues) {
+        const excess = r2(d.due - Math.max(0, balance.get(String(d._id.customerId)) ?? 0));
+        if (excess < 0.01) continue;
+        bills += (await settleDueBills(d._id.businessId, d._id.customerId, excess)).length;
+    }
+    return bills;
 }

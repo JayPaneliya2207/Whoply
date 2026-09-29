@@ -10,6 +10,7 @@ import { priceDealerItems, recordAdvancePayment } from '../../utils/wholesaler.j
 import { round2 } from '../../utils/tax.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { istYm } from '../../utils/ist.js';
 
 /** POST /quotations — save a dealer quote (tier price; GST per product). */
 export const createWsQuote = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -22,7 +23,7 @@ export const createWsQuote = asyncHandler(async (req: AuthRequest, res: Response
 
     const { lineItems, subtotal, totalGst, grandTotal } = await priceDealerItems(businessId, dealer, items);
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`quotation:${businessId}:${ym}`);
     const quoteNo = `QUO/${ym}/${String(seq).padStart(4, '0')}`;
     const validUntil = validDays ? new Date(Date.now() + Number(validDays) * 86400000) : undefined;
@@ -63,7 +64,7 @@ export const convertWsQuote = asyncHandler(async (req: AuthRequest, res: Respons
     const dealer = await Dealer.findOne({ _id: quote.dealerId, businessId });
     if (!dealer) throw AppError.badRequest('Dealer no longer exists');
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`order:${businessId}:${ym}`);
     const orderNo = `ORD/${ym}/${String(seq).padStart(4, '0')}`;
     const paidAmount = round2(Math.min(quote.grandTotal, Math.max(0, Number(req.body.paidAmount) || 0)));

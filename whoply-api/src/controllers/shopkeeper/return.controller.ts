@@ -13,6 +13,8 @@ import { lineQty } from '../../utils/qty.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
+import { istYm } from '../../utils/ist.js';
+import { settleDueBills, settledNote } from '../../utils/udhar.js';
 
 /**
  * POST /returns — record a sales return (credit note) against an invoice.
@@ -20,7 +22,8 @@ import { Types } from 'mongoose';
  * Restores stock. The return is valued at what was charged (after the bill
  * discount) and settled in this order:
  *   1. it cancels what is still unpaid on THIS bill (no cash for unpaid goods);
- *   2. udhar_adjust: the rest reduces the customer's other udhar;
+ *   2. udhar_adjust: the rest reduces the customer's other udhar (clearing their
+ *      oldest other due bills — utils/udhar.ts);
  *   3. anything left is paid back in cash (`cashRefund`, subtracted in day-close).
  * Udhar reductions are ledger type 'return', so they never count as money collected.
  */
@@ -56,7 +59,7 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
     });
     const total = round2(subtotal + totalGst);
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`creditnote:${businessId}:${ym}`);
     const creditNoteNo = `CN/${ym}/${String(seq).padStart(4, '0')}`;
 
@@ -82,7 +85,7 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
     if (invoice.dueAmount > 0) {
         billAdjusted = round2(Math.min(remaining, invoice.dueAmount));
         invoice.dueAmount = round2(invoice.dueAmount - billAdjusted);
-        invoice.status = invoice.dueAmount <= 0 ? 'paid' : invoice.paidAmount > 0 ? 'partial' : 'credit';
+        invoice.status = invoice.dueAmount <= 0 ? 'paid' : 'partial';
         await invoice.save();
         remaining = round2(remaining - billAdjusted);
     }
@@ -94,7 +97,9 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
     if (customer && fromUdhar > 0) {
         customer.creditBalance = round2(Math.max(0, customer.creditBalance - fromUdhar));
         await customer.save();
-        await CreditLedger.create({ businessId, customerId: customer._id, type: 'return', amount: fromUdhar, balanceAfter: customer.creditBalance, refType: 'CreditNote', refId: note._id, note: `Return ${creditNoteNo}` });
+        // What went against their other udhar clears their other due bills, oldest first.
+        const settled = udharAdjusted > 0 ? await settleDueBills(businessId, customer._id, udharAdjusted, { excludeInvoiceId: invoice._id }) : [];
+        await CreditLedger.create({ businessId, customerId: customer._id, type: 'return', amount: fromUdhar, balanceAfter: customer.creditBalance, refType: 'CreditNote', refId: note._id, note: [`Return ${creditNoteNo}`, settledNote(settled)].filter(Boolean).join(' — ') });
     }
     const cashRefund = remaining;
     if (cashRefund > 0) {

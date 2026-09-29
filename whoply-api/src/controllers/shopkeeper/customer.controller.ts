@@ -9,6 +9,7 @@ import Invoice from '../../models/Invoice.js';
 import { cleanGstin } from '../../utils/gstin.js';
 import { normalizePhone } from '../../utils/phone.js';
 import { containsText } from '../../utils/search.js';
+import { settleDueBills, settledNote } from '../../utils/udhar.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
 export const listCustomers = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -136,13 +137,15 @@ export const recordRepayment = asyncHandler(async (req: AuthRequest, res: Respon
 
     customer.creditBalance = +(customer.creditBalance - amount).toFixed(2);
     await customer.save();
+    // The money clears their oldest due bills, so those stop showing "due".
+    const settled = await settleDueBills(businessId, customer._id, amount);
     const entry = await CreditLedger.create({
         businessId,
         customerId: customer._id,
         type: 'repayment',
         amount,
         balanceAfter: customer.creditBalance,
-        note: req.body.note || 'Udhar repayment',
+        note: [req.body.note || 'Udhar repayment', settledNote(settled)].filter(Boolean).join(' — '),
     });
-    sendCreated(res, { customer, entry }, 'Repayment recorded');
+    sendCreated(res, { customer, entry, settled }, 'Repayment recorded');
 });

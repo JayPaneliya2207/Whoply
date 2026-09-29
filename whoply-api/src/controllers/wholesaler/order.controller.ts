@@ -15,6 +15,8 @@ import { nextSequence } from '../../models/Counter.js';
 import { buildEInvoiceJson, buildEWayBillJson, orderToGstDoc } from '../../utils/gstJson.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
+import { istYm, gstMonth } from '../../utils/ist.js';
+import { interStateExpr, splitTax } from '../../utils/gstSplit.js';
 
 /**
  * POST /orders — create a wholesale bulk order.
@@ -33,7 +35,7 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
 
     const { lineItems, subtotal, totalGst, grandTotal: total } = await priceDealerItems(businessId, dealer, items);
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`order:${businessId}:${ym}`);
     const orderNo = `ORD/${ym}/${String(seq).padStart(4, '0')}`;
     const paidAmount = round2(Math.min(total, Math.max(0, Number(req.body.paidAmount) || 0)));
@@ -163,42 +165,39 @@ export const orderEWayJson = asyncHandler(async (req: AuthRequest, res: Response
 
 /**
  * GET /reports/gst?month=YYYY-MM — wholesale GST returns from orders (GST added on top).
- * GSTR-3B summary + rate-wise + HSN + B2B (by dealer GSTIN). CGST/SGST split 50/50 intra-state.
+ * GSTR-3B summary + rate-wise + HSN + B2B (by dealer GSTIN). IGST for dealers in another state,
+ * CGST + SGST otherwise (utils/gstSplit.ts). Month by the Indian calendar.
  */
 /** Line taxable value — stored `taxableValue` where present (GST-inclusive products), else price × qty. */
 const ITEM_TAXABLE = { $ifNull: ['$items.taxableValue', { $multiply: ['$items.price', '$items.quantity'] }] };
 
 export const wholesalerGstReport = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bId = new Types.ObjectId(String(businessOf(req)));
-    const now = new Date();
-    let from: Date, to: Date;
-    if (req.query.month && /^\d{4}-\d{2}$/.test(String(req.query.month))) {
-        const [y, m] = String(req.query.month).split('-').map(Number);
-        from = new Date(y, m - 1, 1); to = new Date(y, m, 0, 23, 59, 59, 999);
-    } else {
-        from = new Date(now.getFullYear(), now.getMonth(), 1); to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    }
-    const match = { businessId: bId, status: { $ne: 'cancelled' }, createdAt: { $gte: from, $lte: to } };
+    const { from, to, label } = gstMonth(req.query.month);
+    const biz = await Business.findById(bId).select('gstin').lean();
+    // Dealer in another state → IGST; same state (or no dealer GSTIN) → CGST + SGST.
+    const INTER = interStateExpr(biz?.gstin, '$dealerGstin');
+    const igstOf = (amount: any) => ({ $sum: { $cond: [INTER, amount, 0] } });
+    const match = { businessId: bId, status: { $ne: 'cancelled' }, createdAt: { $gte: from, $lt: to } };
 
     const [summaryAgg, rateAgg, hsnAgg, b2bAgg] = await Promise.all([
         // $ifNull → legacy orders (created before GST fields existed) fall back to total as taxable, 0 GST.
-        Order.aggregate([{ $match: match }, { $group: { _id: null, count: { $sum: 1 }, taxable: { $sum: { $ifNull: ['$subtotal', '$total'] } }, gst: { $sum: { $ifNull: ['$totalGst', 0] } }, total: { $sum: '$total' } } }]),
-        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: '$items.gstRate', taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' } } }, { $sort: { _id: 1 } }]),
-        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' } } }, { $sort: { taxable: -1 } }]),
-        Order.aggregate([{ $match: { ...match, dealerGstin: { $exists: true, $nin: [null, ''] } } }, { $group: { _id: '$dealerGstin', name: { $first: '$dealerName' }, count: { $sum: 1 }, taxable: { $sum: '$subtotal' }, gst: { $sum: '$totalGst' }, total: { $sum: '$total' } } }, { $sort: { taxable: -1 } }]),
+        Order.aggregate([{ $match: match }, { $group: { _id: null, count: { $sum: 1 }, taxable: { $sum: { $ifNull: ['$subtotal', '$total'] } }, gst: { $sum: { $ifNull: ['$totalGst', 0] } }, igst: igstOf({ $ifNull: ['$totalGst', 0] }), total: { $sum: '$total' } } }]),
+        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: '$items.gstRate', taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' }, igst: igstOf('$items.gstAmount') } }, { $sort: { _id: 1 } }]),
+        Order.aggregate([{ $match: match }, { $unwind: '$items' }, { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' }, igst: igstOf('$items.gstAmount') } }, { $sort: { taxable: -1 } }]),
+        Order.aggregate([{ $match: { ...match, dealerGstin: { $exists: true, $nin: [null, ''] } } }, { $group: { _id: '$dealerGstin', name: { $first: '$dealerName' }, count: { $sum: 1 }, taxable: { $sum: '$subtotal' }, gst: { $sum: '$totalGst' }, igst: igstOf('$totalGst'), total: { $sum: '$total' } } }, { $sort: { taxable: -1 } }]),
     ]);
 
-    const s = summaryAgg[0] || { count: 0, taxable: 0, gst: 0, total: 0 };
-    const half = (n: number) => +(n / 2).toFixed(2);
-    const b2b = b2bAgg.map((b) => ({ gstin: b._id, name: b.name, invoices: b.count, taxable: +b.taxable.toFixed(2), gst: +b.gst.toFixed(2), total: +b.total.toFixed(2) }));
+    const s = summaryAgg[0] || { count: 0, taxable: 0, gst: 0, igst: 0, total: 0 };
+    const b2b = b2bAgg.map((b) => ({ gstin: b._id, name: b.name, invoices: b.count, taxable: +b.taxable.toFixed(2), gst: +b.gst.toFixed(2), igst: +b.igst.toFixed(2), total: +b.total.toFixed(2) }));
     const b2bTaxable = b2b.reduce((a, x) => a + x.taxable, 0);
     const b2bGst = b2b.reduce((a, x) => a + x.gst, 0);
 
     sendSuccess(res, {
-        month: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}`,
-        summary: { invoices: s.count, taxableValue: +s.taxable.toFixed(2), cgst: half(s.gst), sgst: half(s.gst), igst: 0, totalTax: +s.gst.toFixed(2), discount: 0, invoiceValue: +s.total.toFixed(2) },
-        rateWise: rateAgg.map((r) => ({ rate: r._id || 0, taxable: +r.taxable.toFixed(2), cgst: half(r.gst), sgst: half(r.gst), gst: +r.gst.toFixed(2) })),
-        hsnWise: hsnAgg.map((h) => ({ hsn: h._id.hsn, name: h.name, rate: h._id.rate || 0, qty: h.qty, taxable: +h.taxable.toFixed(2), gst: +h.gst.toFixed(2) })),
+        month: label,
+        summary: { invoices: s.count, taxableValue: +s.taxable.toFixed(2), ...splitTax(s.gst, s.igst), totalTax: +s.gst.toFixed(2), discount: 0, invoiceValue: +s.total.toFixed(2) },
+        rateWise: rateAgg.map((r) => ({ rate: r._id || 0, taxable: +r.taxable.toFixed(2), ...splitTax(r.gst, r.igst), gst: +r.gst.toFixed(2) })),
+        hsnWise: hsnAgg.map((h) => ({ hsn: h._id.hsn, name: h.name, rate: h._id.rate || 0, qty: h.qty, taxable: +h.taxable.toFixed(2), ...splitTax(h.gst, h.igst), gst: +h.gst.toFixed(2) })),
         b2b, b2bTaxable: +b2bTaxable.toFixed(2), b2bGst: +b2bGst.toFixed(2),
         b2cTaxable: +(s.taxable - b2bTaxable).toFixed(2), b2cGst: +(s.gst - b2bGst).toFixed(2),
     });
@@ -257,7 +256,7 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
         );
     }
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`creditnote:${businessId}:${ym}`);
     const creditNoteNo = `CN/${ym}/${String(seq).padStart(4, '0')}`;
     const note = await CreditNote.create({

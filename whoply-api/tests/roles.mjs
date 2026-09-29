@@ -121,8 +121,7 @@ const X = '000000000000000000000000'; // an id that exists nowhere
     r = await api('GET', '/shopkeeper/products?limit=5', st);
     check('owner product list has cost price', items(r).length > 0 && items(r).every((p) => 'costPrice' in p), '');
     r = await api('GET', '/shopkeeper/reports/day-close?date=2020-01-01', st);
-    // (the date string is UTC, so in India the 1st shows as the 31st)
-    check('owner day-close can pick a day', ['2019-12-31', '2020-01-01'].includes(d(r)?.date), d(r)?.date);
+    check('owner day-close can pick a day', d(r)?.date === '2020-01-01', d(r)?.date);
 
     suite('roles:shop-manager');
     const m = rmgr.tok;

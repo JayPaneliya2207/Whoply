@@ -8,22 +8,17 @@ import Expense from '../../models/Expense.js';
 import CreditLedger from '../../models/CreditLedger.js';
 import CreditNote from '../../models/CreditNote.js';
 import User from '../../models/User.js';
+import Business from '../../models/Business.js';
+import { interStateExpr, splitTax } from '../../utils/gstSplit.js';
 import { STAFF_ROLES, type AuthRequest } from '../../interfaces/index.js';
 import { can } from '../../utils/permissions.js';
 import { Types, type PipelineStage } from 'mongoose';
+import { IST_TZ, istDateRange, istDaysAgo, istPeriodStart, istYmd, gstMonth } from '../../utils/ist.js';
 
 const salaryMultiplier: Record<string, number> = { week: 7 / 30, month: 1, quarter: 3, year: 12 };
 
 type Period = 'week' | 'month' | 'quarter' | 'year';
-const periodStart = (period: Period): Date => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    if (period === 'week') d.setDate(d.getDate() - 7);
-    else if (period === 'month') d.setMonth(d.getMonth() - 1);
-    else if (period === 'quarter') d.setMonth(d.getMonth() - 3);
-    else d.setFullYear(d.getFullYear() - 1);
-    return d;
-};
+const periodStart = (period: Period): Date => istPeriodStart(period);
 
 /**
  * Taxable value of a line: `taxableValue` (after the bill discount) where stored;
@@ -66,15 +61,13 @@ async function cogsSince(bId: Types.ObjectId, since: Date): Promise<number> {
 export const salesReport = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bId = new Types.ObjectId(String(businessOf(req)));
     const days = Math.min(90, Number(req.query.days) || 30);
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    since.setHours(0, 0, 0, 0);
+    const since = istDaysAgo(days);
 
     const daily = await Invoice.aggregate([
         { $match: { businessId: bId, createdAt: { $gte: since } } },
         {
             $group: {
-                _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+                _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TZ } },
                 sales: { $sum: '$grandTotal' },
                 orders: { $sum: 1 },
             },
@@ -139,9 +132,10 @@ export const summaryReport = asyncHandler(async (req: AuthRequest, res: Response
             { $match: { businessId: bId, createdAt: { $gte: since } } },
             { $group: { _id: null, revenue: { $sum: '$grandTotal' }, gst: { $sum: '$totalGst' }, orders: { $sum: 1 } } },
         ]),
+        // Salary expenses apart from the rest (see below).
         Expense.aggregate([
             { $match: { businessId: bId, spentAt: { $gte: since } } },
-            { $group: { _id: null, total: { $sum: '$amount' } } },
+            { $group: { _id: { $eq: ['$category', 'salary'] }, total: { $sum: '$amount' } } },
         ]),
         cogsSince(bId, since),
         User.aggregate([
@@ -157,9 +151,15 @@ export const summaryReport = asyncHandler(async (req: AuthRequest, res: Response
 
     const revenue = +((revAgg[0]?.revenue || 0) - (cnAgg[0]?.total || 0)).toFixed(2);
     const netGst = (revAgg[0]?.gst || 0) - (cnAgg[0]?.gst || 0);
-    const otherExpenses = expAgg[0]?.total || 0;
+    const otherExpenses = +(expAgg.find((e) => e._id === false)?.total || 0).toFixed(2);
+    const salaryPaid = +(expAgg.find((e) => e._id === true)?.total || 0).toFixed(2);
     const monthlyStaffSalary = salaryAgg[0]?.monthly || 0;
-    const salaryForPeriod = +(monthlyStaffSalary * (salaryMultiplier[period] || 1)).toFixed(2);
+    // Salary counts once. Salary the shop recorded as expenses in this period is
+    // what was really paid; only when there is none do we estimate it from the
+    // staff list. Adding both counted the same pay twice.
+    const salaryEstimate = +(monthlyStaffSalary * (salaryMultiplier[period] || 1)).toFixed(2);
+    const salaryFromExpenses = salaryPaid > 0;
+    const salaryForPeriod = salaryFromExpenses ? salaryPaid : salaryEstimate;
     const expenses = +(otherExpenses + salaryForPeriod).toFixed(2);
     const grossProfit = +(revenue - netGst - cogs).toFixed(2);
     const netProfit = +(grossProfit - expenses).toFixed(2);
@@ -176,6 +176,8 @@ export const summaryReport = asyncHandler(async (req: AuthRequest, res: Response
         otherExpenses,
         monthlyStaffSalary,
         staffSalaryForPeriod: salaryForPeriod,
+        /** 'expenses' = salary recorded as expenses; 'staff' = estimated from staff salaries. */
+        salarySource: salaryFromExpenses ? 'expenses' : 'staff',
         expenses,
         netProfit,
     });
@@ -187,11 +189,9 @@ export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Respons
     let start: Date;
     let end: Date;
     // Roles with only the day-close permission (a cashier) get today's tally, never older days.
-    if (req.query.date && can(req.user?.role, 'reports.view')) {
-        start = new Date(String(req.query.date));
-        start.setHours(0, 0, 0, 0);
-        end = new Date(start);
-        end.setDate(end.getDate() + 1);
+    const picked = req.query.date && can(req.user?.role, 'reports.view') ? istDateRange(String(req.query.date)) : null;
+    if (picked) {
+        ({ start, end } = picked);
     } else {
         ({ start, end } = todayRange());
     }
@@ -218,12 +218,14 @@ export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Respons
         ]),
         Invoice.aggregate([
             { $match: { businessId: bId, createdAt: { $gte: start, $lt: end } } },
-            { $group: { _id: null, sales: { $sum: '$grandTotal' }, collected: { $sum: '$paidAmount' }, udharGiven: { $sum: '$dueAmount' }, count: { $sum: 1 } } },
+            { $group: { _id: null, sales: { $sum: '$grandTotal' }, collected: { $sum: '$paidAmount' }, count: { $sum: 1 } } },
         ]),
-        // udhar collected today (repayments only — 'return' rows move no money)
+        // Udhar given (credit) and collected (repayment) today, from the ledger — a
+        // bill's dueAmount drops when it's repaid, so it can't say what was given.
+        // 'return' rows move no money.
         CreditLedger.aggregate([
-            { $match: { businessId: bId, type: 'repayment', createdAt: { $gte: start, $lt: end } } },
-            { $group: { _id: null, total: { $sum: '$amount' } } },
+            { $match: { businessId: bId, type: { $in: ['credit', 'repayment'] }, createdAt: { $gte: start, $lt: end } } },
+            { $group: { _id: '$type', total: { $sum: '$amount' } } },
         ]),
         Expense.aggregate([
             { $match: { businessId: bId, spentAt: { $gte: start, $lt: end } } },
@@ -240,17 +242,18 @@ export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Respons
     const cash = m.cash?.collected || 0;
     const upi = m.upi?.collected || 0;
     const card = m.card?.collected || 0;
-    const udharCollected = ledgerAgg[0]?.total || 0;
+    const udharCollected = ledgerAgg.find((x) => x._id === 'repayment')?.total || 0;
+    const udharGiven = ledgerAgg.find((x) => x._id === 'credit')?.total || 0;
     const expenses = expAgg[0]?.total || 0;
     const refunds = +(refundAgg[0]?.total || 0).toFixed(2);
 
     sendSuccess(res, {
-        date: start.toISOString().slice(0, 10),
+        date: istYmd(start),
         billCount: totals[0]?.count || 0,
         totalSales: +(totals[0]?.sales || 0).toFixed(2),
         totalCollected: +(totals[0]?.collected || 0).toFixed(2),
         cash, upi, card,
-        udharGiven: +(totals[0]?.udharGiven || 0).toFixed(2),
+        udharGiven: +udharGiven.toFixed(2),
         udharCollected,
         expenses,
         refunds,
@@ -291,10 +294,10 @@ export const exportInvoicesCsv = asyncHandler(async (req: AuthRequest, res: Resp
 });
 
 /**
- * GET /reports/gst?month=YYYY-MM — GST filing data for one calendar month.
+ * GET /reports/gst?month=YYYY-MM — GST filing data for one calendar month (IST).
  * Returns a GSTR-3B summary + GSTR-1 breakups (rate-wise B2C, HSN summary, B2B).
- * CGST/SGST are split 50/50 (intra-state assumption; Whoply doesn't capture place
- * of supply yet, so inter-state IGST is not separated).
+ * Tax on a bill to a buyer registered in another state is IGST; everything else
+ * (same state, or no buyer GSTIN) is CGST + SGST — see utils/gstSplit.ts.
  * Taxable value is after the bill discount (bills made before lines stored
  * `taxableValue` fall back to pre-discount). Returns (credit notes) dated in the
  * month are netted off the 3B summary, rate-wise and HSN tables and B2C; B2B
@@ -302,30 +305,25 @@ export const exportInvoicesCsv = asyncHandler(async (req: AuthRequest, res: Resp
  */
 export const gstReport = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bId = new Types.ObjectId(String(businessOf(req)));
-    const now = new Date();
-    let from: Date, to: Date;
-    if (req.query.month && /^\d{4}-\d{2}$/.test(String(req.query.month))) {
-        const [y, m] = String(req.query.month).split('-').map(Number);
-        from = new Date(y, m - 1, 1);
-        to = new Date(y, m, 0, 23, 59, 59, 999);
-    } else {
-        from = new Date(now.getFullYear(), now.getMonth(), 1);
-        to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    }
-    const match = { businessId: bId, createdAt: { $gte: from, $lte: to } };
+    const { from, to, label } = gstMonth(req.query.month);
+    const biz = await Business.findById(bId).select('gstin').lean();
+    const INTER = interStateExpr(biz?.gstin, '$customerGstin');
+    const igstOf = (amount: string) => ({ $sum: { $cond: [INTER, amount, 0] } });
+
+    const match = { businessId: bId, createdAt: { $gte: from, $lt: to } };
     const cnMatch = { ...match, ...RETAIL_CN };
     const hasGstin = { customerGstin: { $exists: true, $nin: [null, ''] } };
-    const byRate: PipelineStage[] = [{ $unwind: '$items' }, { $group: { _id: '$items.gstRate', taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' } } }];
+    const byRate: PipelineStage[] = [{ $unwind: '$items' }, { $group: { _id: '$items.gstRate', taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' }, igst: igstOf('$items.gstAmount') } }];
     const byHsn: PipelineStage[] = [
         { $unwind: '$items' },
-        { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' } } },
+        { $group: { _id: { hsn: { $ifNull: ['$items.hsn', '—'] }, rate: '$items.gstRate' }, name: { $first: '$items.name' }, qty: { $sum: '$items.quantity' }, taxable: { $sum: ITEM_TAXABLE }, gst: { $sum: '$items.gstAmount' }, igst: igstOf('$items.gstAmount') } },
     ];
     const byGstin = (total: string): PipelineStage[] => [
         { $match: hasGstin },
-        { $group: { _id: '$customerGstin', name: { $first: '$customerName' }, count: { $sum: 1 }, taxable: { $sum: DOC_TAXABLE }, gst: { $sum: '$totalGst' }, total: { $sum: total } } },
+        { $group: { _id: '$customerGstin', name: { $first: '$customerName' }, count: { $sum: 1 }, taxable: { $sum: DOC_TAXABLE }, gst: { $sum: '$totalGst' }, igst: igstOf('$totalGst'), total: { $sum: total } } },
         { $sort: { taxable: -1 } },
     ];
-    const totals = (total: string): PipelineStage[] => [{ $group: { _id: null, count: { $sum: 1 }, taxable: { $sum: DOC_TAXABLE }, gst: { $sum: '$totalGst' }, discount: { $sum: '$discount' }, total: { $sum: total } } }];
+    const totals = (total: string): PipelineStage[] => [{ $group: { _id: null, count: { $sum: 1 }, taxable: { $sum: DOC_TAXABLE }, gst: { $sum: '$totalGst' }, igst: igstOf('$totalGst'), discount: { $sum: '$discount' }, total: { $sum: total } } }];
 
     const [summaryAgg, rateAgg, hsnAgg, b2bAgg, cnSummaryAgg, cnRateAgg, cnHsnAgg, cdnrAgg] = await Promise.all([
         Invoice.aggregate([{ $match: match }, ...totals('$grandTotal')]),
@@ -338,32 +336,31 @@ export const gstReport = asyncHandler(async (req: AuthRequest, res: Response) =>
         CreditNote.aggregate([{ $match: cnMatch }, ...byGstin('$total')]),
     ]);
 
-    const zero = { count: 0, taxable: 0, gst: 0, discount: 0, total: 0 };
+    const zero = { count: 0, taxable: 0, gst: 0, igst: 0, discount: 0, total: 0 };
     const s = summaryAgg[0] || zero;
     const cn = cnSummaryAgg[0] || zero;
     const r2 = (n: number) => +n.toFixed(2);
-    const half = (n: number) => r2(n / 2);
 
     // Rate-wise and HSN tables, net of the month's returns.
     const cnByRate = new Map(cnRateAgg.map((r) => [r._id || 0, r]));
     const rateWise = rateAgg
         .map((r) => {
             const c = cnByRate.get(r._id || 0);
-            const taxable = r.taxable - (c?.taxable || 0);
             const gst = r.gst - (c?.gst || 0);
-            return { rate: r._id || 0, taxable: r2(taxable), cgst: half(gst), sgst: half(gst), gst: r2(gst) };
+            return { rate: r._id || 0, taxable: r2(r.taxable - (c?.taxable || 0)), ...splitTax(gst, r.igst - (c?.igst || 0)), gst: r2(gst) };
         })
         .sort((a, b) => a.rate - b.rate);
     const cnByHsn = new Map(cnHsnAgg.map((h) => [`${h._id.hsn}|${h._id.rate}`, h]));
     const hsnWise = hsnAgg
         .map((h) => {
             const c = cnByHsn.get(`${h._id.hsn}|${h._id.rate}`);
-            return { hsn: h._id.hsn, name: h.name, rate: h._id.rate || 0, qty: h.qty - (c?.qty || 0), taxable: r2(h.taxable - (c?.taxable || 0)), gst: r2(h.gst - (c?.gst || 0)) };
+            const gst = h.gst - (c?.gst || 0);
+            return { hsn: h._id.hsn, name: h.name, rate: h._id.rate || 0, qty: h.qty - (c?.qty || 0), taxable: r2(h.taxable - (c?.taxable || 0)), ...splitTax(gst, h.igst - (c?.igst || 0)), gst: r2(gst) };
         })
         .sort((a, b) => b.taxable - a.taxable);
 
-    const b2b = b2bAgg.map((b) => ({ gstin: b._id, name: b.name, invoices: b.count, taxable: r2(b.taxable), gst: r2(b.gst), total: r2(b.total) }));
-    const cdnr = cdnrAgg.map((b) => ({ gstin: b._id, name: b.name, notes: b.count, taxable: r2(b.taxable), gst: r2(b.gst), total: r2(b.total) }));
+    const b2b = b2bAgg.map((b) => ({ gstin: b._id, name: b.name, invoices: b.count, taxable: r2(b.taxable), gst: r2(b.gst), igst: r2(b.igst), total: r2(b.total) }));
+    const cdnr = cdnrAgg.map((b) => ({ gstin: b._id, name: b.name, notes: b.count, taxable: r2(b.taxable), gst: r2(b.gst), igst: r2(b.igst), total: r2(b.total) }));
     const b2bTaxable = b2b.reduce((a, x) => a + x.taxable, 0);
     const b2bGst = b2b.reduce((a, x) => a + x.gst, 0);
     const cdnrTaxable = cdnr.reduce((a, x) => a + x.taxable, 0);
@@ -372,15 +369,13 @@ export const gstReport = asyncHandler(async (req: AuthRequest, res: Response) =>
     const netGst = s.gst - cn.gst;
 
     sendSuccess(res, {
-        month: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}`,
+        month: label,
         from,
         to,
         summary: {
             invoices: s.count,
             taxableValue: r2(netTaxable),
-            cgst: half(netGst),
-            sgst: half(netGst),
-            igst: 0,
+            ...splitTax(netGst, s.igst - cn.igst),
             totalTax: r2(netGst),
             discount: r2(s.discount),
             invoiceValue: r2(s.total - cn.total),

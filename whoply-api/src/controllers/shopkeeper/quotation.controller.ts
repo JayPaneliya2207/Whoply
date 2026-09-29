@@ -16,6 +16,7 @@ import { lineQty } from '../../utils/qty.js';
 import { normalizePhone } from '../../utils/phone.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { istYm } from '../../utils/ist.js';
 
 /**
  * Build priced line items from a product list (no stock check — quotes are
@@ -58,7 +59,7 @@ export const createQuotation = asyncHandler(async (req: AuthRequest, res: Respon
         if (c) { customerName = c.name; customerMobile = c.mobile; }
     }
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`quotation:${businessId}:${ym}`);
     const quoteNo = `QUO/${ym}/${String(seq).padStart(4, '0')}`;
     const validUntil = validDays ? new Date(Date.now() + Number(validDays) * 86400000) : undefined;
@@ -134,7 +135,7 @@ export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Respo
     const { payments, paid, due, status, paymentMode } = resolvePayments(req.body, grandTotal);
     if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A customer mobile is required for a credit (udhar) sale');
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`invoice:${businessId}:${ym}`);
     const biz = await Business.findById(businessId).select('settings').lean();
     const invoiceNo = `${biz?.settings?.invoicePrefix || 'INV'}/${ym}/${String(seq).padStart(4, '0')}`;
