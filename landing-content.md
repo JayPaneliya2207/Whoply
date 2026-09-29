@@ -381,8 +381,8 @@ Monday 9 AM payables (in-app notifications).
 | "IRN generated" / "no separate portal" | The app builds the e-invoice / e-way JSON; the IRN and EWB number come from the government portal after upload. | "E-invoice and e-way bill ready to upload — no re-typing." |
 | Expiry / batch alerts | The Batch model is never used and no expiry alert is created. | "Low-stock alerts". |
 | "Import your product list" | No import endpoint or file upload for products. | "Type them in or scan the barcode." |
-| Visit logging / route tracking / commission | No screen logs a visit; reps aren't assigned to dealers, so commission is 0. | "Each rep has their own login to take orders and record collections." |
-| Device limits per role / "sales staff get their own dealers" | No device limits exist. Roles are enforced (`whoply-api/src/utils/permissions.ts`), but every rep sees all dealers — reps aren't assigned to dealers. | "Each login sees only its own work." "Your cashier never sees your profit" is fine to say. |
+| Route tracking / GPS | Visits are logged by hand (dealer, outcome, note) — there is no route, map or location tracking. | "Reps log each dealer visit; commission is worked out for you." |
+| Device limits per role | No device limits exist. Roles are enforced (`whoply-api/src/utils/permissions.ts`); reps are assigned dealers ("My dealers") and see their own sales and commission. | "Each login sees only its own work." |
 | Credit limits enforced / driver assigned / out for delivery | Credit limit is stored but never checked; orders have no driver field or that status. | "Outstanding by dealer"; statuses pending → confirmed → dispatched → delivered. |
 
 ### 🔌 Wire these up
