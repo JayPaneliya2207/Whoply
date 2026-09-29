@@ -98,7 +98,7 @@ router.get('/price-lists', p('priceList.view'), getPriceList);
 router.put('/price-lists', p('priceList.manage'), setPrice);
 
 // Sales team
-router.get('/sales-team', p('team.view'), listReps);
+router.get('/sales-team', p('team.view', 'visits.record'), listReps); // a rep sees only themselves
 router.post('/sales-team', p('staff.manage'), createRep);
 router.patch('/sales-team/:id', p('staff.manage'), updateRep);
 router.delete('/sales-team/:id', p('staff.manage'), deleteRep);

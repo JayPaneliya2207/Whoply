@@ -192,14 +192,21 @@ const X = '000000000000000000000000'; // an id that exists nowhere
     await expect(s, 'salesStaff', 'POST', '/wholesaler/products', false);
     await expect(s, 'salesStaff', 'GET', '/wholesaler/reports/tally', false);
     await expect(s, 'salesStaff', 'GET', '/wholesaler/reports/gst', false);
-    await expect(s, 'salesStaff', 'GET', '/wholesaler/sales-team', false);
+    r = await expect(s, 'salesStaff', 'GET', '/wholesaler/sales-team', true);
+    check('…but sees only their own numbers', (d(r) || []).length === 1 && String(d(r)[0]._id) === String(rep.id), JSON.stringify((d(r) || []).map((x) => x.name)));
+    await expect(s, 'salesStaff', 'POST', '/wholesaler/sales-team', false, { name: 'Sneaky Rep', mobile: '9811100094' });
     await expect(s, 'salesStaff', 'POST', `/wholesaler/orders/${order._id}/return`, false);
     r = await api('GET', '/wholesaler/products?limit=5', s);
     check('sales rep product list has no cost price', items(r).length > 0 && items(r).every((p) => !('costPrice' in p)), '');
     // A rep logs visits only as themselves, and sees only their own.
     r = await api('POST', '/wholesaler/sales-team/visits', s, { salesRepId: wh.id, dealerId: dealer._id, outcome: 'no_order' });
     check('sales rep visit is saved under their own name', r.status === 201 && String(d(r)?.salesRepId) === String(rep.id), `${r.status} ${d(r)?.salesRepId} ${msg(r)}`);
-    await api('POST', '/wholesaler/sales-team/visits', ws, { salesRepId: wh.id, dealerId: dealer._id, outcome: 'no_order' });
+    // The owner logs a visit for a second rep (visits are only for sales reps).
+    const rep2 = await hire(ws, 'Role Sales Two', '9811100015', 'salesStaff');
+    r = await api('POST', '/wholesaler/sales-team/visits', ws, { salesRepId: rep2.id, dealerId: dealer._id, outcome: 'no_order' });
+    check('owner logs a visit for a rep', r.status === 201, `${r.status} ${msg(r)}`);
+    r = await api('POST', '/wholesaler/sales-team/visits', ws, { salesRepId: wh.id, dealerId: dealer._id, outcome: 'no_order' });
+    check('…but not for warehouse staff (400)', r.status === 400, `${r.status}`);
     r = await api('GET', '/wholesaler/sales-team/visits', s);
     check('sales rep sees only their own visits', r.status === 200 && (d(r) || []).length > 0 && (d(r) || []).every((v) => String(v.salesRepId) === String(rep.id)), `${(d(r) || []).length}`);
     r = await api('GET', '/wholesaler/sales-team/visits', ws);
@@ -239,7 +246,7 @@ const X = '000000000000000000000000'; // an id that exists nowhere
     await expect(ws, 'owner', 'GET', '/wholesaler/sales-team', true);
 
     // Tidy up: deactivate this run's staff
-    for (const [tok, x] of [[st, cashier], [st, rmgr], [st, racc], [ws, wh], [ws, rep], [ws, wmgr], [ws, wacc]]) await api('DELETE', `/staff/${x.id}`, tok);
+    for (const [tok, x] of [[st, cashier], [st, rmgr], [st, racc], [ws, wh], [ws, rep], [ws, rep2], [ws, wmgr], [ws, wacc]]) await api('DELETE', `/staff/${x.id}`, tok);
 
     const fails = results.filter((r) => !r.pass);
     const bySuite = {};

@@ -7,7 +7,7 @@ import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
 import Business from '../../models/Business.js';
 import { applyStockChanges, takeStock } from '../../utils/stock.js';
-import { priceDealerItems, recordAdvancePayment } from '../../utils/wholesaler.js';
+import { priceDealerItems, recordAdvancePayment, orderRepId } from '../../utils/wholesaler.js';
 import { netLineValue, round2 } from '../../utils/tax.js';
 import { lineQty } from '../../utils/qty.js';
 import CreditNote from '../../models/CreditNote.js';
@@ -55,7 +55,7 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
         dueAmount: due,
         status: 'pending',
         source,
-        salesRepId: dealer.assignedRepId,
+        salesRepId: orderRepId(req.user, dealer),
     });
     await recordAdvancePayment(order, paidAmount, req.body.paymentMode ?? req.body.mode);
 

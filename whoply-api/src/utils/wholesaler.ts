@@ -98,3 +98,10 @@ export async function duesByDealer(bId: Types.ObjectId): Promise<DealerDue[]> {
         { $group: { _id: '$dealerId', due: { $sum: '$dueAmount' }, orders: { $sum: 1 } } },
     ]);
 }
+
+/**
+ * Which rep an order counts for (commission, rep stats): the sales rep who
+ * took it; if the owner / manager entered it, the dealer's assigned rep.
+ */
+export const orderRepId = (user: { _id?: unknown; role?: string } | undefined, dealer: { assignedRepId?: Types.ObjectId }) =>
+    user?.role === 'salesStaff' ? (user._id as Types.ObjectId) : dealer.assignedRepId;

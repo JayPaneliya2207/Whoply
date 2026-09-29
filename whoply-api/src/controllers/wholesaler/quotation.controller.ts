@@ -6,7 +6,7 @@ import { businessOf, paginate } from '../../utils/http.js';
 import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
 import Quotation from '../../models/Quotation.js';
-import { priceDealerItems, recordAdvancePayment } from '../../utils/wholesaler.js';
+import { priceDealerItems, recordAdvancePayment, orderRepId } from '../../utils/wholesaler.js';
 import { round2 } from '../../utils/tax.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
@@ -73,7 +73,7 @@ export const convertWsQuote = asyncHandler(async (req: AuthRequest, res: Respons
     const order = await Order.create({
         businessId, orderNo, dealerId: dealer._id, dealerName: dealer.name, dealerGstin: dealer.gstin,
         items: quote.items, subtotal: quote.subtotal, totalGst: quote.totalGst, total: quote.grandTotal,
-        paidAmount, dueAmount: due, status: 'pending', source: 'manual', salesRepId: dealer.assignedRepId,
+        paidAmount, dueAmount: due, status: 'pending', source: 'manual', salesRepId: orderRepId(req.user, dealer),
     });
     await recordAdvancePayment(order, paidAmount, req.body.paymentMode ?? req.body.mode);
     quote.status = 'converted';
