@@ -24,6 +24,7 @@ import Notification from '../models/Notification.js';
 import { withJobLock } from '../models/JobLock.js';
 import { sendWhatsApp } from '../services/messaging.service.js';
 import { todayRange } from '../utils/http.js';
+import { IST_TZ } from '../utils/ist.js';
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
 import { backupDatabase, backupFolder, listBackups } from '../utils/backup.js';
@@ -234,13 +235,20 @@ const guarded = (key: string, ttlMs: number, fn: () => Promise<number>) => () =>
     withJobLock(key, ttlMs, fn).catch((e) => console.error(`[cron] ${key} failed`, e));
 };
 
+/**
+ * The fixed-time jobs. Times are India time whatever the server's clock is set
+ * to — without `timezone`, a UTC server (most hosting) sent the 9 PM summary at
+ * 2:30 AM and the 10 AM reminders at 3:30 PM.
+ */
+export const TIMED_JOBS = [
+    { key: 'daily-summaries', at: '0 21 * * *', ttlMs: 15 * 60_000, run: generateDailySummaries }, // 21:00 daily — business summary
+    { key: 'payable-reminders', at: '0 9 * * 1', ttlMs: 15 * 60_000, run: generatePayableReminders }, // 09:00 Monday — supplier payables
+    { key: 'udhar-reminders', at: '0 10 * * *', ttlMs: 30 * 60_000, run: generateUdharReminders }, // 10:00 daily — customer/dealer payment reminders
+];
+export const CRON_TIMEZONE = IST_TZ;
+
 export function initializeCronJobs(): void {
-    // 21:00 daily — business summary
-    cron.schedule('0 21 * * *', guarded('daily-summaries', 15 * 60_000, generateDailySummaries));
-    // 09:00 Monday — supplier payables
-    cron.schedule('0 9 * * 1', guarded('payable-reminders', 15 * 60_000, generatePayableReminders));
-    // 10:00 daily — customer/dealer payment reminders
-    cron.schedule('0 10 * * *', guarded('udhar-reminders', 30 * 60_000, generateUdharReminders));
+    for (const job of TIMED_JOBS) cron.schedule(job.at, guarded(job.key, job.ttlMs, job.run), { timezone: CRON_TIMEZONE, name: job.key });
 
     // Every hour (and a minute after start-up) — back up if the last backup is a day old.
     // Off for automated tests (NODE_ENV=test) and when BACKUP_DIR=off.
@@ -253,11 +261,7 @@ export function initializeCronJobs(): void {
     // Dev convenience: seed some notifications shortly after boot so the app isn't empty.
     // Skipped in production — a full re-run on every deploy/restart is wasteful and noisy.
     if (process.env.NODE_ENV !== 'production') {
-        setTimeout(() => {
-            guarded('daily-summaries', 15 * 60_000, generateDailySummaries)();
-            guarded('payable-reminders', 15 * 60_000, generatePayableReminders)();
-            guarded('udhar-reminders', 30 * 60_000, generateUdharReminders)();
-        }, 4000);
+        setTimeout(() => { for (const job of TIMED_JOBS) guarded(job.key, job.ttlMs, job.run)(); }, 4000);
     }
 
     console.log('[cron] jobs scheduled');
