@@ -87,6 +87,33 @@ npm run test:all        # full feature + edge/staff/admin suites (resets the DB)
 npm run test:explain    # confirms hot queries are index-backed
 ```
 
+## Going live (production build)
+
+All four build and run in production mode (`next build` / `tsc`). On the server:
+
+```bash
+# API — needs whoply-api/.env with the production values below
+cd whoply-api && npm ci && npm run build
+npm run migrate:prod    # after every deploy (safe to re-run); uses the build, no dev tools needed
+npm start               # node dist/server.js
+
+# Each front-end — set its NEXT_PUBLIC_* values BEFORE building (they are baked in)
+cd whoply-app && npm ci && npm run build && npm start      # same for whoply-front, whoply-admin
+```
+
+Checklist:
+
+- **API `.env`**: `NODE_ENV=production`, the real `MONGODB_URI`, a **new** `JWT_SECRET` (never the dev one),
+  and `APP_URL` / `ADMIN_URL` / `FRONT_URL` set to the real `https://` domains — they are the CORS
+  allowlist, so any other site is refused.
+- **Front-ends**: `NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api` (landing also
+  `NEXT_PUBLIC_APP_URL`). Changing them means building again.
+- **HTTPS**: the app only installs and opens offline (service worker) over `https://`.
+- **Linux servers are case-sensitive**: an import must match the file name exactly
+  (`priceList.controller.js`, not `pricelist…`) — Windows hides this mistake.
+- **OTP login**: production makes a real random code, but no SMS provider is connected yet, so
+  nobody receives it. Use password login until one is added.
+
 ## Demo logins
 
 OTP is always **123456** in dev; password is **whoply123**.

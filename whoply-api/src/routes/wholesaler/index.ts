@@ -14,7 +14,7 @@ import {
 import { createOrder, previewDealerPrices, listOrders, updateOrderStatus, updateOrderItems, orderEInvoiceJson, orderEWayJson, wholesalerGstReport, createOrderReturn, listOrderReturns } from '../../controllers/wholesaler/order.controller.js';
 import { recordOrderPayment, listPayments, tallyReport } from '../../controllers/wholesaler/payment.controller.js';
 import { createWsQuote, listWsQuotes, deleteWsQuote, convertWsQuote } from '../../controllers/wholesaler/quotation.controller.js';
-import { getPriceList, setPrice } from '../../controllers/wholesaler/pricelist.controller.js';
+import { getPriceList, setPrice } from '../../controllers/wholesaler/priceList.controller.js';
 import {
     listReps,
     createRep,
