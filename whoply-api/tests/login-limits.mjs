@@ -30,6 +30,10 @@ const tokenOf = async (mobile, password = 'whoply123') => d(await pwLogin(mobile
         if (r.status !== 201) throw new Error(`hire ${mobile}: ${r.status} ${msg(r)}`);
     };
 
+    suite('same-second sign-ins');
+    const twin = await Promise.all([pwLogin('9000000010', 'whoply123'), pwLogin('9000000010', 'whoply123'), pwLogin('9000000010', 'whoply123')]);
+    check('3 sign-ins at once all work, each with its own token', twin.every((x) => x.status === 200) && new Set(twin.map((x) => d(x)?.token)).size === 3, twin.map((x) => `${x.status} ${msg(x)}`).join(' | '));
+
     suite('password: 5 wrong tries lock the account');
     await hire('9844400001', 'Lock Test One');
     const left = [];
@@ -77,7 +81,9 @@ const tokenOf = async (mobile, password = 'whoply123') => d(await pwLogin(mobile
     check('5 wrong OTPs lock the account', r.status === 429, `${r.status} ${msg(r)}`);
 
     suite('per network address');
-    const ip = `203.0.113.${1 + Math.floor(Math.random() * 250)}`;
+    // A new address every run — the API keeps address counts in memory between runs.
+    const n = () => 1 + Math.floor(Math.random() * 250);
+    const ip = `10.${n()}.${n()}.${n()}`;
     const from = { 'X-Forwarded-For': ip };
     let last;
     for (let i = 0; i < 30; i++) last = await pwLogin(`95555${String(10000 + i)}`, 'whatever', from);

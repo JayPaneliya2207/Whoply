@@ -1,6 +1,7 @@
 /**
  * JWT Utility Functions
  */
+import { randomUUID } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import type { Types } from 'mongoose';
 import { env } from '../config/env.js';
@@ -30,7 +31,10 @@ export const generateToken = ({
         mobile,
         ...(businessId && { businessId: businessId.toString() }),
     };
+    // jwtid: two sign-ins in the same second (double tap, two phones) would
+    // otherwise get the same token, and the second session couldn't be saved.
     return jwt.sign(payload, env.JWT_SECRET, {
+        jwtid: randomUUID(),
         expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
     });
 };
