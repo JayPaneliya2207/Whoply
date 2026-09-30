@@ -93,6 +93,29 @@ GitHub runs the same suites, plus a production build of all four, on every push 
 request ([.github/workflows/ci.yml](.github/workflows/ci.yml)). A red ❌ on a PR means
 something broke — open the check to see which test failed.
 
+## Backups
+
+The API backs up the whole database by itself once a day: it checks at start-up and every hour,
+and saves when the last backup is 23+ hours old (so a PC that's off at night still gets one).
+Backups go to `backups/<database>/whoply-YYYY-MM-DD_HHmm/` (next to the API folder, not in git)
+and the newest 7 are kept. Nothing extra to install — no `mongodump` needed.
+
+```bash
+cd whoply-api
+npm run backup                                   # back up now
+npm run restore                                  # list the backups
+npm run restore -- whoply-2026-09-30_0215 --into mongodb://localhost:27017/whoply_check   # look inside safely
+npm run restore -- whoply-2026-09-30_0215 --drop # put the live database back to that backup
+```
+
+- Restore never overwrites data unless you add `--drop`, and with `--drop` it first backs up
+  what it is about to replace.
+- **Keep a copy somewhere else.** A backup on the same disk as the database is lost with the
+  disk: point `BACKUP_DIR` at another drive or a synced folder (Google Drive, OneDrive), or copy
+  the `backups` folder off the machine now and then.
+- Settings in `whoply-api/.env`: `BACKUP_DIR` (folder, or `off`), `BACKUP_KEEP` (how many).
+- Backups hold customer names and phone numbers — keep them private.
+
 ## Going live (production build)
 
 All four build and run in production mode (`next build` / `tsc`). On the server:
@@ -120,6 +143,9 @@ Checklist:
   sign-ins from one address in 15 minutes pause that address; OTP: one per 30 s, 5 an hour).
 - **Linux servers are case-sensitive**: an import must match the file name exactly
   (`priceList.controller.js`, not `pricelist…`) — Windows hides this mistake.
+- **Backups**: on MongoDB Atlas, turn on Atlas's own backups too. On your own server, set
+  `BACKUP_DIR` to a disk other than the database's (`npm run backup:prod` / `restore:prod`
+  use the build).
 - **OTP login**: production makes a real random code, but no SMS provider is connected yet, so
   nobody receives it. Use password login until one is added.
 

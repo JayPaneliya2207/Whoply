@@ -24,6 +24,9 @@ import Notification from '../models/Notification.js';
 import { withJobLock } from '../models/JobLock.js';
 import { sendWhatsApp } from '../services/messaging.service.js';
 import { todayRange } from '../utils/http.js';
+import mongoose from 'mongoose';
+import { env } from '../config/env.js';
+import { backupDatabase, backupFolder, listBackups } from '../utils/backup.js';
 
 
 const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
@@ -209,6 +212,23 @@ export async function generateUdharReminders(): Promise<number> {
     return notifications.length;
 }
 
+/**
+ * Daily backup: runs when the newest backup is 23+ hours old (or there is none).
+ * Checked at start-up and every hour rather than at a fixed night-time, so a
+ * PC that is switched off at night still gets its backup the next time it runs.
+ */
+export async function backupIfDue(): Promise<number> {
+    const db = mongoose.connection.db;
+    const dir = db && backupFolder(env.BACKUP_DIR, db.databaseName);
+    if (!db || !dir) return 0;
+    const newest = listBackups(dir).at(-1);
+    if (newest && Date.now() - +newest.createdAt < 23 * 3600_000) return 0;
+    const { path: saved, manifest } = await backupDatabase(db, dir, env.BACKUP_KEEP);
+    const records = Object.values(manifest.collections).reduce((a, c) => a + c.count, 0);
+    console.log(`[backup] ${records} records saved to ${saved}`);
+    return 1;
+}
+
 /** Wrap a job so only one instance runs it, and a failure never crashes the process. */
 const guarded = (key: string, ttlMs: number, fn: () => Promise<number>) => () => {
     withJobLock(key, ttlMs, fn).catch((e) => console.error(`[cron] ${key} failed`, e));
@@ -221,6 +241,14 @@ export function initializeCronJobs(): void {
     cron.schedule('0 9 * * 1', guarded('payable-reminders', 15 * 60_000, generatePayableReminders));
     // 10:00 daily — customer/dealer payment reminders
     cron.schedule('0 10 * * *', guarded('udhar-reminders', 30 * 60_000, generateUdharReminders));
+
+    // Every hour (and a minute after start-up) — back up if the last backup is a day old.
+    // Off for automated tests (NODE_ENV=test) and when BACKUP_DIR=off.
+    if (process.env.NODE_ENV !== 'test' && env.BACKUP_DIR.toLowerCase() !== 'off') {
+        const backup = guarded('daily-backup', 60 * 60_000, backupIfDue);
+        cron.schedule('20 * * * *', backup);
+        setTimeout(backup, 60_000);
+    }
 
     // Dev convenience: seed some notifications shortly after boot so the app isn't empty.
     // Skipped in production — a full re-run on every deploy/restart is wasteful and noisy.

@@ -23,6 +23,11 @@ const envSchema = z.object({
     // visitor's address — usually 1. Unset = use the direct connection's address.
     TRUST_PROXY: z.string().optional(),
 
+    // Backups (utils/backup.ts): folder for the automatic daily backup, relative to the API
+    // folder ("off" = no automatic backup), and how many to keep per database.
+    BACKUP_DIR: z.string().default('../backups'),
+    BACKUP_KEEP: z.coerce.number().int().min(1).default(7),
+
     // Cloudinary (optional)
     CLOUDINARY_CLOUD_NAME: z.string().optional(),
     CLOUDINARY_API_KEY: z.string().optional(),
