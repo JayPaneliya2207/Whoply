@@ -93,6 +93,11 @@ GitHub runs the same suites, plus a production build of all four, on every push 
 request ([.github/workflows/ci.yml](.github/workflows/ci.yml)). A red ❌ on a PR means
 something broke — open the check to see which test failed.
 
+The **Package safety** check (also every Monday) fails when a package the live server runs has a
+known high or critical security problem. To fix: in that project folder run `npm audit fix`, then
+check that the tests and builds still pass. If npm says the fix is a "breaking change", upgrade
+that package on purpose and test the screens that use it. Unused packages are best removed.
+
 ## Backups
 
 The API backs up the whole database by itself once a day: it checks at start-up and every hour,

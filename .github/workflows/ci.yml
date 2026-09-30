@@ -1,12 +1,17 @@
-# Runs on every push and pull request:
-#   api  — builds the API, starts it against a fresh MongoDB and runs every test suite
-#   web  — production build of the app, admin panel and landing site
-# A red ❌ on a PR means something broke; open the run to see which check failed.
+# Runs on every push and pull request, and every Monday morning:
+#   api      — builds the API, starts it against a fresh MongoDB and runs every test suite
+#   web      — production build of the app, admin panel and landing site
+#   deploy   — builds and starts the Docker setup (deploy/) and checks it over HTTPS
+#   packages — known security problems in the packages the four projects use
+# A red ❌ on a PR means something broke; open the run to see which check failed. The Monday
+# run catches problems found in packages since the last change (GitHub emails when it fails).
 name: CI
 
 on:
   push:
   pull_request:
+  schedule:
+    - cron: '30 3 * * 1' # Monday 09:00 India time
 
 permissions:
   contents: read
@@ -130,6 +135,31 @@ jobs:
           for f in deploy.log compose.log; do
             [ -s "$f" ] && echo "::error title=$f (last lines)::$(grep -v '^\s*$' "$f" | tail -n 25 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
           done
+
+  packages:
+    name: Package safety — known security problems
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest moves to 26.04 on 2026-10-19
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: npm audit (fails on high or critical in what the live server runs)
+        run: |
+          fail=0
+          for p in whoply-api whoply-app whoply-admin whoply-front; do
+            summary=$(cd "$p" && npm audit --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=JSON.parse(s).metadata?.vulnerabilities||{};console.log(['critical','high','moderate','low'].map(k=>k+' '+(m[k]||0)).join(', '))})")
+            echo "::notice title=$p (all packages)::$summary"
+            if ! (cd "$p" && npm audit --omit=dev --audit-level=high > audit.txt 2>&1); then
+              echo "::error title=$p::$(grep -E '^[a-z@].*|Severity|fix available' "$p/audit.txt" | head -12 | awk '{printf "%s%%0A", $0}')"
+              fail=1
+            fi
+          done
+          exit $fail
 
   web:
     name: ${{ matrix.app }} — production build
