@@ -12,8 +12,9 @@ export interface LegalSection {
 /**
  * Shared frame for the Privacy Policy and Terms: slim navy header, a Draft
  * banner while company details are missing (lib/legal.ts), a table of contents
- * and readable long-form sections. English only for now — the Hindi and
- * Gujarati footers link here too.
+ * and readable long-form sections. English only for now (legal text needs a
+ * reviewed translation, not a machine one): the Hindi and Gujarati footers
+ * label these links "in English", and the page says so in both languages.
  */
 export function LegalPage({ title, intro, sections }: { title: string; intro: ReactNode; sections: LegalSection[] }) {
     const missing = missingLegalFields();
@@ -43,6 +44,9 @@ export function LegalPage({ title, intro, sections }: { title: string; intro: Re
                     )}
 
                     <h1 className="font-display text-3xl font-extrabold text-navy sm:text-4xl">{title}</h1>
+                    <p className="mt-2 text-sm text-muted">
+                        <span lang="hi">यह पेज अभी सिर्फ़ अंग्रेज़ी में है।</span> · <span lang="gu">આ પેજ હાલ ફક્ત અંગ્રેજીમાં છે.</span>
+                    </p>
                     <p className="mt-2 text-sm text-muted">Effective from {orPending(LEGAL.effectiveDate)}</p>
                     <div className="mt-6 space-y-3 text-[1.02rem] leading-relaxed text-text">{intro}</div>
 

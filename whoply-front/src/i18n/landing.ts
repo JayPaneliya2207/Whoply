@@ -644,8 +644,8 @@ const en: LandingCopy = {
     },
     staff: {
         title: 'Your cashier bills. Your cashier never sees your profit.',
-        body: 'Every person gets their own login and sees only their own work. Cashiers get billing and today’s sales. Warehouse gets stock and dispatch. Sales staff get their own dealers and route. Your margins, expenses and reports stay yours.',
-        note: 'One login can’t be shared across five phones — device limits are enforced per role.',
+        body: 'Every person gets their own login and sees only their own work. Cashiers get billing, bills, udhar and today’s cash. Warehouse gets stock and dispatch. Sales staff get their dealers, orders, collections and their own commission. Your margins, expenses and reports stay with you, your manager and your accountant.',
+        note: 'Staff logins and salaries are owner-only — a manager can’t add a login or change pay.',
     },
     automation: {
         title: 'Three things Whoply does while you sleep',
@@ -787,7 +787,6 @@ const en: LandingCopy = {
             {
                 head: 'Company',
                 links: [
-                    ['About', '#'],
                     ['Contact', '/privacy#contact'],
                     ['Privacy Policy', '/privacy'],
                     ['Terms of Service', '/terms'],
@@ -1192,8 +1191,8 @@ const hi: LandingCopy = {
     },
     staff: {
         title: 'कैशियर बिल बनाए। कैशियर को मुनाफ़ा कभी न दिखे।',
-        body: 'हर व्यक्ति का अपना लॉगिन, और उसे सिर्फ़ अपना काम दिखता है। कैशियर को बिलिंग और आज की बिक्री। गोदाम को स्टॉक और डिस्पैच। सेल्स स्टाफ़ को अपने डीलर और रूट। आपका मार्जिन, खर्च और रिपोर्ट सिर्फ़ आपके।',
-        note: 'एक लॉगिन पाँच फ़ोन पर नहीं चलेगा — हर रोल पर डिवाइस लिमिट लागू है।',
+        body: 'हर व्यक्ति का अपना लॉगिन, और उसे सिर्फ़ अपना काम दिखता है। कैशियर को बिलिंग, बिल, उधार और आज का कैश। गोदाम को स्टॉक और डिस्पैच। सेल्स स्टाफ़ को उनके डीलर, ऑर्डर, वसूली और उनका अपना कमीशन। मुनाफ़ा, खर्च और रिपोर्ट सिर्फ़ आपके, आपके मैनेजर और अकाउंटेंट के लिए।',
+        note: 'स्टाफ़ के लॉगिन और वेतन सिर्फ़ मालिक संभालता है — मैनेजर न नया लॉगिन बना सकता है, न वेतन बदल सकता है।',
     },
     automation: {
         title: 'तीन काम जो Whoply आपके सोते समय करता है',
@@ -1335,10 +1334,9 @@ const hi: LandingCopy = {
             {
                 head: 'कंपनी',
                 links: [
-                    ['हमारे बारे में', '#'],
-                    ['संपर्क', '/privacy#contact'],
-                    ['प्राइवेसी पॉलिसी', '/privacy'],
-                    ['नियम और शर्तें', '/terms'],
+                    ['संपर्क (अंग्रेज़ी में)', '/privacy#contact'],
+                    ['प्राइवेसी पॉलिसी (अंग्रेज़ी में)', '/privacy'],
+                    ['नियम और शर्तें (अंग्रेज़ी में)', '/terms'],
                 ],
             },
         ],
@@ -1740,8 +1738,8 @@ const gu: LandingCopy = {
     },
     staff: {
         title: 'કેશિયર બિલ બનાવે. કેશિયરને નફો કદી ન દેખાય.',
-        body: 'દરેક વ્યક્તિનું પોતાનું લોગિન, અને એને ફક્ત પોતાનું કામ દેખાય. કેશિયરને બિલિંગ અને આજનું વેચાણ. ગોદામને સ્ટોક અને ડિસ્પેચ. સેલ્સ સ્ટાફને પોતાના ડીલર અને રૂટ. તમારું માર્જિન, ખર્ચ અને રિપોર્ટ ફક્ત તમારાં.',
-        note: 'એક લોગિન પાંચ ફોન પર નહીં ચાલે — દરેક રોલ પર ડિવાઇસ લિમિટ લાગુ છે.',
+        body: 'દરેક વ્યક્તિનું પોતાનું લોગિન, અને એને ફક્ત પોતાનું કામ દેખાય. કેશિયરને બિલિંગ, બિલ, ઉધાર અને આજની રોકડ. ગોદામને સ્ટોક અને ડિસ્પેચ. સેલ્સ સ્ટાફને તેમના ડીલર, ઓર્ડર, ઉઘરાણી અને તેમનું પોતાનું કમિશન. નફો, ખર્ચ અને રિપોર્ટ ફક્ત તમારા, તમારા મેનેજર અને એકાઉન્ટન્ટ માટે.',
+        note: 'સ્ટાફના લોગિન અને પગાર ફક્ત માલિક સંભાળે છે — મેનેજર ન નવું લોગિન બનાવી શકે, ન પગાર બદલી શકે.',
     },
     automation: {
         title: 'ત્રણ કામ જે Whoply તમે ઊંઘો ત્યારે કરે છે',
@@ -1883,10 +1881,9 @@ const gu: LandingCopy = {
             {
                 head: 'કંપની',
                 links: [
-                    ['અમારા વિશે', '#'],
-                    ['સંપર્ક', '/privacy#contact'],
-                    ['પ્રાઇવસી પોલિસી', '/privacy'],
-                    ['નિયમો અને શરતો', '/terms'],
+                    ['સંપર્ક (અંગ્રેજીમાં)', '/privacy#contact'],
+                    ['પ્રાઇવસી પોલિસી (અંગ્રેજીમાં)', '/privacy'],
+                    ['નિયમો અને શરતો (અંગ્રેજીમાં)', '/terms'],
                 ],
             },
         ],

@@ -327,6 +327,10 @@ rather have a bigger screen.
 
 **Bottom line:** © 2026 Whoply. Made in India, for Bharat's businesses.
 
+**Status (2026-09-29):** the About link is left out of the live footer until an About page exists — it needs the
+company details in `whoply-front/src/lib/legal.ts` (legal name, address). Privacy and Terms are English only;
+the Hindi and Gujarati footers label them "(अंग्रेज़ी में)" / "(અંગ્રેજીમાં)" until a reviewed translation exists.
+
 ---
 
 ## 21. Hindi strings
