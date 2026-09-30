@@ -65,7 +65,7 @@ const W = '/wholesaler';
     const dealerA = d(r);
     check("a rep's new dealer is theirs (their pick of rep is ignored)", r.status === 201 && String(dealerA.assignedRepId) === repA.id, `${r.status} ${dealerA?.assignedRepId}`);
     r = await api('PATCH', `${W}/dealers/${dealerO._id}`, repA.tok, { assignedRepId: repA.id, city: 'Rajkot' });
-    check('a rep cannot take over a dealer', r.status === 200 && String(d(r)?.assignedRepId) === repB.id && d(r)?.city === 'Rajkot', `${r.status} ${d(r)?.assignedRepId}`);
+    check("a rep cannot edit (or take over) another rep's dealer", r.status === 403, `${r.status} ${r.json?.error?.message}`);
     r = await api('GET', `${W}/dealers?limit=100&mine=true`, repA.tok);
     check('"my dealers" for Rep Asha lists only hers', items(r).length === 1 && items(r)[0]._id === dealerA._id, JSON.stringify(items(r).map((x) => x.name)));
 

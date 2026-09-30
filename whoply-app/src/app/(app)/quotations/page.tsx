@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Trash2, Check, X, Search, FileText, Printer, MessageCircle, ArrowRightCircle } from 'lucide-react';
-import { api, apiErr } from '@/lib/api';
+import { api, apiErr, withCreditCheck } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { priceLines, round2 } from '@/lib/tax';
 import { stepQty } from '@/lib/qty';
@@ -273,7 +273,7 @@ function WholesaleQuotes() {
         onError: (e) => setError(apiErr(e)),
     });
     const convert = useMutation({
-        mutationFn: async (id: string) => (await api.post(`/wholesaler/quotations/${id}/convert`, {})).data.data,
+        mutationFn: async (id: string) => withCreditCheck(async (x) => (await api.post(`/wholesaler/quotations/${id}/convert`, x)).data.data, (m) => confirm(`${m} ${t('saveAnyway')}`)),
         onSuccess: () => { setDetail(null); qc.invalidateQueries({ queryKey: ['ws-quotes'] }); qc.invalidateQueries({ queryKey: ['orders'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); },
         onError: (e) => { alert(apiErr(e)); qc.invalidateQueries({ queryKey: ['ws-quotes'] }); },
     });

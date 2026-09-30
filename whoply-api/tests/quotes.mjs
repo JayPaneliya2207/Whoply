@@ -127,7 +127,9 @@ const W = '/wholesaler';
     check('the order counts for the rep who made the estimate', order && String(order.salesRepId) === String(rep?._id), `${order?.salesRepId} vs ${rep?._id}`);
     r = await api('POST', `${K}/quotations/${wq._id}/convert`, ws, { paymentMode: 'cash' });
     check('a dealer estimate can not be billed through the shop convert', r.status === 404 || r.status === 403, `${r.status} ${msg(r)}`);
-    await api('DELETE', `${W}/dealers/${dealer._id}`, ws);
+    await api('PATCH', `${W}/orders/${order._id}/status`, ws, { status: 'cancelled' }); // a dealer who owes can't be removed
+    r = await api('DELETE', `${W}/dealers/${dealer._id}`, ws);
+    check('the dealer is removed once nothing is owed', r.status === 200, `${r.status} ${msg(r)}`);
     r = await api('POST', `${W}/quotations`, ws, { dealerId: dealer._id, items: [{ productId: wprod._id, quantity: 1 }] });
     check('no estimate for a removed dealer', r.status === 400, `${r.status} ${msg(r)}`);
 

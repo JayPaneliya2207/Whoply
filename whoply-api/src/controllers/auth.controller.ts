@@ -18,6 +18,7 @@ import Session from '../models/Session.js';
 import { loginSchema, verifyOtpSchema, passwordLoginSchema, registerSchema, onboardingSchema } from '../validators/auth.validator.js';
 import type { AuthRequest } from '../interfaces/index.js';
 import { BUSINESS_SUSPENDED } from '../middleware/auth.middleware.js';
+import { endSessions } from '../utils/staff.js';
 
 /** A business the platform admin suspended: no sign-in for its owner or staff. */
 const assertBusinessOpen = async (user: { role: string; businessId?: unknown }) => {
@@ -221,7 +222,10 @@ export const changePassword = asyncHandler(async (req: AuthRequest, res: Respons
     }
     user.password = newPassword;
     await user.save();
-    sendSuccess(res, { ok: true }, 'Password changed');
+    // Sign out every other device — if a phone was lost or a password leaked, changing it locks them out.
+    const current = (req.headers.authorization || '').replace(/^Bearer /, '');
+    await endSessions(user._id, current);
+    sendSuccess(res, { ok: true }, 'Password changed — other devices are signed out');
 });
 
 /** POST /api/auth/logout */

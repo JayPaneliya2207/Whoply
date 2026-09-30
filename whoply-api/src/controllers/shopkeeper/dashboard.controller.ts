@@ -10,6 +10,7 @@ import Supplier from '../../models/Supplier.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { can } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
+import { retailGrossProfit } from '../../utils/profit.js';
 
 /** GET /dashboard — Shopkeeper dashboard tiles */
 export const shopkeeperDashboard = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -50,12 +51,17 @@ export const shopkeeperDashboard = asyncHandler(async (req: AuthRequest, res: Re
         ]),
     ]);
 
+    // Real profit (sales before GST − cost of goods − returns), only for roles that see profit.
+    const role = req.user?.role;
+    const [todayGross, monthGross] = can(role, 'profit.view')
+        ? await Promise.all([retailGrossProfit(bId, start, end), retailGrossProfit(bId, monthStart())])
+        : [null, null];
+
     const monthSales = monthAgg[0]?.sales || 0;
     const monthExpense = expenseAgg[0]?.total || 0;
     const todaySales = todayAgg[0]?.sales || 0;
 
     // Profit, expenses and supplier dues only go to roles allowed to see them (a cashier is not).
-    const role = req.user?.role;
     sendSuccess(res, {
         todaySales,
         todayOrders: todayAgg[0]?.count || 0,
@@ -66,9 +72,9 @@ export const shopkeeperDashboard = asyncHandler(async (req: AuthRequest, res: Re
             udharCustomers: dueAgg[0]?.count || 0,
         }),
         ...(can(role, 'profit.view') && {
-            todayProfit: +(todaySales * 0.3).toFixed(2), // rough ~30% margin estimate for today
+            todayProfit: todayGross?.grossProfit ?? 0, // sales before GST − cost of goods − returns
             monthExpense,
-            estimatedProfit: +(monthSales * 0.3 - monthExpense).toFixed(2), // ~30% gross margin est.
+            estimatedProfit: +((monthGross?.grossProfit ?? 0) - monthExpense).toFixed(2), // this month, after expenses
         }),
         ...(can(role, 'purchases.view') && {
             supplierPayable: payableAgg[0]?.total || 0,

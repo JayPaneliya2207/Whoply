@@ -45,6 +45,7 @@ export interface IInvoice {
     payments?: IInvoicePayment[];
     status: 'paid' | 'partial' | 'credit';
     whatsappSentAt?: Date; // set when the bill is shared on WhatsApp
+    returnsRev?: number; // bumped by every return on this bill — two returns at once can't both pass the "already returned" check
     createdBy?: Types.ObjectId;
 }
 export interface IInvoiceDocument extends IInvoice, Document {
@@ -90,6 +91,7 @@ const invoiceSchema = new Schema<IInvoiceDocument>(
         },
         status: { type: String, enum: ['paid', 'partial', 'credit'], default: 'paid', index: true },
         whatsappSentAt: Date,
+        returnsRev: { type: Number, default: 0 },
         createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     },
     { timestamps: true, collection: 'invoices' }

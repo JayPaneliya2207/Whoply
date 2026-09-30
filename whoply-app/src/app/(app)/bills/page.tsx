@@ -37,6 +37,7 @@ export default function BillsPage() {
     const [retReason, setRetReason] = useState('');
     const [retMode, setRetMode] = useState<'cash' | 'udhar_adjust'>('cash');
     const [retErr, setRetErr] = useState('');
+    const [retBusy, setRetBusy] = useState(false);
 
     // On an udhar bill the natural choice is to take the return off what they owe (the
     // server always clears this bill's own due first, whichever mode is picked).
@@ -44,13 +45,15 @@ export default function BillsPage() {
     const submitReturn = async (inv: any) => {
         const items = Object.entries(retQty).map(([productId, q]) => ({ productId, quantity: Number(q) || 0 })).filter((x) => x.quantity > 0);
         if (!items.length) { setRetErr(t('selectReturnQty')); return; }
+        if (retBusy) return;
+        setRetBusy(true);
         try {
             const { data } = await api.post('/shopkeeper/returns', { invoiceId: inv._id, items, reason: retReason || undefined, refundMode: retMode });
             setReturning(false);
             qc.invalidateQueries({ queryKey: ['bills'] }); qc.invalidateQueries({ queryKey: ['bill'] }); qc.invalidateQueries({ queryKey: ['products'] });
             qc.invalidateQueries({ queryKey: ['customers'] }); qc.invalidateQueries({ queryKey: ['returns'] });
             if (confirm(t('returnRecordedPrint'))) printCreditNote(data.data.creditNote, inv.business);
-        } catch (e) { setRetErr(apiErr(e)); }
+        } catch (e) { setRetErr(apiErr(e)); } finally { setRetBusy(false); }
     };
 
     const genEInvoice = async (inv: any) => {
@@ -190,7 +193,7 @@ export default function BillsPage() {
                                 {retErr && <p className="text-xs" style={{ color: 'var(--danger)' }}>{retErr}</p>}
                                 <div className="flex gap-2">
                                     <button className="wp-btn wp-btn-ghost flex-1 !py-2 text-sm" onClick={() => setReturning(false)}>{t('cancel')}</button>
-                                    <button className="wp-btn wp-btn-primary flex-1 !py-2 text-sm" onClick={() => submitReturn(detail)}><RotateCcw size={15} /> {t('recordReturn')}</button>
+                                    <button className="wp-btn wp-btn-primary flex-1 !py-2 text-sm" disabled={retBusy} onClick={() => submitReturn(detail)}><RotateCcw size={15} /> {t('recordReturn')}</button>
                                 </div>
                             </div>
                         )}

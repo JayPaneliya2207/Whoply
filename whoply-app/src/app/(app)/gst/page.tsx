@@ -7,9 +7,9 @@ import { api } from '@/lib/api';
 import { inr } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
-import { downloadFile } from '@/lib/bill';
+import { downloadFile, csvCell } from '@/lib/bill';
 
-const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+const esc = csvCell;
 const toCsv = (header: string[], rows: any[][]) => [header.map(esc).join(','), ...rows.map((r) => r.map(esc).join(','))].join('\n');
 
 export default function GstPage() {

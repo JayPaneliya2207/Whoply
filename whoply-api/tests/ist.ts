@@ -40,9 +40,11 @@ check('GST month ignores junk', gstMonth('2026-13', early).label === '2026-10');
 
 // Rolling periods start at IST midnight
 const at = new Date('2026-03-31T20:00:00Z'); // 1 Apr 01:30 IST
-check('week = 7 IST days back', iso(istPeriodStart('week', at)) === '2026-03-24T18:30:00.000Z', iso(istPeriodStart('week', at)));
-check('month = same IST date last month', iso(istPeriodStart('month', at)) === '2026-02-28T18:30:00.000Z', iso(istPeriodStart('month', at)));
-check('year = same IST date last year', iso(istPeriodStart('year', at)) === '2025-03-31T18:30:00.000Z', iso(istPeriodStart('year', at)));
+check('week = today and the 6 days before (from 26 Mar)', iso(istPeriodStart('week', at)) === '2026-03-25T18:30:00.000Z', iso(istPeriodStart('week', at)));
+check('month = this calendar month (from 1 Apr)', iso(istPeriodStart('month', at)) === '2026-03-31T18:30:00.000Z', iso(istPeriodStart('month', at)));
+check('month on the 30th starts on the 1st, not the 30th of last month', iso(istPeriodStart('month', new Date('2026-09-30T06:00:00Z'))) === '2026-08-31T18:30:00.000Z', iso(istPeriodStart('month', new Date('2026-09-30T06:00:00Z'))));
+check('quarter = last 3 months, from the day after (2 Jan)', iso(istPeriodStart('quarter', at)) === '2026-01-01T18:30:00.000Z', iso(istPeriodStart('quarter', at)));
+check('year = last 12 months, from the day after (2 Apr 2025)', iso(istPeriodStart('year', at)) === '2025-04-01T18:30:00.000Z', iso(istPeriodStart('year', at)));
 check('0 days ago = today IST midnight', iso(istDaysAgo(0, at)) === '2026-03-31T18:30:00.000Z', iso(istDaysAgo(0, at)));
 
 const fails = results.filter((r) => !r.pass);

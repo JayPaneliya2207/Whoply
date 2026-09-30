@@ -6,7 +6,8 @@ import { businessOf, paginate } from '../../utils/http.js';
 import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
 import Quotation from '../../models/Quotation.js';
-import { priceDealerItems, recordAdvancePayment, orderRepId } from '../../utils/wholesaler.js';
+import { priceDealerItems, recordAdvancePayment, orderRepId, checkCreditLimit } from '../../utils/wholesaler.js';
+import { Types } from 'mongoose';
 import { round2 } from '../../utils/tax.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
@@ -77,6 +78,8 @@ export const convertWsQuote = asyncHandler(async (req: AuthRequest, res: Respons
     const dealer = await Dealer.findOne({ _id: found.dealerId, businessId, isActive: true });
     if (!dealer) throw AppError.badRequest('Dealer no longer exists');
     const maker = found.createdBy ? await User.findOne({ _id: found.createdBy, businessId, role: 'salesStaff', isActive: true }).select('_id').lean() : null;
+    const paidNow = round2(Math.min(found.grandTotal, Math.max(0, Number(req.body.paidAmount) || 0)));
+    await checkCreditLimit(req.user, req.body, new Types.ObjectId(String(businessId)), dealer, round2(found.grandTotal - paidNow));
 
     // Claim it: only one request moves it from open to converted.
     const quote = await Quotation.findOneAndUpdate({ _id: found._id, businessId, status: 'open' }, { $set: { status: 'converted' } }, { new: true });
@@ -98,7 +101,7 @@ export const convertWsQuote = asyncHandler(async (req: AuthRequest, res: Respons
         await Quotation.updateOne({ _id: quote._id, convertedInvoiceId: { $exists: false } }, { $set: { status: 'open' } }).catch(() => {});
         throw e;
     }
-    await recordAdvancePayment(order, order.paidAmount, req.body.paymentMode ?? req.body.mode);
+    await recordAdvancePayment(order, order.paidAmount, req.body.paymentMode ?? req.body.mode, req.user?._id);
     await Quotation.updateOne({ _id: quote._id }, { $set: { convertedInvoiceId: order._id, convertedInvoiceNo: order.orderNo } });
     sendCreated(res, order, 'Converted to order');
 });

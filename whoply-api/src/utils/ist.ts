@@ -45,12 +45,20 @@ export const istDaysAgo = (days: number, d: Date = new Date()) => { const { y, m
 /** IST midnight `months` calendar months before today. */
 export const istMonthsAgo = (months: number, d: Date = new Date()) => { const { y, m, day } = istParts(d); return istMidnight(y, m - months, day); };
 
-/** Start of a rolling report window — last week / month / quarter / year — at IST midnight. */
+/**
+ * Start of a report window, at IST midnight (the window runs to now):
+ *   week    — today and the 6 days before (7 days)
+ *   month   — this calendar month, from the 1st (matches the dashboard)
+ *   quarter — the last 3 months, starting the day after today's date 3 months ago
+ *   year    — the last 12 months, likewise
+ * No calendar date is ever counted twice (a rent paid on the 30th, say).
+ */
 export function istPeriodStart(period: string, d: Date = new Date()): Date {
-    if (period === 'week') return istDaysAgo(7, d);
-    if (period === 'quarter') return istMonthsAgo(3, d);
-    if (period === 'year') return istMonthsAgo(12, d);
-    return istMonthsAgo(1, d); // month (default)
+    const { y, m, day } = istParts(d);
+    if (period === 'week') return istDaysAgo(6, d);
+    if (period === 'quarter') return istMidnight(y, m - 3, day + 1);
+    if (period === 'year') return istMidnight(y - 1, m, day + 1);
+    return istMonthStart(d); // month (default)
 }
 
 /**

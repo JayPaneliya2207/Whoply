@@ -45,18 +45,24 @@ export const getPriceList = asyncHandler(async (req: AuthRequest, res: Response)
     sendSuccess(res, items);
 });
 
-/** PUT /price-lists — upsert a tier price for a product */
+/**
+ * PUT /price-lists — set a tier price for a product. An empty price (or null)
+ * removes the saved price, so the group goes back to the default from the base price.
+ */
 export const setPrice = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const { productId, tier, price } = req.body;
-    if (!productId || !['A', 'B', 'C'].includes(tier) || price == null) {
-        throw AppError.badRequest('productId, tier (A/B/C) and price are required');
-    }
-    if (!(Number(price) >= 0)) throw AppError.badRequest('Price must be a number, 0 or more');
+    if (!productId || !['A', 'B', 'C'].includes(tier)) throw AppError.badRequest('productId and tier (A/B/C) are required');
     if (!(await Product.exists({ _id: productId, businessId }))) throw AppError.notFound('Product not found');
+    if (price === null || price === '' || price === undefined) {
+        await PriceList.deleteOne({ businessId, productId, tier });
+        sendSuccess(res, { productId, tier, price: null }, 'Back to the default price');
+        return;
+    }
+    if (!Number.isFinite(Number(price)) || Number(price) < 0) throw AppError.badRequest('Price must be a number, 0 or more');
     const row = await PriceList.findOneAndUpdate(
         { businessId, productId, tier },
-        { price: Number(price) },
+        { price: Math.round(Number(price) * 100) / 100 },
         { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     sendCreated(res, row, 'Price saved');

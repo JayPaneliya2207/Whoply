@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Download, Boxes, Wallet, Building2, ShoppingBag, MessageCircle } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
-import { api, API_URL } from '@/lib/api';
+import { api, API_URL, apiErr, fetchAll } from '@/lib/api';
 import { inr, inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
 import { useCan } from '@/lib/permissions';
@@ -53,7 +53,7 @@ function DayCloseCard() {
         )}
         <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: '1px solid var(--card-border)' }}>
             <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{t('cashCollectedToday')}</span>
-            <span className="text-xl font-extrabold tabular" style={{ color: 'var(--success)' }}>{inr((dayClose?.cash || 0) + (dayClose?.udharCollected || 0) - (dayClose?.refunds || 0))}</span>
+            <span className="text-xl font-extrabold tabular" style={{ color: 'var(--success)' }}>{inr((dayClose?.cash || 0) + (dayClose?.udharCollectedCash ?? dayClose?.udharCollected ?? 0) - (dayClose?.refunds || 0))}</span>
         </div>
         <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>Cash sales + udhar collected today. All figures are for <b>today only</b>. Any expenses you paid from the cash box, subtract separately.</p>
     </div>
@@ -67,6 +67,11 @@ function WholesaleTally() {
     const periodLabel: Record<Period, string> = { week: t('weekly'), month: t('monthly'), quarter: t('quarterly'), year: t('yearly') };
     const { data: biz } = useQuery({ queryKey: ['ws-business'], queryFn: async () => (await api.get('/wholesaler/business')).data.data });
     const { data } = useQuery({ queryKey: ['ws-tally', period], queryFn: async () => (await api.get(`/wholesaler/reports/tally?period=${period}`)).data.data, refetchOnMount: 'always' });
+    // Every payment in the selected period (the tally only carries the latest 8).
+    const exportPayments = async () => {
+        try { downloadFile(`whoply-payments-${period}.csv`, paymentsToCsv(await fetchAll(`/wholesaler/payments?period=${period}`))); }
+        catch (e) { alert(apiErr(e)); }
+    };
 
     const remindDealer = (d: any) => {
         if (!d.mobile) { alert('Add a mobile number for this dealer to send a reminder.'); return; }
@@ -87,7 +92,7 @@ function WholesaleTally() {
         <div className="space-y-6">
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('accountTally')}</h1>
-                <button className="wp-btn wp-btn-ghost" onClick={() => downloadFile('whoply-payments.csv', paymentsToCsv(data?.recentPayments || []))} disabled={!(data?.recentPayments || []).length}><Download size={16} /> {t('exportCsv')}</button>
+                <button className="wp-btn wp-btn-ghost" onClick={exportPayments} disabled={!(data?.recentPayments || []).length}><Download size={16} /> {t('exportCsv')}</button>
             </div>
 
             {/* Period tabs */}
@@ -222,6 +227,7 @@ function ShopReports() {
     const downloadCsv = async () => {
         const token = localStorage.getItem('whoply_token');
         const res = await fetch(`${API_URL}/shopkeeper/reports/export?period=${period}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) { alert((await res.json().catch(() => null))?.error?.message || `Export failed (${res.status})`); return; }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

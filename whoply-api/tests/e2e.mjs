@@ -248,7 +248,8 @@ async function testWholesaler() {
         const dealer = dealers[day % dealers.length];
         const items = [{ productId: products[day % products.length]._id, quantity: 20 + (day % 5) * 10 }];
         const partial = day % 2 === 0 ? 7600 : 0;
-        const s = await api('POST', '/wholesaler/orders', token, { dealerId: dealer._id, items, source: 'manual', paidAmount: partial });
+        // A month of big orders goes past some dealers' credit limits — the owner saves anyway.
+        const s = await api('POST', '/wholesaler/orders', token, { dealerId: dealer._id, items, source: 'manual', paidAmount: partial, overLimitOk: true });
         if (s.status === 201) orders.push(dataOf(s)); else bad(`day ${day} order`, `${s.status} ${JSON.stringify(s.json)}`);
     }
     check('orders created (20)', orders.length === 20, `got ${orders.length}`);

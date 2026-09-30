@@ -6,8 +6,7 @@ import { businessOf, paginate } from '../../utils/http.js';
 import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
 import Payment, { type PaymentMode } from '../../models/Payment.js';
-import { settleDealerOrders } from './payment.controller.js';
-import { duesByDealer } from '../../utils/wholesaler.js';
+import { duesByDealer, dealerDue, settleDealerOrders, assertRepDealer } from '../../utils/wholesaler.js';
 import { cleanGstin } from '../../utils/gstin.js';
 import { Types } from 'mongoose';
 import type { AuthRequest } from '../../interfaces/index.js';
@@ -73,14 +72,18 @@ async function dealerFields(req: AuthRequest, opts: { create: boolean }) {
         if (mobile) out.mobile = mobile; else unset.mobile = 1;
     }
     if (b.gstin !== undefined) out.gstin = cleanGstin(b.gstin, (m) => AppError.badRequest(m)) ?? '';
-    if (b.tier !== undefined) {
-        if (!['A', 'B', 'C'].includes(b.tier)) throw AppError.badRequest('Price group must be A, B or C');
-        out.tier = b.tier;
-    }
-    if (b.creditLimit !== undefined && b.creditLimit !== '') {
-        const n = Number(b.creditLimit);
-        if (!Number.isFinite(n) || n < 0) throw AppError.badRequest('Credit limit must be 0 or more');
-        out.creditLimit = n;
+    // Price group and credit limit decide money — the owner / manager (team.view) set them;
+    // a sales rep's form values are ignored (new dealers get the defaults).
+    if (can(req.user?.role, 'team.view')) {
+        if (b.tier !== undefined) {
+            if (!['A', 'B', 'C'].includes(b.tier)) throw AppError.badRequest('Price group must be A, B or C');
+            out.tier = b.tier;
+        }
+        if (b.creditLimit !== undefined && b.creditLimit !== '') {
+            const n = Number(b.creditLimit);
+            if (!Number.isFinite(n) || n < 0) throw AppError.badRequest('Credit limit must be 0 or more');
+            out.creditLimit = n;
+        }
     }
     if (can(req.user?.role, 'team.view')) {
         if (b.assignedRepId !== undefined) {
@@ -107,8 +110,13 @@ export const createDealer = asyncHandler(async (req: AuthRequest, res: Response)
 export const updateDealer = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const { out, unset } = await dealerFields(req, { create: false });
+    // A sales rep may edit only the dealers assigned to them.
+    const current = await Dealer.findOne({ _id: req.params.id, businessId, isActive: true }).select('assignedRepId').lean();
+    if (!current) throw AppError.notFound('Dealer not found');
+    assertRepDealer(req.user, current);
+    const mine = req.user?.role === 'salesStaff' ? { assignedRepId: req.user._id } : {};
     const dealer = await Dealer.findOneAndUpdate(
-        { _id: req.params.id, businessId, isActive: true },
+        { _id: req.params.id, businessId, isActive: true, ...mine },
         { $set: out, ...(Object.keys(unset).length && { $unset: unset }) },
         { new: true }
     );
@@ -116,9 +124,16 @@ export const updateDealer = asyncHandler(async (req: AuthRequest, res: Response)
     sendSuccess(res, dealer, 'Dealer updated');
 });
 
+/** DELETE /dealers/:id — refused while the dealer still owes money (their dues would drop out of the Dealers list). */
 export const deleteDealer = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const dealer = await Dealer.findOneAndUpdate({ _id: req.params.id, businessId }, { isActive: false }, { new: true });
+    const bId = new Types.ObjectId(String(businessId));
+    const existing = await Dealer.findOne({ _id: req.params.id, businessId, isActive: true }).select('assignedRepId').lean();
+    if (!existing) throw AppError.notFound('Dealer not found');
+    assertRepDealer(req.user, existing);
+    const owed = await dealerDue(bId, existing._id);
+    if (owed > 0) throw AppError.badRequest(`This dealer still owes ₹${owed} — collect it (or cancel those orders) first`);
+    const dealer = await Dealer.findOneAndUpdate({ _id: existing._id, businessId }, { isActive: false }, { new: true });
     if (!dealer) throw AppError.notFound('Dealer not found');
     sendSuccess(res, { ok: true }, 'Dealer removed');
 });
@@ -143,15 +158,16 @@ export const collectPayment = asyncHandler(async (req: AuthRequest, res: Respons
     if (!amount || amount <= 0) throw AppError.badRequest('A positive amount is required');
     const dealer = await Dealer.findOne({ _id: req.params.id, businessId });
     if (!dealer) throw AppError.notFound('Dealer not found');
+    assertRepDealer(req.user, dealer);
 
-    // Clamp to what the dealer actually owes (sum of live order dues) so the money-in
-    // ledger can never exceed what was billed. Advances aren't tracked yet.
-    const dues = await duesByDealer(bId);
-    const owed = dues.find((d) => String(d._id) === String(dealer._id))?.due || 0;
-    const applied = +Math.min(amount, owed).toFixed(2);
-    if (applied <= 0) throw AppError.badRequest('This dealer has no outstanding to collect');
+    // Never more than the dealer owes — advances aren't tracked, so extra money would vanish.
+    const owed = await dealerDue(bId, dealer._id);
+    if (owed <= 0) throw AppError.badRequest('This dealer has no outstanding to collect');
+    if (amount > owed + 0.005) throw AppError.badRequest(`₹${+amount.toFixed(2)} is more than the ₹${owed} this dealer owes`);
 
-    await settleDealerOrders(bId, dealer._id, applied);
+    // Applied order by order, atomically; the Payment is written for what really went in.
+    const applied = await settleDealerOrders(bId, dealer._id, +amount.toFixed(2));
+    if (applied <= 0) throw AppError.conflict('The dealer\'s dues changed while you were collecting — try again');
 
     const payment = await Payment.create({
         businessId: bId,
@@ -160,6 +176,7 @@ export const collectPayment = asyncHandler(async (req: AuthRequest, res: Respons
         amount: applied,
         mode: (MODES.includes(req.body.mode) ? req.body.mode : 'cash') as PaymentMode,
         note: req.body.note,
+        collectedBy: req.user?._id,
     });
     sendSuccess(res, { dealer, payment, applied }, 'Payment collected');
 });

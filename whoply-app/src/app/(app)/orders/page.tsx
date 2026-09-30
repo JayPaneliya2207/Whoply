@@ -4,7 +4,7 @@ import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/rea
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle, QrCode, FileJson, Truck, RotateCcw, Pencil, Ban } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
-import { api, apiErr } from '@/lib/api';
+import { api, apiErr, withCreditCheck } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { stepQty } from '@/lib/qty';
 import { QtyInput } from '@/components/QtyInput';
@@ -131,8 +131,9 @@ export default function OrdersPage() {
     const create = useMutation({
         mutationFn: async () => {
             const items = cart.map((r) => ({ productId: r.productId, quantity: r.qty }));
-            if (editingOrder) return (await api.patch(`/wholesaler/orders/${editingOrder._id}`, { items })).data.data;
-            return (await api.post('/wholesaler/orders', { dealerId, source, items })).data.data;
+            const ask = (m: string) => confirm(`${m} ${t('saveAnyway')}`);
+            if (editingOrder) return withCreditCheck(async (x) => (await api.patch(`/wholesaler/orders/${editingOrder._id}`, { items, ...x })).data.data, ask);
+            return withCreditCheck(async (x) => (await api.post('/wholesaler/orders', { dealerId, source, items, ...x })).data.data, ask);
         },
         onSuccess: (order) => {
             const wasEdit = !!editingOrder;

@@ -7,7 +7,8 @@ import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
 import Business from '../../models/Business.js';
 import { applyStockChanges, takeStock } from '../../utils/stock.js';
-import { priceDealerItems, recordAdvancePayment, orderRepId } from '../../utils/wholesaler.js';
+import { priceDealerItems, recordAdvancePayment, orderRepId, checkCreditLimit } from '../../utils/wholesaler.js';
+import Payment from '../../models/Payment.js';
 import { netLineValue, round2 } from '../../utils/tax.js';
 import { lineQty } from '../../utils/qty.js';
 import CreditNote from '../../models/CreditNote.js';
@@ -48,16 +49,17 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
     if (!dealerId) throw AppError.badRequest('dealerId is required');
     if (!Array.isArray(items) || !items.length) throw AppError.badRequest('At least one item is required');
 
-    const dealer = await Dealer.findOne({ _id: dealerId, businessId });
+    const dealer = await Dealer.findOne({ _id: dealerId, businessId, isActive: true });
     if (!dealer) throw AppError.badRequest('Dealer not found');
 
     const { lineItems, subtotal, totalGst, grandTotal: total } = await priceDealerItems(businessId, dealer, items);
+    const paidAmount = round2(Math.min(total, Math.max(0, Number(req.body.paidAmount) || 0)));
+    const due = round2(total - paidAmount);
+    await checkCreditLimit(req.user, req.body, new Types.ObjectId(String(businessId)), dealer, due);
 
     const ym = istYm();
     const seq = await nextSequence(`order:${businessId}:${ym}`);
     const orderNo = `ORD/${ym}/${String(seq).padStart(4, '0')}`;
-    const paidAmount = round2(Math.min(total, Math.max(0, Number(req.body.paidAmount) || 0)));
-    const due = round2(total - paidAmount);
 
     const order = await Order.create({
         businessId,
@@ -75,7 +77,7 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
         source,
         salesRepId: orderRepId(req.user, dealer),
     });
-    await recordAdvancePayment(order, paidAmount, req.body.paymentMode ?? req.body.mode);
+    await recordAdvancePayment(order, paidAmount, req.body.paymentMode ?? req.body.mode, req.user?._id);
 
     // Dealer outstanding is derived from order dues (this new order's due included) — nothing to persist.
     sendCreated(res, order);
@@ -126,16 +128,18 @@ export const updateOrderItems = asyncHandler(async (req: AuthRequest, res: Respo
                 : `This order is already ${order.status} — its goods have left, so record a return instead`
         );
     }
-    const dealer = await Dealer.findOne({ _id: order.dealerId, businessId });
+    const dealer = await Dealer.findOne({ _id: order.dealerId, businessId, isActive: true });
     if (!dealer) throw AppError.badRequest('Dealer not found');
 
     const { lineItems, subtotal, totalGst, grandTotal: total } = await priceDealerItems(businessId, dealer, items);
     if (total < order.paidAmount - 0.005) {
         throw AppError.badRequest(`₹${order.paidAmount.toFixed(2)} is already paid on this order — the new total (₹${total.toFixed(2)}) can't be less`);
     }
-    // Only while it's still in the status we read, so a dispatch at the same moment can't be edited under it.
+    await checkCreditLimit(req.user, req.body, new Types.ObjectId(String(businessId)), dealer, round2(total - order.total));
+    // Only while it's still in the status — and has the payments — we read, so a dispatch or a
+    // collection at the same moment is never overwritten by a due worked out from old numbers.
     const updated = await Order.findOneAndUpdate(
-        { _id: order._id, businessId, status: order.status },
+        { _id: order._id, businessId, status: order.status, paidAmount: order.paidAmount },
         { $set: { items: lineItems, subtotal, totalGst, total, dueAmount: round2(total - order.paidAmount), dealerGstin: dealer.gstin } },
         { new: true }
     );
@@ -368,13 +372,20 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
     const total = +(subtotal + totalGst).toFixed(2);
 
     // Reduce the order (net of return), keeping total = paid + due; overpay → cash refund owed.
+    // Saved only if the order still has the total and payments we read: two returns (or a
+    // return and a collection) at the same moment can't both use the same numbers.
+    const before = { total: order.total, paidAmount: order.paidAmount };
     order.subtotal = +Math.max(0, (order.subtotal ?? order.total) - subtotal).toFixed(2);
     order.totalGst = +Math.max(0, (order.totalGst ?? 0) - totalGst).toFixed(2);
     order.total = +Math.max(0, order.total - total).toFixed(2);
     let cashRefund = 0;
     if (order.paidAmount > order.total) { cashRefund = +(order.paidAmount - order.total).toFixed(2); order.paidAmount = order.total; }
     order.dueAmount = +Math.max(0, order.total - order.paidAmount).toFixed(2);
-    await order.save();
+    const saved = await Order.updateOne(
+        { _id: order._id, businessId, status: order.status, total: before.total, paidAmount: before.paidAmount },
+        { $set: { subtotal: order.subtotal, totalGst: order.totalGst, total: order.total, paidAmount: order.paidAmount, dueAmount: order.dueAmount } }
+    );
+    if (saved.modifiedCount !== 1) throw AppError.conflict('The order changed while you were recording the return — open it again');
 
     // The goods left on dispatch, so they come back into stock.
     await applyStockChanges(
@@ -392,6 +403,14 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
         items: lineItems, subtotal: +subtotal.toFixed(2), totalGst: +totalGst.toFixed(2), total, reason,
         refundMode: cashRefund > 0 ? 'cash' : 'udhar_adjust', cashRefund, createdBy: req.user!._id,
     });
+    // Money going back to the dealer is a negative row in the payments book, so the
+    // Payments page and the tally agree with what the orders show as paid.
+    if (cashRefund > 0) {
+        await Payment.create({
+            businessId: order.businessId, dealerId: order.dealerId, dealerName: order.dealerName, orderId: order._id, orderNo: order.orderNo,
+            amount: -cashRefund, mode: 'cash', note: `Refund on return ${creditNoteNo}`, collectedBy: req.user?._id,
+        });
+    }
     sendCreated(res, { creditNote: note, cashRefund, stockRestored: true }, 'Return recorded');
 });
 
