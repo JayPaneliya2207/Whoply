@@ -7,7 +7,8 @@ import type { Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { sendSuccess, sendCreated } from '../utils/response.js';
-import { generateOtp, getOtpExpiry } from '../utils/otp.js';
+import { generateOtp, getOtpExpiry, sameOtp } from '../utils/otp.js';
+import { GUARD_FIELDS, assertIpAllowed, assertNotLocked, failedFromIp, wrongTry, clearWrongTries, allowOtpSend } from '../utils/loginGuard.js';
 import { generateToken } from '../utils/jwt.js';
 import { maskMobile } from '../utils/masking.js';
 import { normalizePhone } from '../utils/phone.js';
@@ -16,6 +17,15 @@ import Business from '../models/Business.js';
 import Session from '../models/Session.js';
 import { loginSchema, verifyOtpSchema, passwordLoginSchema, registerSchema, onboardingSchema } from '../validators/auth.validator.js';
 import type { AuthRequest } from '../interfaces/index.js';
+import { BUSINESS_SUSPENDED } from '../middleware/auth.middleware.js';
+import { endSessions } from '../utils/staff.js';
+
+/** A business the platform admin suspended: no sign-in for its owner or staff. */
+const assertBusinessOpen = async (user: { role: string; businessId?: unknown }) => {
+    if (!user.businessId || user.role === 'admin') return;
+    const b = await Business.findById(user.businessId).select('isActive').lean();
+    if (b?.isActive === false) throw AppError.forbidden(BUSINESS_SUSPENDED);
+};
 
 const createSession = async (userId: any, mobile: string, role: any, businessId: any, req: AuthRequest) => {
     const token = generateToken({ _id: userId, role, mobile, businessId });
@@ -53,6 +63,7 @@ export const register = asyncHandler(async (req, res) => {
     if (existing) throw AppError.conflict('An account with this mobile already exists. Please login.');
 
     const otp = generateOtp();
+    const now = new Date();
     const user = await User.create({
         name: body.name,
         mobile,
@@ -62,6 +73,9 @@ export const register = asyncHandler(async (req, res) => {
         ...(body.password && { password: body.password }),
         otp,
         otpExpiry: getOtpExpiry(),
+        otpSentAt: now,
+        otpSends: 1,
+        otpWindowAt: now,
     });
 
     sendCreated(
@@ -71,14 +85,16 @@ export const register = asyncHandler(async (req, res) => {
     );
 });
 
-/** POST /api/auth/login — request an OTP */
+/** POST /api/auth/login — request an OTP (one per 30 s, 5 an hour; not while locked) */
 export const requestOtp = asyncHandler(async (req, res) => {
     const body = loginSchema.parse(req.body);
     const mobile = normalizePhone(body.mobile);
 
-    const user = await User.findOne({ mobile }).select('+otp +otpExpiry');
+    const user = await User.findOne({ mobile }).select(`+otp +otpExpiry ${GUARD_FIELDS}`);
     if (!user) throw AppError.notFound('No account found for this mobile. Please sign up first.');
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
+    await assertBusinessOpen(user);
+    allowOtpSend(user);
 
     const otp = generateOtp();
     user.otp = otp;
@@ -89,19 +105,26 @@ export const requestOtp = asyncHandler(async (req, res) => {
     sendSuccess(res, { mobile: maskMobile(mobile), ...(process.env.NODE_ENV !== 'production' && { devOtp: otp }) }, 'OTP sent successfully');
 });
 
-/** POST /api/auth/verify-otp — verify OTP and issue token */
+/** POST /api/auth/verify-otp — verify OTP and issue token (wrong tries count towards the lock) */
 export const verifyOtp = asyncHandler(async (req, res) => {
     const body = verifyOtpSchema.parse(req.body);
     const mobile = normalizePhone(body.mobile);
+    assertIpAllowed(req.ip);
 
-    const user = await User.findOne({ mobile }).select('+otp +otpExpiry');
-    if (!user) throw AppError.notFound('No account found for this mobile');
+    const user = await User.findOne({ mobile }).select(`+otp +otpExpiry ${GUARD_FIELDS}`);
+    if (!user) {
+        failedFromIp(req.ip);
+        throw AppError.notFound('No account found for this mobile');
+    }
+    assertNotLocked(user);
     if (!user.otp || !user.otpExpiry) throw AppError.badRequest('Please request an OTP first');
     if (user.otpExpiry < new Date()) throw AppError.badRequest('OTP has expired. Please request a new one.');
-    if (user.otp !== body.otp) throw AppError.badRequest('Incorrect OTP');
+    if (!sameOtp(String(body.otp), user.otp)) await wrongTry(user, req.ip, 'Incorrect OTP');
+    await assertBusinessOpen(user);
 
     user.otp = undefined;
     user.otpExpiry = undefined;
+    clearWrongTries(user);
     if (body.language) user.language = body.language;
     user.lastLogin = new Date();
     await user.save();
@@ -111,19 +134,26 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     sendSuccess(res, { token, user: publicUser(user, business) }, 'Login successful');
 });
 
-/** POST /api/auth/password-login — login with a password */
+/** POST /api/auth/password-login — login with a password (wrong tries count towards the lock) */
 export const passwordLogin = asyncHandler(async (req, res) => {
     const body = passwordLoginSchema.parse(req.body);
     const mobile = normalizePhone(body.mobile);
+    assertIpAllowed(req.ip);
 
-    const user = await User.findOne({ mobile }).select('+password');
-    if (!user) throw AppError.notFound('No account found for this mobile');
+    const user = await User.findOne({ mobile }).select(`+password ${GUARD_FIELDS}`);
+    if (!user) {
+        failedFromIp(req.ip);
+        throw AppError.notFound('No account found for this mobile');
+    }
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
+    assertNotLocked(user);
     if (!user.password) throw AppError.badRequest('Password not set. Please login with OTP.');
 
     const ok = await user.comparePassword(body.password);
-    if (!ok) throw AppError.badRequest('Incorrect password');
+    if (!ok) await wrongTry(user, req.ip, 'Incorrect password');
+    await assertBusinessOpen(user);
 
+    clearWrongTries(user);
     if (body.language) user.language = body.language;
     user.lastLogin = new Date();
     await user.save();
@@ -192,7 +222,10 @@ export const changePassword = asyncHandler(async (req: AuthRequest, res: Respons
     }
     user.password = newPassword;
     await user.save();
-    sendSuccess(res, { ok: true }, 'Password changed');
+    // Sign out every other device — if a phone was lost or a password leaked, changing it locks them out.
+    const current = (req.headers.authorization || '').replace(/^Bearer /, '');
+    await endSessions(user._id, current);
+    sendSuccess(res, { ok: true }, 'Password changed — other devices are signed out');
 });
 
 /** POST /api/auth/logout */

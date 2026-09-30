@@ -179,6 +179,7 @@ const X = '000000000000000000000000'; // an id that exists nowhere
 
     suite('roles:sales-staff');
     const s = rep.tok;
+    await api('PATCH', `/wholesaler/dealers/${dealer._id}`, ws, { assignedRepId: rep.id }); // reps collect for their own dealers
     await expect(s, 'salesStaff', 'GET', '/wholesaler/dealers', true);
     await expect(s, 'salesStaff', 'POST', '/wholesaler/dealers', true, { name: 'Rep Dealer', mobile: '9811100051' });
     await expect(s, 'salesStaff', 'POST', '/wholesaler/orders', true, { dealerId: dealer._id, items: [{ productId: wprod._id, quantity: 1 }], source: 'manual' });

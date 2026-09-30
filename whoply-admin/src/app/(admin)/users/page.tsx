@@ -1,8 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Power, Search } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, apiErr } from '@/lib/api';
 
 const roleColors: Record<string, any> = {
     owner: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
@@ -17,12 +17,21 @@ const roleColors: Record<string, any> = {
 export default function UsersPage() {
     const qc = useQueryClient();
     const [search, setSearch] = useState('');
-    const { data } = useQuery({ queryKey: ['admin-users'], queryFn: async () => (await api.get('/admin/users?limit=200')).data.data.items });
+    const [q, setQ] = useState(''); // the search actually sent, a moment after typing stops
+    const [page, setPage] = useState(1);
+    useEffect(() => { const id = setTimeout(() => { setQ(search.trim()); setPage(1); }, 300); return () => clearTimeout(id); }, [search]);
+    const { data } = useQuery({
+        queryKey: ['admin-users', q, page],
+        queryFn: async () => (await api.get(`/admin/users?limit=50&page=${page}&search=${encodeURIComponent(q)}`)).data.data,
+        placeholderData: (prev) => prev,
+    });
     const toggle = useMutation({
         mutationFn: async ({ id, isActive }: any) => (await api.patch(`/admin/users/${id}`, { isActive })).data.data,
         onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+        onError: (e) => alert(apiErr(e)),
     });
-    const filtered = (data || []).filter((u: any) => !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.mobile.includes(search));
+    const filtered = data?.items || [];
+    const meta = data?.meta;
     return (
         <div className="space-y-4">
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Users</h1>
@@ -64,7 +73,15 @@ export default function UsersPage() {
                         </tbody>
                     </table>
                 </div>
+                {!filtered.length && <p className="p-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>No users found.</p>}
             </div>
+            {meta && meta.totalPages > 1 && (
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    <button className="wp-btn wp-btn-ghost !py-1.5" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
+                    <span>Page {meta.page} of {meta.totalPages} · {meta.total} users</span>
+                    <button className="wp-btn wp-btn-ghost !py-1.5" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
+                </div>
+            )}
         </div>
     );
 }

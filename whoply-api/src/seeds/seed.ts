@@ -16,6 +16,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { env } from '../config/env.js';
+import { refuseOnLiveDatabase } from './guard.js';
 import Business from '../models/Business.js';
 import User from '../models/User.js';
 import Category from '../models/Category.js';
@@ -40,6 +41,7 @@ const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min
 const pick = <T>(arr: readonly T[]): T => arr[rand(0, arr.length - 1)];
 
 async function run() {
+    refuseOnLiveDatabase('npm run seed');
     await mongoose.connect(env.MONGODB_URI);
     console.log(`Connected: ${mongoose.connection.name}`);
 

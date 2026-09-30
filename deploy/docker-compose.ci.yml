@@ -1,0 +1,9 @@
+# Only for the automatic test on GitHub (.github/workflows/ci.yml → deploy job):
+# a local MongoDB instead of Atlas, and DOMAIN=localhost (Caddy uses its own
+# local certificates for *.localhost). Not used on the real server.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+  api:
+    depends_on: [mongo]

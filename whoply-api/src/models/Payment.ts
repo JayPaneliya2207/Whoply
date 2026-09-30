@@ -16,6 +16,9 @@ export interface IPayment {
     amount: number;
     mode: PaymentMode;
     note?: string;
+    /** Who took the money (a sales rep, the owner…). Absent on older rows. */
+    collectedBy?: Types.ObjectId;
+    /** A cash refund to the dealer (after a return) is a row with a negative amount. */
 }
 export interface IPaymentDocument extends IPayment, Document {
     _id: Types.ObjectId;
@@ -32,6 +35,7 @@ const paymentSchema = new Schema<IPaymentDocument>(
         amount: { type: Number, required: true },
         mode: { type: String, enum: ['cash', 'upi', 'bank', 'cheque', 'other'], default: 'cash' },
         note: String,
+        collectedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     },
     { timestamps: true, collection: 'payments' }
 );

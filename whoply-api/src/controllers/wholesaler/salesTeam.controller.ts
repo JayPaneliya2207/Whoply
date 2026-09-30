@@ -3,7 +3,6 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { AppError } from '../../utils/AppError.js';
 import { sendSuccess, sendCreated } from '../../utils/response.js';
 import { businessOf, monthStart } from '../../utils/http.js';
-import { normalizePhone } from '../../utils/phone.js';
 import { passwordSchema } from '../../validators/common.validator.js';
 import { sanitizeKyc } from '../../utils/kyc.js';
 import User from '../../models/User.js';
@@ -13,23 +12,24 @@ import Dealer from '../../models/Dealer.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { can } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
+import { staffFields, findRehire, endSessions } from '../../utils/staff.js';
 
 /** POST /sales-team — add a sales rep (creates a salesStaff user in this business) */
 export const createRep = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { name, mobile } = req.body;
-    if (!name || !mobile) throw AppError.badRequest('name and mobile are required');
     if (req.body.password) passwordSchema.parse(req.body.password);
-    const normalized = normalizePhone(mobile);
-    const exists = await User.findOne({ mobile: normalized });
-    if (exists) throw AppError.conflict('A user with this mobile already exists');
-    const rep = await User.create({
-        name,
-        mobile: normalized,
-        countryCode: req.body.countryCode || '+91',
+    const fields = staffFields(req.body, true);
+    // A rep removed earlier, added again with the same mobile, gets their login back.
+    const back = await findRehire(fields.mobile, businessId);
+    let rep;
+    if (back) {
+        Object.assign(back, fields, { role: 'salesStaff', isActive: true, kyc: sanitizeKyc(req.body.kyc) });
+        if (req.body.password) back.password = req.body.password;
+        rep = await back.save();
+    } else rep = await User.create({
+        ...fields,
         role: 'salesStaff',
         businessId,
-        salary: Number(req.body.salary) || 0,
         kyc: sanitizeKyc(req.body.kyc), // Aadhaar: last 4 digits only, no photo
         ...(req.body.password && { password: req.body.password }),
     });
@@ -39,11 +39,11 @@ export const createRep = asyncHandler(async (req: AuthRequest, res: Response) =>
 /** PATCH /sales-team/:id */
 export const updateRep = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const patch: any = {};
-    if (req.body.name) patch.name = req.body.name;
-    if (req.body.isActive !== undefined) patch.isActive = req.body.isActive;
-    const rep = await User.findOneAndUpdate({ _id: req.params.id, businessId, role: 'salesStaff' }, patch, { new: true });
+    const patch: any = staffFields({ name: req.body.name }, false);
+    if (typeof req.body.isActive === 'boolean') patch.isActive = req.body.isActive;
+    const rep = await User.findOneAndUpdate({ _id: req.params.id, businessId, role: 'salesStaff' }, patch, { new: true, runValidators: true });
     if (!rep) throw AppError.notFound('Sales rep not found');
+    if (patch.isActive === false) await endSessions(rep._id);
     sendSuccess(res, { _id: rep._id, name: rep.name, mobile: rep.mobile, isActive: rep.isActive }, 'Sales rep updated');
 });
 
@@ -52,6 +52,7 @@ export const deleteRep = asyncHandler(async (req: AuthRequest, res: Response) =>
     const businessId = businessOf(req);
     const rep = await User.findOneAndUpdate({ _id: req.params.id, businessId, role: 'salesStaff' }, { isActive: false }, { new: true });
     if (!rep) throw AppError.notFound('Sales rep not found');
+    await endSessions(rep._id);
     sendSuccess(res, { ok: true }, 'Sales rep removed');
 });
 

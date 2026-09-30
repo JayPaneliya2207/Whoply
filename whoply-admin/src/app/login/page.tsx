@@ -7,10 +7,12 @@ import { Logo } from '@/components/Logo';
 import { api, apiErr } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+
 export default function AdminLogin() {
     const router = useRouter();
     const setSession = useAuth((s) => s.setSession);
-    const [mobile, setMobile] = useState('9000000099');
+    const [mobile, setMobile] = useState(IS_PROD ? '' : '9000000099');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -20,6 +22,8 @@ export default function AdminLogin() {
         try {
             const { data } = await api.post('/auth/password-login', { mobile, password });
             if (data.data.user.role !== 'admin') {
+                // Don't leave a live session behind for a shop login used here by mistake.
+                await api.post('/auth/logout', {}, { headers: { Authorization: `Bearer ${data.data.token}` } }).catch(() => {});
                 setError('This console is for platform admins only.');
                 return;
             }
@@ -52,7 +56,7 @@ export default function AdminLogin() {
                 <button className="wp-btn wp-btn-primary w-full" disabled={loading} onClick={login}>
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <>Login <ArrowRight size={17} /></>}
                 </button>
-                <p className="text-xs text-center mt-6" style={{ color: 'var(--text-muted)' }}>Demo: <b>9000000099</b> · <b>whoply123</b></p>
+                {!IS_PROD && <p className="text-xs text-center mt-6" style={{ color: 'var(--text-muted)' }}>Demo: <b>9000000099</b> · <b>whoply123</b></p>}
             </motion.div>
         </div>
     );

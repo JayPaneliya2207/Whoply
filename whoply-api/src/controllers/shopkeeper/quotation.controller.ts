@@ -7,9 +7,10 @@ import Product from '../../models/Product.js';
 import Invoice from '../../models/Invoice.js';
 import Quotation from '../../models/Quotation.js';
 import Customer from '../../models/Customer.js';
-import CreditLedger from '../../models/CreditLedger.js';
 import Business from '../../models/Business.js';
-import { applyStockChanges } from '../../utils/stock.js';
+import { takeStockThenSave, postSaleToCustomer } from '../../utils/sale.js';
+import { validUntilFrom, assertNotExpired } from '../../utils/quote.js';
+import { Types } from 'mongoose';
 import { priceLines, round2 } from '../../utils/tax.js';
 import { resolvePayments } from '../../utils/payments.js';
 import { lineQty } from '../../utils/qty.js';
@@ -25,7 +26,7 @@ import { istYm } from '../../utils/ist.js';
  */
 async function buildLines(businessId: any, items: any[], discount: number) {
     const ids = items.map((i: any) => i.productId);
-    const products = await Product.find({ _id: { $in: ids }, businessId });
+    const products = await Product.find({ _id: { $in: ids }, businessId, isActive: true });
     const map = new Map(products.map((p) => [String(p._id), p]));
     const rows = items.map((i: any) => {
         const p = map.get(String(i.productId));
@@ -43,30 +44,38 @@ async function buildLines(businessId: any, items: any[], discount: number) {
     return { lineItems, ...priced };
 }
 
-/** POST /quotations — save a price estimate (no stock/payment side effects). */
+/** Retail quotes only — wholesale (dealer) quotes live in the same collection but convert to orders. */
+const RETAIL = { dealerId: null };
+
+/** POST /quotations — save a price estimate (no stock/payment side effects). Valid 15 days unless validDays says otherwise. */
 export const createQuotation = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const { items = [], discount = 0, customerId, walkInName, walkInMobile, customerGstin, validDays } = req.body;
     if (!Array.isArray(items) || items.length === 0) throw AppError.badRequest('At least one item is required');
     if (!(Number(discount) >= 0)) throw AppError.badRequest('Discount cannot be negative');
+    const validUntil = validUntilFrom(validDays);
 
     const { lineItems, subtotal, totalGst, discount: preTaxDiscount, grandTotal } = await buildLines(businessId, items, Number(discount));
 
+    const bodyGstin = (customerGstin || '').toString().trim().toUpperCase() || undefined;
     let customerName = walkInName?.trim();
-    let customerMobile = walkInMobile ? String(walkInMobile).replace(/\D/g, '') : undefined;
+    let customerMobile = walkInMobile ? normalizePhone(walkInMobile) : undefined;
+    let gstin = bodyGstin;
     if (customerId) {
-        const c = await Customer.findOne({ _id: customerId, businessId }).lean();
-        if (c) { customerName = c.name; customerMobile = c.mobile; }
+        // Only this shop's own, current customers — never another shop's id.
+        const c = await Customer.findOne({ _id: customerId, businessId, isActive: true }).lean();
+        if (!c) throw AppError.badRequest('Customer not found');
+        customerName = c.name;
+        customerMobile = c.mobile;
+        gstin = c.gstin || bodyGstin;
     }
 
     const ym = istYm();
     const seq = await nextSequence(`quotation:${businessId}:${ym}`);
     const quoteNo = `QUO/${ym}/${String(seq).padStart(4, '0')}`;
-    const validUntil = validDays ? new Date(Date.now() + Number(validDays) * 86400000) : undefined;
 
     const quote = await Quotation.create({
-        businessId, quoteNo, customerId: customerId || undefined, customerName, customerMobile,
-        customerGstin: (customerGstin || '').toString().trim().toUpperCase() || undefined,
+        businessId, quoteNo, customerId: customerId || undefined, customerName, customerMobile, customerGstin: gstin,
         items: lineItems, subtotal, totalGst, discount: preTaxDiscount, grandTotal,
         validUntil, createdBy: req.user!._id,
     });
@@ -76,8 +85,8 @@ export const createQuotation = asyncHandler(async (req: AuthRequest, res: Respon
 export const listQuotations = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const { skip, limit, meta } = paginate(req.query);
-    const filter: any = { businessId };
-    if (req.query.status) filter.status = req.query.status;
+    const filter: any = { businessId, ...RETAIL };
+    if (req.query.status) filter.status = String(req.query.status);
     const [items, total] = await Promise.all([
         Quotation.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
         Quotation.countDocuments(filter),
@@ -87,84 +96,77 @@ export const listQuotations = asyncHandler(async (req: AuthRequest, res: Respons
 
 export const getQuotation = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const quote = await Quotation.findOne({ _id: req.params.id, businessId }).lean();
+    const quote = await Quotation.findOne({ _id: req.params.id, businessId, ...RETAIL }).lean();
     if (!quote) throw AppError.notFound('Quotation not found');
-    const biz = await Business.findById(businessId).lean();
+    // Only what the printed estimate shows — not bank details or settings.
+    const biz = await Business.findById(businessId).select('name ownerName mobile countryCode gstin address city state pincode upiId').lean();
     sendSuccess(res, { ...quote, business: biz });
 });
 
+/** DELETE /quotations/:id — open quotes only; a converted one is the record of where a bill came from. */
 export const deleteQuotation = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const q = await Quotation.findOneAndDelete({ _id: req.params.id, businessId });
-    if (!q) throw AppError.notFound('Quotation not found');
+    const q = await Quotation.findOneAndDelete({ _id: req.params.id, businessId, ...RETAIL, status: 'open' });
+    if (!q) {
+        const exists = await Quotation.exists({ _id: req.params.id, businessId, ...RETAIL });
+        throw exists ? AppError.badRequest('A converted quotation can not be deleted') : AppError.notFound('Quotation not found');
+    }
     sendSuccess(res, { ok: true }, 'Quotation deleted');
 });
 
 /**
- * POST /quotations/:id/convert — turn an open quote into a real Invoice.
- * body: { payments?: [{ mode, amount }] } (or the older { paymentMode, paidAmount }).
- * Validates stock, decrements it, posts udhar for any due.
+ * POST /quotations/:id/convert — turn an open, unexpired quote into a real Invoice
+ * at the quoted prices. body: { payments?: [{ mode, amount }] } (or the older
+ * { paymentMode, paidAmount }); anything unpaid goes on udhar.
+ * Only one request can convert a quote (a double tap or a second phone gets
+ * "already converted"); stock is taken atomically and never goes below zero.
  */
 export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const quote = await Quotation.findOne({ _id: req.params.id, businessId });
-    if (!quote) throw AppError.notFound('Quotation not found');
-    if (quote.status === 'converted') throw AppError.badRequest('This quotation is already converted');
-
-    // Re-validate stock at conversion time — one query for the whole quote, not one per line.
-    const stockDocs = await Product.find({ _id: { $in: quote.items.map((li) => li.productId) }, businessId })
-        .select('currentStock')
-        .lean();
-    const stockMap = new Map(stockDocs.map((p) => [String(p._id), p.currentStock]));
-    for (const li of quote.items) {
-        const have = stockMap.get(String(li.productId));
-        if (have == null) throw AppError.badRequest(`Product "${li.name}" no longer exists`);
-        if (have < li.quantity) throw AppError.badRequest(`Insufficient stock for ${li.name} (have ${have})`);
-    }
-
-    // Resolve customer (find-or-create by mobile so udhar & history link).
-    let resolvedCustomerId = quote.customerId as any;
-    if (!resolvedCustomerId && quote.customerMobile) {
-        const mobile = normalizePhone(quote.customerMobile);
-        let c = await Customer.findOne({ businessId, mobile, isActive: true });
-        if (!c) c = await Customer.create({ businessId, name: quote.customerName || 'Walk-in', mobile, gstin: quote.customerGstin });
-        resolvedCustomerId = c._id;
-    }
-
-    const grandTotal = quote.grandTotal;
+    const found = await Quotation.findOne({ _id: req.params.id, businessId, ...RETAIL });
+    if (!found) throw AppError.notFound('Quotation not found');
+    if (found.status === 'converted') throw AppError.badRequest('This quotation is already converted');
+    assertNotExpired(found);
+    const grandTotal = found.grandTotal;
     const { payments, paid, due, status, paymentMode } = resolvePayments(req.body, grandTotal);
-    if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A customer mobile is required for a credit (udhar) sale');
 
-    const ym = istYm();
-    const seq = await nextSequence(`invoice:${businessId}:${ym}`);
-    const biz = await Business.findById(businessId).select('settings').lean();
-    const invoiceNo = `${biz?.settings?.invoicePrefix || 'INV'}/${ym}/${String(seq).padStart(4, '0')}`;
+    // Claim it: only one request moves it from open to converted.
+    const quote = await Quotation.findOneAndUpdate({ _id: found._id, businessId, status: 'open' }, { $set: { status: 'converted' } }, { new: true });
+    if (!quote) throw AppError.badRequest('This quotation is already converted');
 
-    const invoice = await Invoice.create({
-        businessId, invoiceNo, customerId: resolvedCustomerId, customerName: quote.customerName,
-        customerMobile: quote.customerMobile, customerGstin: quote.customerGstin, items: quote.items,
-        subtotal: quote.subtotal, totalGst: quote.totalGst, discount: quote.discount, grandTotal,
-        paidAmount: paid, dueAmount: due, paymentMode, payments, status, createdBy: req.user!._id,
-    });
-
-    await applyStockChanges(
-        businessId,
-        quote.items.map((li) => ({ productId: li.productId, delta: -li.quantity })),
-        { reason: 'sale', refType: 'Invoice', refId: invoice._id }
-    );
-    if (due > 0 && resolvedCustomerId) {
-        const customer = await Customer.findById(resolvedCustomerId);
-        if (customer) {
-            customer.creditBalance += due;
-            customer.loyaltyPoints += Math.floor(grandTotal / 100);
-            await customer.save();
-            await CreditLedger.create({ businessId, customerId: resolvedCustomerId, type: 'credit', amount: due, balanceAfter: customer.creditBalance, refType: 'Invoice', refId: invoice._id, note: `Credit sale ${invoiceNo}` });
+    let invoice;
+    let customerId: Types.ObjectId | undefined;
+    try {
+        // The quote's customer if still on the books, else find-or-create by mobile (udhar & history link).
+        let c = quote.customerId ? await Customer.findOne({ _id: quote.customerId, businessId, isActive: true }) : null;
+        if (!c && quote.customerMobile) {
+            const mobile = normalizePhone(quote.customerMobile);
+            c = (await Customer.findOne({ businessId, mobile, isActive: true })) || (await Customer.create({ businessId, name: quote.customerName || 'Walk-in', mobile, gstin: quote.customerGstin }));
         }
+        if (due > 0 && !c) throw AppError.badRequest('A customer mobile is required for a credit (udhar) sale');
+        customerId = c?._id;
+
+        const invoiceId = new Types.ObjectId();
+        invoice = await takeStockThenSave(businessId, quote.items.map((li) => ({ productId: li.productId, quantity: li.quantity, name: li.name })), invoiceId, async () => {
+            const ym = istYm();
+            const seq = await nextSequence(`invoice:${businessId}:${ym}`);
+            const biz = await Business.findById(businessId).select('settings').lean();
+            return Invoice.create({
+                _id: invoiceId, businessId,
+                invoiceNo: `${biz?.settings?.invoicePrefix || 'INV'}/${ym}/${String(seq).padStart(4, '0')}`,
+                customerId, customerName: c?.name || quote.customerName, customerMobile: c?.mobile || quote.customerMobile,
+                customerGstin: c?.gstin || quote.customerGstin, items: quote.items,
+                subtotal: quote.subtotal, totalGst: quote.totalGst, discount: quote.discount, grandTotal,
+                paidAmount: paid, dueAmount: due, paymentMode, payments, status, createdBy: req.user!._id,
+            });
+        });
+    } catch (e) {
+        // Nothing was billed — the quote is open again.
+        await Quotation.updateOne({ _id: quote._id, convertedInvoiceId: { $exists: false } }, { $set: { status: 'open' } }).catch(() => {});
+        throw e;
     }
 
-    quote.status = 'converted';
-    quote.convertedInvoiceId = invoice._id;
-    quote.convertedInvoiceNo = invoiceNo;
-    await quote.save();
+    if (customerId) await postSaleToCustomer(businessId, customerId, { due, grandTotal, invoiceId: invoice._id, invoiceNo: invoice.invoiceNo });
+    await Quotation.updateOne({ _id: quote._id }, { $set: { convertedInvoiceId: invoice._id, convertedInvoiceNo: invoice.invoiceNo } });
     sendCreated(res, invoice, 'Converted to invoice');
 });

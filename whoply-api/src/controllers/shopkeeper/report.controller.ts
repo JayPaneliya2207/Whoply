@@ -33,20 +33,14 @@ const DOC_TAXABLE = {
         in: { $add: ['$$value', { $ifNull: ['$$this.taxableValue', { $multiply: ['$$this.price', '$$this.quantity'] }] }] },
     },
 };
-/** Retail credit notes (returns against a POS bill), as opposed to wholesale ones (orderId). */
-const RETAIL_CN = { invoiceId: { $exists: true, $ne: null } };
+import { RETAIL_CN, costOfLines, retailGrossProfit } from '../../utils/profit.js';
 
-/** Cost of goods: Σ qty × product cost price over a collection's lines since a date. */
-async function costOfLines(model: typeof Invoice | typeof CreditNote, match: Record<string, any>): Promise<number> {
-    const rows = await (model as any).aggregate([
-        { $match: match },
-        { $unwind: '$items' },
-        { $lookup: { from: 'products', localField: 'items.productId', foreignField: '_id', as: 'p' } },
-        { $unwind: { path: '$p', preserveNullAndEmptyArrays: true } },
-        { $group: { _id: null, cogs: { $sum: { $multiply: ['$items.quantity', { $ifNull: ['$p.costPrice', 0] }] } } } },
-    ]);
-    return rows[0]?.cogs || 0;
-}
+/** A CSV cell: quoted, and never read as a formula by Excel (a name like "=HYPERLINK(…)" stays text). */
+export const csvCell = (v: any) => {
+    const s = String(v ?? '');
+    const risky = typeof v !== 'number' && /^[=+\-@\t\r]/.test(s); // numbers (a -500 refund) stay numbers
+    return `"${(risky ? `'${s}` : s).replace(/"/g, '""')}"`;
+};
 
 /** COGS for a period from actual product cost prices, less goods that came back on returns. */
 async function cogsSince(bId: Types.ObjectId, since: Date): Promise<number> {
@@ -77,26 +71,48 @@ export const salesReport = asyncHandler(async (req: AuthRequest, res: Response) 
     sendSuccess(res, { days, daily: daily.map((d) => ({ date: d._id, sales: d.sales, orders: d.orders })) });
 });
 
-/** GET /reports/products — best & slow movers this month */
+/**
+ * GET /reports/products — this month's best sellers (by product, returns taken
+ * off) and slow movers (in stock but sold least this month).
+ */
 export const productReport = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bId = new Types.ObjectId(String(businessOf(req)));
-    const movers = await Invoice.aggregate([
-        { $match: { businessId: bId, createdAt: { $gte: monthStart() } } },
-        { $unwind: '$items' },
-        { $group: { _id: '$items.name', qty: { $sum: '$items.quantity' }, revenue: { $sum: '$items.lineTotal' } } },
-        { $sort: { qty: -1 } },
+    const since = monthStart();
+    const byProduct = (model: typeof Invoice | typeof CreditNote, extra: Record<string, any> = {}) =>
+        (model as any).aggregate([
+            { $match: { businessId: bId, createdAt: { $gte: since }, ...extra } },
+            { $unwind: '$items' },
+            { $group: { _id: '$items.productId', qty: { $sum: '$items.quantity' }, revenue: { $sum: '$items.lineTotal' } } },
+        ]);
+    const [sold, returned, products] = await Promise.all([
+        byProduct(Invoice),
+        byProduct(CreditNote, RETAIL_CN),
+        Product.find({ businessId: bId, isActive: true }).select('name currentStock').lean(),
     ]);
-    const slow = await Product.find({ businessId: bId, isActive: true }).sort({ currentStock: -1 }).limit(5).lean();
-    sendSuccess(res, {
-        best: movers.slice(0, 5).map((m) => ({ name: m._id, qty: m.qty, revenue: m.revenue })),
-        slow: slow.map((p) => ({ name: p.name, stock: p.currentStock })),
-    });
+    const back = new Map<string, any>(returned.map((r: any) => [String(r._id), r]));
+    const net = new Map<string, { qty: number; revenue: number }>(
+        sold.map((s: any) => {
+            const r = back.get(String(s._id));
+            return [String(s._id), { qty: +(s.qty - (r?.qty || 0)).toFixed(3), revenue: +(s.revenue - (r?.revenue || 0)).toFixed(2) }];
+        })
+    );
+    const best = products
+        .map((p) => ({ name: p.name, ...(net.get(String(p._id)) || { qty: 0, revenue: 0 }) }))
+        .filter((p) => p.qty > 0)
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, 5);
+    const slow = products
+        .filter((p) => p.currentStock > 0)
+        .map((p) => ({ name: p.name, stock: p.currentStock, sold: net.get(String(p._id))?.qty || 0 }))
+        .sort((a, b) => a.sold - b.sold || b.stock - a.stock)
+        .slice(0, 5);
+    sendSuccess(res, { best, slow });
 });
 
-/** GET /reports/profit — month revenue vs expenses */
+/** GET /reports/profit — this month's sales, expenses and profit (real cost prices, returns taken off) */
 export const profitReport = asyncHandler(async (req: AuthRequest, res: Response) => {
     const bId = new Types.ObjectId(String(businessOf(req)));
-    const [rev, exp] = await Promise.all([
+    const [rev, exp, gross] = await Promise.all([
         Invoice.aggregate([
             { $match: { businessId: bId, createdAt: { $gte: monthStart() } } },
             { $group: { _id: null, sales: { $sum: '$grandTotal' }, gst: { $sum: '$totalGst' } } },
@@ -105,6 +121,7 @@ export const profitReport = asyncHandler(async (req: AuthRequest, res: Response)
             { $match: { businessId: bId, spentAt: { $gte: monthStart() } } },
             { $group: { _id: '$category', total: { $sum: '$amount' } } },
         ]),
+        retailGrossProfit(bId, monthStart()),
     ]);
     const sales = rev[0]?.sales || 0;
     const totalExpense = exp.reduce((s, e) => s + e.total, 0);
@@ -113,7 +130,8 @@ export const profitReport = asyncHandler(async (req: AuthRequest, res: Response)
         totalGst: rev[0]?.gst || 0,
         expenseByCategory: exp.map((e) => ({ category: e._id, total: e.total })),
         totalExpense,
-        netProfit: +(sales * 0.3 - totalExpense).toFixed(2),
+        grossProfit: gross.grossProfit,
+        netProfit: +(gross.grossProfit - totalExpense).toFixed(2),
     });
 });
 
@@ -225,7 +243,8 @@ export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Respons
         // 'return' rows move no money.
         CreditLedger.aggregate([
             { $match: { businessId: bId, type: { $in: ['credit', 'repayment'] }, createdAt: { $gte: start, $lt: end } } },
-            { $group: { _id: '$type', total: { $sum: '$amount' } } },
+            // Repayments by how they were paid; older rows have no mode and were cash.
+            { $group: { _id: { type: '$type', mode: { $ifNull: ['$mode', 'cash'] } }, total: { $sum: '$amount' } } },
         ]),
         Expense.aggregate([
             { $match: { businessId: bId, spentAt: { $gte: start, $lt: end } } },
@@ -242,8 +261,11 @@ export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Respons
     const cash = m.cash?.collected || 0;
     const upi = m.upi?.collected || 0;
     const card = m.card?.collected || 0;
-    const udharCollected = ledgerAgg.find((x) => x._id === 'repayment')?.total || 0;
-    const udharGiven = ledgerAgg.find((x) => x._id === 'credit')?.total || 0;
+    const wallet = m.wallet?.collected || 0;
+    const sumOf = (type: string, mode?: string) => ledgerAgg.filter((x) => x._id.type === type && (!mode || x._id.mode === mode)).reduce((s, x) => s + x.total, 0);
+    const udharCollected = +sumOf('repayment').toFixed(2);
+    const udharCollectedCash = +sumOf('repayment', 'cash').toFixed(2);
+    const udharGiven = sumOf('credit');
     const expenses = expAgg[0]?.total || 0;
     const refunds = +(refundAgg[0]?.total || 0).toFixed(2);
 
@@ -252,13 +274,15 @@ export const dayCloseReport = asyncHandler(async (req: AuthRequest, res: Respons
         billCount: totals[0]?.count || 0,
         totalSales: +(totals[0]?.sales || 0).toFixed(2),
         totalCollected: +(totals[0]?.collected || 0).toFixed(2),
-        cash, upi, card,
+        cash, upi, card, wallet,
         udharGiven: +udharGiven.toFixed(2),
         udharCollected,
+        udharCollectedCash,
+        udharCollectedByMode: { cash: udharCollectedCash, upi: +sumOf('repayment', 'upi').toFixed(2), card: +sumOf('repayment', 'card').toFixed(2) },
         expenses,
         refunds,
-        // rough cash expected in the drawer: cash sales + udhar collected − expenses − cash refunds
-        cashInDrawer: +(cash + udharCollected - expenses - refunds).toFixed(2),
+        // rough cash expected in the drawer: cash sales + udhar paid back in cash − expenses − cash refunds
+        cashInDrawer: +(cash + udharCollectedCash - expenses - refunds).toFixed(2),
     });
 });
 
@@ -267,14 +291,17 @@ export const exportInvoicesCsv = asyncHandler(async (req: AuthRequest, res: Resp
     const bId = new Types.ObjectId(String(businessOf(req)));
     const period = (['week', 'month', 'quarter', 'year'].includes(String(req.query.period)) ? req.query.period : 'month') as Period;
     const since = periodStart(period);
-    const invoices = await Invoice.find({ businessId: bId, createdAt: { $gte: since } }).sort({ createdAt: 1 }).lean();
+    const invoices = await Invoice.find({ businessId: bId, createdAt: { $gte: since } })
+        .select('invoiceNo createdAt customerName customerMobile payments paymentMode subtotal totalGst discount grandTotal paidAmount dueAmount status')
+        .sort({ createdAt: 1 })
+        .lean();
 
-    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const esc = csvCell;
     const header = ['Invoice No', 'Date', 'Customer', 'Mobile', 'Payment', 'Subtotal', 'GST', 'Discount', 'Total', 'Paid', 'Due', 'Status'];
     const lines = invoices.map((i) =>
         [
             i.invoiceNo,
-            new Date(i.createdAt).toLocaleString('en-IN'),
+            new Date(i.createdAt).toLocaleString('en-IN', { timeZone: IST_TZ }),
             i.customerName || 'Walk-in',
             i.customerMobile || '',
             i.payments && i.payments.length > 1 ? i.payments.map((p) => `${p.mode} ${p.amount}`).join(' + ') : i.paymentMode,

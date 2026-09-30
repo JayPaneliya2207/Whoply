@@ -45,10 +45,12 @@ export default function BusinessesPage() {
     const toggle = useMutation({
         mutationFn: async ({ id, isActive }: any) => (await api.patch(`/admin/businesses/${id}`, { isActive })).data.data,
         onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-businesses'] }),
+        onError: (e) => alert(apiErr(e)),
     });
     const changePlan = useMutation({
         mutationFn: async ({ id, plan }: any) => (await api.patch(`/admin/businesses/${id}`, { plan })).data.data,
         onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-businesses'] }); qc.invalidateQueries({ queryKey: ['plans'] }); },
+        onError: (e) => { alert(apiErr(e)); qc.invalidateQueries({ queryKey: ['admin-businesses'] }); },
     });
     const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
@@ -68,7 +70,7 @@ export default function BusinessesPage() {
                     <table className="w-full text-sm" style={{ minWidth: 760 }}>
                         <thead><tr style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }} className="text-left">
                             <th className="p-3 font-medium">Business</th><th className="p-3 font-medium">Type</th>
-                            <th className="p-3 font-medium text-right">Products</th><th className="p-3 font-medium text-right">Invoices</th>
+                            <th className="p-3 font-medium text-right">Products</th><th className="p-3 font-medium text-right">Bills / orders</th>
                             <th className="p-3 font-medium">Plan</th><th className="p-3 font-medium text-right">Status</th><th className="p-3 font-medium text-right">Actions</th>
                         </tr></thead>
                         <tbody>
@@ -82,7 +84,7 @@ export default function BusinessesPage() {
                                     </td>
                                     <td className="p-3 capitalize" style={{ color: 'var(--text-secondary)' }}>{b.type}</td>
                                     <td className="p-3 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{b.productCount}</td>
-                                    <td className="p-3 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{b.invoiceCount}</td>
+                                    <td className="p-3 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{b.type === 'wholesale' ? b.orderCount : b.invoiceCount}</td>
                                     <td className="p-3">
                                         <select value={b.plan} onChange={(e) => changePlan.mutate({ id: b._id, plan: e.target.value })} className="wp-chip capitalize border-0 outline-none cursor-pointer" style={planColors[b.plan] || planColors.free}>
                                             {(plans || []).map((p: any) => <option key={p.key} value={p.key}>{p.name}</option>)}
@@ -130,7 +132,7 @@ export default function BusinessesPage() {
                     <div className="space-y-4">
                         <div className="grid grid-cols-3 gap-3 text-center">
                             <div className="wp-card p-3"><Package size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.products}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Products</p></div>
-                            <div className="wp-card p-3"><Receipt size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.invoices}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Invoices</p></div>
+                            <div className="wp-card p-3"><Receipt size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.business?.type === 'wholesale' ? detail.orders : detail.invoices}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{detail.business?.type === 'wholesale' ? 'Orders' : 'Bills'}</p></div>
                             <div className="wp-card p-3"><Users size={16} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} /><p className="font-bold" style={{ color: 'var(--text-primary)' }}>{detail.staffCount}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Staff</p></div>
                         </div>
                         <div className="wp-card p-3 text-center"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Lifetime GMV</p><p className="text-xl font-extrabold tabular" style={{ color: 'var(--success)' }}>{inr(detail.gmv)}</p></div>
@@ -140,7 +142,7 @@ export default function BusinessesPage() {
                                 {detail.users.map((u: any) => (
                                     <div key={u._id} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                                         <div><p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{u.name}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{u.mobile}</p></div>
-                                        <span className="wp-chip capitalize" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{u.role}</span>
+                                        <span className="flex items-center gap-1.5">{!u.isActive && <span className="wp-chip" style={{ background: 'var(--danger-tint)', color: 'var(--danger)' }}>Removed</span>}<span className="wp-chip capitalize" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{u.role}</span></span>
                                     </div>
                                 ))}
                             </div>

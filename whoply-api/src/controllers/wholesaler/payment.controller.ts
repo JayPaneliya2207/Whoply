@@ -6,7 +6,7 @@ import { businessOf, paginate } from '../../utils/http.js';
 import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
 import Payment, { type PaymentMode } from '../../models/Payment.js';
-import { duesByDealer } from '../../utils/wholesaler.js';
+import { duesByDealer, applyToOrder, assertRepDealer } from '../../utils/wholesaler.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
 import { istPeriodStart } from '../../utils/ist.js';
@@ -18,45 +18,32 @@ type Period = 'week' | 'month' | 'quarter' | 'year';
 /** Start of the selected reporting window (rolling: last week / month / quarter / year), IST. */
 const periodStart = (period: Period): Date => istPeriodStart(period);
 
-/**
- * Apply a received amount across a dealer's unpaid orders, oldest first (FIFO).
- * Keeps every order's paidAmount/dueAmount in sync with what was actually collected,
- * so an order never shows "due" after the dealer has cleared it.
- */
-export async function settleDealerOrders(businessId: Types.ObjectId, dealerId: Types.ObjectId, amount: number) {
-    let remaining = +amount.toFixed(2);
-    if (remaining <= 0) return;
-    const orders = await Order.find({ businessId, dealerId, dueAmount: { $gt: 0 }, status: { $ne: 'cancelled' } }).sort({ createdAt: 1 });
-    for (const o of orders) {
-        if (remaining <= 0) break;
-        const applied = Math.min(o.dueAmount, remaining);
-        o.paidAmount = +(o.paidAmount + applied).toFixed(2);
-        o.dueAmount = +(o.dueAmount - applied).toFixed(2);
-        remaining = +(remaining - applied).toFixed(2);
-        await o.save();
-    }
-}
+/** Orders that count as sold (a cancelled order was never a sale). */
+const LIVE = { status: { $ne: 'cancelled' as const } };
 
 /**
  * POST /orders/:id/collect — record a payment against one order.
- * Updates the order, reduces the dealer's outstanding balance, and logs a Payment.
+ * Refused if more than the due (it used to be cut down silently); applied in one
+ * atomic step, so two collections at once can't both count. A sales rep may only
+ * collect for their own dealers. Logs a Payment with who took the money.
  */
 export const recordOrderPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const bId = new Types.ObjectId(String(businessId));
-    const amount = Number(req.body.amount);
-    if (!amount || amount <= 0) throw AppError.badRequest('A positive amount is required');
+    const pay = Math.round(Number(req.body.amount) * 100) / 100;
+    if (!(pay > 0)) throw AppError.badRequest('A positive amount is required');
 
-    const order = await Order.findOne({ _id: req.params.id, businessId });
+    const current = await Order.findOne({ _id: req.params.id, businessId }).select('dealerId status dueAmount').lean();
+    if (!current) throw AppError.notFound('Order not found');
+    if (current.status === 'cancelled') throw AppError.badRequest('Cannot collect on a cancelled order');
+    const dealer = await Dealer.findOne({ _id: current.dealerId, businessId }).select('assignedRepId').lean();
+    assertRepDealer(req.user, dealer || {});
+    if (current.dueAmount <= 0) throw AppError.badRequest('This order is already fully paid');
+    if (pay > current.dueAmount + 0.005) throw AppError.badRequest(`₹${pay} is more than the ₹${current.dueAmount} due on this order`);
+
+    if (!(await applyToOrder(businessId, current._id, pay))) throw AppError.conflict('The due changed while you were collecting — open the order again');
+    const order = await Order.findById(current._id);
     if (!order) throw AppError.notFound('Order not found');
-    if (order.status === 'cancelled') throw AppError.badRequest('Cannot collect on a cancelled order');
-    const pay = Math.min(amount, order.dueAmount);
-    if (pay <= 0) throw AppError.badRequest('This order is already fully paid');
-
-    order.paidAmount = +(order.paidAmount + pay).toFixed(2);
-    order.dueAmount = +(order.dueAmount - pay).toFixed(2);
-    await order.save();
-    // Dealer outstanding is derived from order dues — updating the order above is enough.
 
     const payment = await Payment.create({
         businessId: bId,
@@ -67,22 +54,33 @@ export const recordOrderPayment = asyncHandler(async (req: AuthRequest, res: Res
         amount: pay,
         mode: normMode(req.body.mode),
         note: req.body.note,
+        collectedBy: req.user?._id,
     });
     sendCreated(res, { order, payment });
 });
 
-/** GET /payments — money-in ledger (newest first), optional dealer/mode filter */
+/**
+ * GET /payments?dealerId=&mode=&period=week|month|quarter|year&page=&limit= —
+ * money-in ledger (newest first). `sum` is the total of every matching row
+ * (not just this page); refunds to dealers are negative rows.
+ */
 export const listPayments = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
+    const bId = new Types.ObjectId(String(businessId));
     const { skip, limit, meta } = paginate(req.query);
-    const filter: any = { businessId };
-    if (req.query.dealerId) filter.dealerId = req.query.dealerId;
-    if (req.query.mode) filter.mode = req.query.mode;
-    const [items, total] = await Promise.all([
+    const filter: any = { businessId: bId };
+    if (req.query.dealerId) {
+        if (!Types.ObjectId.isValid(String(req.query.dealerId))) throw AppError.badRequest('Invalid dealerId');
+        filter.dealerId = new Types.ObjectId(String(req.query.dealerId));
+    }
+    if (req.query.mode) filter.mode = String(req.query.mode);
+    if (['week', 'month', 'quarter', 'year'].includes(String(req.query.period))) filter.createdAt = { $gte: periodStart(req.query.period as Period) };
+    const [items, total, sumAgg] = await Promise.all([
         Payment.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
         Payment.countDocuments(filter),
+        Payment.aggregate([{ $match: filter }, { $group: { _id: null, sum: { $sum: '$amount' } } }]),
     ]);
-    sendPaginated(res, items, meta(total));
+    res.status(200).json({ success: true, data: { items, meta: meta(total), sum: Math.round((sumAgg[0]?.sum || 0) * 100) / 100 } });
 });
 
 /**
@@ -98,7 +96,7 @@ export const tallyReport = asyncHandler(async (req: AuthRequest, res: Response) 
 
     const [billedAgg, dues, periodIn, periodBilled, recentPayments] = await Promise.all([
         Order.aggregate([
-            { $match: { businessId: bId } },
+            { $match: { businessId: bId, ...LIVE } },
             { $group: { _id: null, billed: { $sum: '$total' }, paid: { $sum: '$paidAmount' }, due: { $sum: '$dueAmount' }, orders: { $sum: 1 } } },
         ]),
         duesByDealer(bId),
@@ -107,7 +105,7 @@ export const tallyReport = asyncHandler(async (req: AuthRequest, res: Response) 
             { $group: { _id: '$mode', total: { $sum: '$amount' }, count: { $sum: 1 } } },
         ]),
         Order.aggregate([
-            { $match: { businessId: bId, createdAt: { $gte: since } } },
+            { $match: { businessId: bId, ...LIVE, createdAt: { $gte: since } } },
             { $group: { _id: null, billed: { $sum: '$total' }, orders: { $sum: 1 } } },
         ]),
         Payment.find({ businessId: bId }).sort({ createdAt: -1 }).limit(8).lean(),

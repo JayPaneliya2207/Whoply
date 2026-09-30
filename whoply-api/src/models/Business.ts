@@ -23,7 +23,7 @@ export interface IBusiness {
     upiQrImage?: string; // optional uploaded static QR (data URL)
     bank?: { name?: string; holder?: string; account?: string; ifsc?: string }; // for bank-transfer collections
     currency: string;
-    plan: 'free' | 'pro' | 'business';
+    plan: string; // a Plan.key (admin Plans page)
     settings: {
         lowStockThreshold: number;
         enableUdharReminders: boolean;
@@ -62,7 +62,7 @@ const businessSchema = new Schema<IBusinessDocument>(
             ifsc: { type: String, uppercase: true, trim: true },
         },
         currency: { type: String, default: 'INR' },
-        plan: { type: String, enum: ['free', 'pro', 'business'], default: 'free' },
+        plan: { type: String, default: 'free' }, // must match a Plan.key — checked by the admin API
         settings: {
             lowStockThreshold: { type: Number, default: 10 },
             enableUdharReminders: { type: Boolean, default: true },

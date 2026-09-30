@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Tags } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useT } from '@/i18n';
 import { useCan } from '@/lib/permissions';
@@ -18,15 +18,16 @@ function PriceCell({ row, tier }: { row: any; tier: 'A' | 'B' | 'C' }) {
     const canEdit = useCan()('priceList.manage'); // a sales rep can look, not change
     const [val, setVal] = useState<string>(row[tier] != null ? String(row[tier]) : '');
     const save = useMutation({
-        mutationFn: async () => (await api.put('/wholesaler/price-lists', { productId: row.productId, tier, price: Number(val) })).data.data,
+        mutationFn: async () => (await api.put('/wholesaler/price-lists', { productId: row.productId, tier, price: val.trim() === '' ? '' : Number(val.replace(/,/g, '')) })).data.data,
         onSuccess: () => qc.invalidateQueries({ queryKey: ['price-lists'] }),
+        onError: (e) => { alert(apiErr(e)); setVal(row[tier] != null ? String(row[tier]) : ''); },
     });
     return (
         <input
             className="wp-input !py-1.5 !px-2 text-right tabular text-sm w-full"
             value={val}
             onChange={(e) => setVal(e.target.value)}
-            onBlur={() => { if (canEdit && val && Number(val) !== row[tier]) save.mutate(); }}
+            onBlur={() => { if (!canEdit) return; if (val.trim() === '' ? row.custom?.[tier] : Number(val) !== row[tier]) save.mutate(); }}
             readOnly={!canEdit}
             placeholder={String(row.base)}
         />

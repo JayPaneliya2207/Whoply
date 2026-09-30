@@ -17,13 +17,13 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
     const [todayAgg, pendingDispatch, outstanding, warehouse, lowStock, dealerCount, revenueAgg, recentOrders, statusAgg] =
         await Promise.all([
             Order.aggregate([
-                { $match: { businessId: bId, createdAt: { $gte: start, $lt: end } } },
+                { $match: { businessId: bId, status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lt: end } } },
                 { $group: { _id: null, count: { $sum: 1 }, sales: { $sum: '$total' } } },
             ]),
             Order.countDocuments({ businessId: bId, status: { $in: ['pending', 'confirmed'] } }),
             // Outstanding derived from live order dues (source of truth), grouped per dealer.
             Order.aggregate([
-                { $match: { businessId: bId, dueAmount: { $gt: 0 } } },
+                { $match: { businessId: bId, dueAmount: { $gt: 0 }, status: { $ne: 'cancelled' } } },
                 { $group: { _id: '$dealerId', due: { $sum: '$dueAmount' } } },
             ]),
             Product.aggregate([
@@ -32,7 +32,8 @@ export const wholesalerDashboard = asyncHandler(async (req: AuthRequest, res: Re
             ]),
             Product.countDocuments({ businessId: bId, isActive: true, isLowStock: true }),
             Dealer.countDocuments({ businessId: bId, isActive: true }),
-            Order.aggregate([{ $match: { businessId: bId } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
+            // A cancelled order was never a sale — it isn't revenue (or 'collected' on the dashboard).
+            Order.aggregate([{ $match: { businessId: bId, status: { $ne: 'cancelled' } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
             Order.find({ businessId: bId }).sort({ createdAt: -1 }).limit(6).lean(),
             Order.aggregate([{ $match: { businessId: bId } }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
         ]);

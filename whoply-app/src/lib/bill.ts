@@ -311,8 +311,19 @@ export function printBill(inv: any, biz?: Biz, format: PrintFormat = 'a4', templ
 }
 
 /** Build CSV from a list of invoices (client-side, includes customer mobile). */
+/**
+ * A CSV cell: quoted, and text starting with = + - @ gets a leading ' so Excel
+ * shows it instead of running it as a formula (a customer named "=HYPERLINK(…)").
+ * Numbers stay numbers.
+ */
+export const csvCell = (v: any) => {
+    const s = String(v ?? '');
+    const risky = typeof v !== 'number' && /^[=+\-@\t\r]/.test(s);
+    return `"${(risky ? `'${s}` : s).replace(/"/g, '""')}"`;
+};
+
 export function billsToCsv(bills: any[]): string {
-    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const esc = csvCell;
     const header = ['Invoice No', 'Date', 'Customer', 'Mobile', 'Payment', 'Subtotal', 'GST', 'Discount', 'Total', 'Paid', 'Due', 'Status'];
     const lines = bills.map((i) =>
         [i.invoiceNo, new Date(i.createdAt).toLocaleString('en-IN'), i.customerName || 'Walk-in', i.customerMobile || '', payModeLabel(i), i.subtotal, i.totalGst, i.discount, i.grandTotal, i.paidAmount, i.dueAmount, i.status].map(esc).join(',')
@@ -336,7 +347,7 @@ export function orderPayStatus(o: any): 'Paid' | 'Partial' | 'Unpaid' | 'Cancell
  * each dealer's mobile number in the export.
  */
 export function ordersToCsv(orders: any[], mobileOf?: (o: any) => string): string {
-    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const esc = csvCell;
     const header = ['Order No', 'Date', 'Dealer', 'Mobile', 'GSTIN', 'Source', 'Items', 'Taxable', 'GST', 'Total', 'Paid', 'Due', 'Payment Status', 'Order Status', 'Dispatched', 'Delivered'];
     const lines = orders.map((o) =>
         [o.orderNo, new Date(o.createdAt).toLocaleString('en-IN'), o.dealerName, mobileOf ? mobileOf(o) : '', o.dealerGstin || '', o.source, o.items?.length || 0, o.subtotal ?? o.total, o.totalGst ?? 0, o.total, o.paidAmount, o.dueAmount, orderPayStatus(o), o.status,
@@ -461,10 +472,10 @@ export function buildQuoteText(q: any, biz?: Biz): string {
 
 /** CSV for the wholesaler money-in (payments) ledger. */
 export function paymentsToCsv(payments: any[]): string {
-    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const esc = csvCell;
     const header = ['Date', 'Dealer', 'Order No', 'Amount', 'Mode', 'Note'];
     const lines = payments.map((p) =>
-        [new Date(p.createdAt).toLocaleString('en-IN'), p.dealerName || '', p.orderNo || 'On account', p.amount, p.mode, p.note || ''].map(esc).join(',')
+        [new Date(p.createdAt).toLocaleString('en-IN'), p.dealerName || '', p.orderNo || (p.amount < 0 ? 'Refund' : 'On account'), p.amount, p.mode, p.note || ''].map(esc).join(',')
     );
     return [header.map(esc).join(','), ...lines].join('\n');
 }

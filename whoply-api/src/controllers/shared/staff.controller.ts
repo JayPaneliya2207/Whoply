@@ -3,13 +3,13 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { AppError } from '../../utils/AppError.js';
 import { sendSuccess, sendCreated } from '../../utils/response.js';
 import { businessOf } from '../../utils/http.js';
-import { normalizePhone } from '../../utils/phone.js';
 import { passwordSchema } from '../../validators/common.validator.js';
 import { sanitizeKyc } from '../../utils/kyc.js';
 import User from '../../models/User.js';
 import { STAFF_ROLES, type AuthRequest, type roles } from '../../interfaces/index.js';
 import { can, staffRolesFor } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
+import { staffFields, findRehire, endSessions } from '../../utils/staff.js';
 
 /** GET /staff — all staff of the business + monthly salary total */
 export const listStaff = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -23,43 +23,49 @@ export const listStaff = asyncHandler(async (req: AuthRequest, res: Response) =>
     sendSuccess(res, { staff, monthlySalary, count: staff.length, byRole });
 });
 
-/** POST /staff — add a staff member (creates a login for them) */
+/**
+ * POST /staff — add a staff member (creates a login for them). Someone removed
+ * earlier from this shop, added again with the same mobile, gets their login back.
+ */
 export const createStaff = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { name, mobile, role, salary, kyc, password } = req.body;
-    if (!name || !mobile || !role) throw AppError.badRequest('name, mobile and role are required');
+    const { role, kyc, password } = req.body;
+    if (!role) throw AppError.badRequest('name, mobile and role are required');
     if (!staffRolesFor(req.user?.businessType).includes(role as roles)) throw AppError.badRequest('Invalid staff role');
     if (password) passwordSchema.parse(password); // same rule as every other password — else they could never log in
+    const fields = staffFields(req.body, true);
 
-    const normalized = normalizePhone(mobile);
-    const exists = await User.findOne({ mobile: normalized });
-    if (exists) throw AppError.conflict('A user with this mobile already exists');
-
-    const staff = await User.create({
-        name,
-        mobile: normalized,
-        countryCode: req.body.countryCode || '+91',
-        role,
-        businessId,
-        salary: Number(salary) || 0,
-        kyc: sanitizeKyc(kyc), // Aadhaar: last 4 digits only, no photo
-        ...(password && { password }),
-    });
-    sendCreated(res, { _id: staff._id, name: staff.name, mobile: staff.mobile, role: staff.role, salary: staff.salary, kyc: staff.kyc });
+    const back = await findRehire(fields.mobile, businessId);
+    let staff;
+    if (back) {
+        Object.assign(back, fields, { role, isActive: true, kyc: sanitizeKyc(kyc) });
+        if (password) back.password = password;
+        staff = await back.save();
+    } else {
+        staff = await User.create({
+            ...fields,
+            role,
+            businessId,
+            kyc: sanitizeKyc(kyc), // Aadhaar: last 4 digits only, no photo
+            ...(password && { password }),
+        });
+    }
+    sendCreated(res, { _id: staff._id, name: staff.name, mobile: staff.mobile, role: staff.role, salary: staff.salary, kyc: staff.kyc }, back ? 'Staff added back' : 'Staff added');
 });
 
 /** PATCH /staff/:id */
 export const updateStaff = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const patch: any = {};
-    ['name', 'role', 'salary', 'kyc'].forEach((k) => {
-        if (req.body[k] !== undefined) patch[k] = k === 'salary' ? Number(req.body[k]) : k === 'kyc' ? sanitizeKyc(req.body[k]) : req.body[k];
-    });
-    if (patch.role && !staffRolesFor(req.user?.businessType).includes(patch.role)) throw AppError.badRequest('Invalid staff role');
+    const patch: any = staffFields(req.body, false);
+    if (req.body.kyc !== undefined) patch.kyc = sanitizeKyc(req.body.kyc);
+    if (req.body.role !== undefined) {
+        if (!staffRolesFor(req.user?.businessType).includes(req.body.role)) throw AppError.badRequest('Invalid staff role');
+        patch.role = req.body.role;
+    }
     const staff = await User.findOneAndUpdate(
-        { _id: req.params.id, businessId, role: { $in: STAFF_ROLES } },
+        { _id: req.params.id, businessId, role: { $in: STAFF_ROLES }, isActive: true },
         patch,
-        { new: true }
+        { new: true, runValidators: true }
     ).select('name mobile role salary kyc');
     if (!staff) throw AppError.notFound('Staff not found');
     sendSuccess(res, staff, 'Staff updated');
@@ -74,6 +80,7 @@ export const deleteStaff = asyncHandler(async (req: AuthRequest, res: Response) 
         { new: true }
     );
     if (!staff) throw AppError.notFound('Staff not found');
+    await endSessions(staff._id); // signed out everywhere — an old token can't come back to life if they're re-hired
     sendSuccess(res, { ok: true }, 'Staff removed');
 });
 

@@ -1,0 +1,74 @@
+# Whoply on one server. See DEPLOY.md (repo root) for the step-by-step guide.
+#
+#   cd deploy && cp .env.example .env    # fill it in
+#   ./deploy.sh                          # build, update the database, start
+#
+# Web addresses (DOMAIN from .env):
+#   https://DOMAIN        landing site      https://app.DOMAIN    shop & wholesale app
+#   https://admin.DOMAIN  admin panel       https://api.DOMAIN    API
+# Caddy gets and renews the HTTPS certificates by itself.
+name: whoply
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: '10m', max-file: '3' } # logs can't fill the disk
+
+services:
+  api:
+    build: ../whoply-api
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      NODE_ENV: production
+      PORT: '7000'
+      MONGODB_URI: ${MONGODB_URI:?set MONGODB_URI in deploy/.env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in deploy/.env}
+      APP_URL: https://app.${DOMAIN}
+      ADMIN_URL: https://admin.${DOMAIN}
+      FRONT_URL: https://${DOMAIN}
+      CORS_ORIGINS: https://www.${DOMAIN}
+      TRUST_PROXY: '1' # Caddy sits in front — sign-in limits count each visitor's own address
+      BACKUP_DIR: /backups
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - ./backups:/backups # daily backups land in deploy/backups on the server — copy them off it too
+
+  app:
+    build:
+      context: ../whoply-app
+      args: { NEXT_PUBLIC_API_URL: 'https://api.${DOMAIN}/api' }
+    restart: unless-stopped
+    logging: *logging
+
+  admin:
+    build:
+      context: ../whoply-admin
+      args: { NEXT_PUBLIC_API_URL: 'https://api.${DOMAIN}/api' }
+    restart: unless-stopped
+    logging: *logging
+
+  front:
+    build:
+      context: ../whoply-front
+      args:
+        NEXT_PUBLIC_API_URL: 'https://api.${DOMAIN}/api'
+        NEXT_PUBLIC_APP_URL: 'https://app.${DOMAIN}'
+    restart: unless-stopped
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    logging: *logging
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # the HTTPS certificates — keep this volume
+      - caddy_config:/config
+    depends_on: [api, app, admin, front]
+
+volumes:
+  caddy_data:
+  caddy_config:

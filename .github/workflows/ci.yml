@@ -1,0 +1,186 @@
+# Runs on every push and pull request, and every Monday morning:
+#   api      — builds the API, starts it against a fresh MongoDB and runs every test suite
+#   web      — production build of the app, admin panel and landing site
+#   deploy   — builds and starts the Docker setup (deploy/) and checks it over HTTPS
+#   packages — known security problems in the packages the four projects use
+# A red ❌ on a PR means something broke; open the run to see which check failed. The Monday
+# run catches problems found in packages since the last change (GitHub emails when it fails).
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '30 3 * * 1' # Monday 09:00 India time
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API — build and tests
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest moves to 26.04 on 2026-10-19
+    timeout-minutes: 25
+    services:
+      mongo:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: whoply-api
+        shell: bash # = bash -eo pipefail: a failing test fails the step even when piped into tee
+    env:
+      NODE_ENV: test # dev behaviour (test OTP 123456, open CORS) without dev-only error output
+      PORT: 7000
+      MONGODB_URI: mongodb://localhost:27017/whoply_ci
+      JWT_SECRET: ci-only-secret-never-used-on-a-real-server-0123
+      TRUST_PROXY: '1' # lets tests/login-limits.mjs check the per-address limit
+      API_URL: http://localhost:7000/api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: whoply-api/package-lock.json
+      - run: npm ci
+      - name: Build (type check + compile; Linux catches file-name casing mistakes)
+        run: npm run build
+      - name: Start the API
+        run: |
+          npm run seed:reset
+          nohup node dist/server.js > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:7000/api/health > /dev/null && exit 0; sleep 1; done
+          cat api.log
+          exit 1
+      - name: Tests (all suites, fresh data before each)
+        run: npm run test:all 2>&1 | tee tests.log
+      - name: Dates test with the server clock in India time
+        run: TZ=Asia/Kolkata npm run test:dates 2>&1 | tee -a tests.log
+      - name: Test totals on the run page
+        if: always()
+        run: |
+          {
+            echo '### API tests'
+            echo '```'
+            grep -E '^(=+ .* =+|TOTAL:|  ❌)' tests.log || echo 'no results — open the Tests step'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=API tests::$(grep -cE '^TOTAL:' tests.log) suites — $(grep -E '^TOTAL:' tests.log | sed 's/TOTAL: //; s/ passed, / ok, /' | paste -sd ';' -)"
+          { grep -E '^  ❌' tests.log || true; } | head -20 | while read -r line; do echo "::error title=Failed test::$line"; done
+      - name: API log
+        if: failure()
+        run: tail -n 200 api.log
+
+  deploy:
+    name: Docker deploy — build, start, check over HTTPS
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest moves to 26.04 on 2026-10-19
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: deploy
+        shell: bash
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml # adds a local MongoDB (the server uses Atlas)
+    steps:
+      - uses: actions/checkout@v5
+      - name: Settings for a local test (DOMAIN=localhost)
+        run: |
+          printf 'DOMAIN=localhost\nMONGODB_URI=mongodb://mongo:27017/whoply\nJWT_SECRET=%s\n' "$(openssl rand -hex 48)" > .env
+          mkdir -p backups && chmod 777 backups
+      - name: deploy.sh (build, migrate, start)
+        run: ./deploy.sh 2>&1 | tee deploy.log
+      - name: One-time setup (plans + admin login)
+        run: docker compose run --rm -e ADMIN_MOBILE=9876543210 -e ADMIN_PASSWORD=ci-admin-password-123 api node dist/seeds/setup.js
+      - name: The sites answer over HTTPS
+        run: |
+          code() { curl -sk --resolve "$1:443:127.0.0.1" -o /dev/null -w '%{http_code}' "https://$1$2"; }
+          # Caddy makes its local certificates on first start — give it up to a minute.
+          for i in $(seq 1 30); do [ "$(code api.localhost /api/health)" = 200 ] && [ "$(code app.localhost /login)" = 200 ] && break; sleep 2; done
+          fail=0
+          check() { local got; got=$(code "$1" "$2"); if [ "$got" = "$3" ]; then echo "✅ https://$1$2 → $got"; else echo "::error title=HTTPS check::https://$1$2 → $got (want $3)"; fail=1; fi; }
+          check api.localhost /api/health 200
+          check localhost / 200
+          check localhost /privacy 200
+          check www.localhost / 301
+          check app.localhost /login 200
+          check admin.localhost /login 200
+          # The admin logs in from the admin site (CORS allows exactly that site).
+          out=$(curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o body.json -H 'Origin: https://admin.localhost' -H 'Content-Type: application/json' \
+            -d '{"mobile":"9876543210","password":"ci-admin-password-123"}' https://api.localhost/api/auth/password-login)
+          if grep -qi '^access-control-allow-origin: https://admin.localhost' <<<"$out" && grep -q '"role":"admin"' body.json; then echo '✅ admin login from the admin site'; else echo "::error title=admin login::$(tr -d '\r' <<<"$out" | tr '\n' ' ' | head -c 600) $(head -c 300 body.json)"; fail=1; fi
+          # Another website may not call the API.
+          if curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null -H 'Origin: https://evil.example' https://api.localhost/api/health | grep -qi '^access-control-allow-origin'; then echo '::error title=CORS::another website was allowed'; fail=1; else echo '✅ other websites are refused (CORS)'; fi
+          exit $fail
+      - name: The demo reset refuses to wipe a live database
+        run: |
+          if docker compose run --rm api node dist/seeds/reset.js; then echo '❌ reset ran in production'; exit 1; else echo '✅ reset refused'; fi
+      - name: The daily backup is written
+        run: |
+          for i in $(seq 1 18); do ls backups/whoply 2>/dev/null | grep -q '^whoply-' && break; sleep 5; done
+          ls -la backups/whoply && ls backups/whoply | grep -q '^whoply-' && echo '✅ backup saved'
+      - name: Logs
+        if: failure()
+        run: |
+          docker compose logs --tail 80 | tee compose.log || true
+          # Also as a note on the run page (visible without opening the log).
+          for f in deploy.log compose.log; do
+            [ -s "$f" ] && echo "::error title=$f (last lines)::$(grep -v '^\s*$' "$f" | tail -n 25 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+          done
+
+  packages:
+    name: Package safety — known security problems
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest moves to 26.04 on 2026-10-19
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: npm audit (fails on high or critical in what the live server runs)
+        run: |
+          fail=0
+          for p in whoply-api whoply-app whoply-admin whoply-front; do
+            summary=$(cd "$p" && npm audit --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=JSON.parse(s).metadata?.vulnerabilities||{};console.log(['critical','high','moderate','low'].map(k=>k+' '+(m[k]||0)).join(', '))})")
+            echo "::notice title=$p (all packages)::$summary"
+            if ! (cd "$p" && npm audit --omit=dev --audit-level=high > audit.txt 2>&1); then
+              echo "::error title=$p::$(grep -E '^[a-z@].*|Severity|fix available' "$p/audit.txt" | head -12 | awk '{printf "%s%%0A", $0}')"
+              fail=1
+            fi
+          done
+          exit $fail
+
+  web:
+    name: ${{ matrix.app }} — production build
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest moves to 26.04 on 2026-10-19
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [whoply-app, whoply-admin, whoply-front]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_PUBLIC_API_URL: http://localhost:7000/api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - run: npm ci
+      - run: npm run build

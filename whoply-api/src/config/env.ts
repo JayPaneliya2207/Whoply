@@ -19,6 +19,14 @@ const envSchema = z.object({
     FRONT_URL: z.string().url().default('http://localhost:7100'),
     // Extra CORS origins (comma-separated) allowed in production, on top of the URLs above
     CORS_ORIGINS: z.string().optional(),
+    // Behind a reverse proxy (nginx, a load balancer…): how many proxies to trust for the
+    // visitor's address — usually 1. Unset = use the direct connection's address.
+    TRUST_PROXY: z.string().optional(),
+
+    // Backups (utils/backup.ts): folder for the automatic daily backup, relative to the API
+    // folder ("off" = no automatic backup), and how many to keep per database.
+    BACKUP_DIR: z.string().default('../backups'),
+    BACKUP_KEEP: z.coerce.number().int().min(1).default(7),
 
     // Cloudinary (optional)
     CLOUDINARY_CLOUD_NAME: z.string().optional(),

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Building2, Check, MessageCircle, Plus, Pencil, Trash2, QrCode, MapPin, UserRound } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
+import { useAuth } from '@/stores/auth.store';
 import { inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -49,6 +50,10 @@ export default function DealersPage() {
     const [visitFor, setVisitFor] = useState<any>(null);
     // A sales rep can narrow the list to the dealers they look after.
     const isRep = can('visits.record') && !can('team.view');
+    const me = useAuth((s) => s.user);
+    // A rep edits, removes and collects only for the dealers assigned to them.
+    const mine = (d: any) => !isRep || String(d.assignedRepId || '') === String(me?.id || '');
+    const setsMoney = can('team.view'); // price group and credit limit: owner / manager only
     const [mineOnly, setMineOnly] = useState(false);
 
     const { data } = useQuery({ queryKey: ['dealers', mineOnly], queryFn: async () => (await api.get(`/wholesaler/dealers?limit=100${mineOnly ? '&mine=true' : ''}`)).data.data.items });
@@ -71,6 +76,7 @@ export default function DealersPage() {
     const doDelete = useMutation({
         mutationFn: async () => (await api.delete(`/wholesaler/dealers/${del._id}`)).data,
         onSuccess: () => { setDel(null); qc.invalidateQueries({ queryKey: ['dealers'] }); },
+        onError: (e) => { setDel(null); alert(apiErr(e)); },
     });
     const collect = useMutation({
         mutationFn: async () => (await api.post(`/wholesaler/dealers/${collectFor._id}/collect`, { amount: Number(amount), mode: payMode })).data.data,
@@ -113,7 +119,10 @@ export default function DealersPage() {
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{d.city || '—'} · {d.mobile}</p>
                                 {d.assignedRepName && <p className="text-xs flex items-center gap-1 mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}><UserRound size={11} className="shrink-0" /> {d.assignedRepName}</p>}
                             </div>
-                            <span className="wp-chip" style={tierTone[d.tier]}>{t(groupKey[d.tier])}</span>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className="wp-chip" style={tierTone[d.tier]}>{t(groupKey[d.tier])}</span>
+                                {d.creditLimit > 0 && d.outstandingBalance > d.creditLimit && <span className="wp-chip" style={{ background: 'var(--danger-tint)', color: 'var(--danger)' }}>{t('overCreditLimit')}</span>}
+                            </div>
                         </div>
                         <div className="mt-3 flex items-center justify-between">
                             <div>
@@ -122,12 +131,12 @@ export default function DealersPage() {
                             </div>
                             <div className="flex gap-1.5">
                                 {can('visits.record') && <button className="wp-btn wp-btn-ghost !p-2" title={t('logVisit')} aria-label={`${t('logVisit')} · ${d.name}`} onClick={() => setVisitFor(d)}><MapPin size={14} /></button>}
-                                {can('dealers.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(d)}><Pencil size={14} /></button>}
-                                {can('dealers.delete') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(d)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
+                                {can('dealers.manage') && mine(d) && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(d)}><Pencil size={14} /></button>}
+                                {can('dealers.delete') && mine(d) && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(d)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
                                 {d.outstandingBalance > 0 && (
                                     <>
                                         <button className="wp-btn wp-btn-ghost !p-2" title="Send WhatsApp payment reminder" onClick={() => remindDealer(d)}><MessageCircle size={14} style={{ color: 'var(--success)' }} /></button>
-                                        {can('payments.collect') && <button className="wp-btn wp-btn-collect !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>}
+                                        {can('payments.collect') && mine(d) && <button className="wp-btn wp-btn-collect !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>}
                                     </>
                                 )}
                             </div>
@@ -149,9 +158,9 @@ export default function DealersPage() {
                     {form.gstin.length === 15 && !isValidGstin(form.gstin) && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{t('gstinInvalid')}</p>}
                 </Field>
                 <div className="grid grid-cols-3 gap-3">
-                    <Field label={t('priceGroup')}><select className="wp-input" value={form.tier} onChange={(e) => set('tier', e.target.value)}><option value="A">{t('premiumBest')}</option><option value="B">{t('tierStandard')}</option><option value="C">{t('tierBasic')}</option></select></Field>
+                    <Field label={t('priceGroup')}><select className="wp-input" value={form.tier} disabled={!setsMoney} onChange={(e) => set('tier', e.target.value)}><option value="A">{t('premiumBest')}</option><option value="B">{t('tierStandard')}</option><option value="C">{t('tierBasic')}</option></select></Field>
                     <Field label={t('cityLabel')}><input className="wp-input" value={form.city} onChange={(e) => set('city', e.target.value)} /></Field>
-                    <Field label={t('creditRs')}><input className="wp-input tabular" type="number" value={form.creditLimit} onChange={(e) => set('creditLimit', e.target.value)} /></Field>
+                    <Field label={t('creditRs')}><input className="wp-input tabular" type="number" min="0" value={form.creditLimit} readOnly={!setsMoney} onChange={(e) => set('creditLimit', e.target.value)} /></Field>
                 </div>
                 {can('team.view') && (
                     <Field label={`${t('salesRepLabel')} (${t('optionalWord')})`}>

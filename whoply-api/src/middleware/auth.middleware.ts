@@ -10,6 +10,8 @@ import Business from '../models/Business.js';
 import Session from '../models/Session.js';
 import type { AuthRequest, AuthUser } from '../interfaces/index.js';
 
+export const BUSINESS_SUSPENDED = 'This business is suspended. Please contact Whoply support.';
+
 /** How stale `lastActivityAt` may get before we write it again (see authenticate). */
 const ACTIVITY_TOUCH_MS = 5 * 60 * 1000;
 
@@ -64,7 +66,9 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
 
         let businessType;
         if (user.businessId) {
-            const business = await Business.findById(user.businessId).select('type').lean();
+            const business = await Business.findById(user.businessId).select('type isActive').lean();
+            // A business the platform admin suspended: its owner and staff are signed out.
+            if (business?.isActive === false && user.role !== 'admin') throw AppError.unauthorized(BUSINESS_SUSPENDED);
             businessType = business?.type;
         }
 

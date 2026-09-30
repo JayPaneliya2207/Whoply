@@ -8,8 +8,9 @@ import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
 import { Modal } from '@/components/Modal';
 import { printCreditNote, downloadFile } from '@/lib/bill';
+import { csvCell } from '@/lib/bill';
 
-const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+const esc = csvCell;
 
 export default function ReturnsPage() {
     const t = useT();
@@ -23,10 +24,13 @@ export default function ReturnsPage() {
     const { data: notes } = useQuery({ queryKey: isWholesale ? ['ws-returns'] : ['returns'], queryFn: async () => (await api.get(`/${isWholesale ? 'wholesaler' : 'shopkeeper'}/returns?limit=100`)).data.data.items });
     const against = (n: any) => n.orderNo || n.invoiceNo || '';
     const total = (notes || []).reduce((s: number, n: any) => s + (n.total || 0), 0);
+    const cashBack = (notes || []).reduce((s: number, n: any) => s + (n.cashRefund || 0), 0);
+    // How a return was settled: cash handed back, or taken off what the customer / dealer owed.
+    const settledAs = (n: any) => (n.cashRefund > 0 ? `${t('cashRefund')} ${inr2(n.cashRefund)}` : n.refundMode === 'udhar_adjust' ? t('adjustUdhar') : t('adjustedOnBill'));
 
     const exportCsv = () => {
-        const header = ['Credit Note', 'Date', 'Against Bill', 'Customer', 'Items', 'Refund Total', 'Mode', 'Reason'];
-        const rows = (notes || []).map((n: any) => [n.creditNoteNo, new Date(n.createdAt).toLocaleString('en-IN'), against(n), n.customerName || '', n.items?.length || 0, n.total, n.refundMode, n.reason || ''].map(esc).join(','));
+        const header = ['Credit Note', 'Date', 'Against Bill', 'Customer', 'Items', 'Return Value', 'Cash Refunded', 'Settled As', 'Reason'];
+        const rows = (notes || []).map((n: any) => [n.creditNoteNo, new Date(n.createdAt).toLocaleString('en-IN'), against(n), n.customerName || '', n.items?.length || 0, n.total, n.cashRefund || 0, settledAs(n), n.reason || ''].map(esc).join(','));
         downloadFile('whoply-returns.csv', [header.map(esc).join(','), ...rows].join('\n'));
     };
 
@@ -39,7 +43,7 @@ export default function ReturnsPage() {
 
             <div className="wp-card p-5 flex items-center gap-3">
                 <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--danger-tint)', color: 'var(--danger)' }}><RotateCcw size={20} /></div>
-                <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('totalRefunded')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(total)}</p></div>
+                <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('returnsValue')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(total)}</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('cashRefunded')} {inr2(cashBack)}</p></div>
                 <div className="ml-auto text-right"><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('creditNotes')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{(notes || []).length}</p></div>
             </div>
 
@@ -54,7 +58,7 @@ export default function ReturnsPage() {
                         </div>
                         <div className="text-right shrink-0">
                             <p className="font-bold tabular" style={{ color: 'var(--danger)' }}>−{inr2(n.total)}</p>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{n.refundMode === 'udhar_adjust' ? t('adjustUdhar') : t('cashRefund')}</p>
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{settledAs(n)}</p>
                         </div>
                     </button>
                 ))}

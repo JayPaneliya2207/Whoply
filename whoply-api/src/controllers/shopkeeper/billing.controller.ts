@@ -6,9 +6,9 @@ import { businessOf, paginate } from '../../utils/http.js';
 import Product from '../../models/Product.js';
 import Invoice from '../../models/Invoice.js';
 import Customer from '../../models/Customer.js';
-import CreditLedger from '../../models/CreditLedger.js';
 import Business from '../../models/Business.js';
-import { applyStockChanges } from '../../utils/stock.js';
+import { takeStockThenSave, postSaleToCustomer } from '../../utils/sale.js';
+import { Types } from 'mongoose';
 import { priceLines, round2 } from '../../utils/tax.js';
 import { resolvePayments } from '../../utils/payments.js';
 import { lineQty } from '../../utils/qty.js';
@@ -69,7 +69,7 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     let customerGstin: string | undefined;
     const bodyGstin = (req.body.customerGstin || req.body.walkInGstin || '').toString().trim().toUpperCase() || undefined;
     if (customerId) {
-        const c = await Customer.findOne({ _id: customerId, businessId });
+        const c = await Customer.findOne({ _id: customerId, businessId, isActive: true });
         if (!c) throw AppError.badRequest('Customer not found');
         customerName = c.name;
         customerMobile = c.mobile;
@@ -96,60 +96,39 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
 
     if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A mobile number is required for credit (udhar) sales');
 
-    // Invoice number: INV/<YYYYMM>/<seq>
-    const ym = istYm();
-    const seq = await nextSequence(`invoice:${businessId}:${ym}`);
-    const biz = await Business.findById(businessId).select('settings').lean();
-    const prefix = biz?.settings?.invoicePrefix || 'INV';
-    const invoiceNo = `${prefix}/${ym}/${String(seq).padStart(4, '0')}`;
-
-    const invoice = await Invoice.create({
-        businessId,
-        invoiceNo,
-        customerId: resolvedCustomerId,
-        customerName,
-        customerMobile,
-        customerGstin,
-        items: lineItems,
-        subtotal,
-        totalGst,
-        discount: priced.discount,
-        grandTotal,
-        paidAmount: paid,
-        dueAmount: due,
-        paymentMode,
-        payments,
-        status,
-        createdBy: req.user!._id,
+    // Stock first (atomic — two tills can't both sell the last unit), then the bill
+    // number and the bill; if saving fails the stock goes back.
+    const invoiceId = new Types.ObjectId();
+    const invoice = await takeStockThenSave(businessId, lineItems.map((li) => ({ productId: li.productId, quantity: li.quantity, name: li.name })), invoiceId, async () => {
+        // Invoice number: INV/<YYYYMM>/<seq>
+        const ym = istYm();
+        const seq = await nextSequence(`invoice:${businessId}:${ym}`);
+        const biz = await Business.findById(businessId).select('settings').lean();
+        const prefix = biz?.settings?.invoicePrefix || 'INV';
+        return Invoice.create({
+            _id: invoiceId,
+            businessId,
+            invoiceNo: `${prefix}/${ym}/${String(seq).padStart(4, '0')}`,
+            customerId: resolvedCustomerId,
+            customerName,
+            customerMobile,
+            customerGstin,
+            items: lineItems,
+            subtotal,
+            totalGst,
+            discount: priced.discount,
+            grandTotal,
+            paidAmount: paid,
+            dueAmount: due,
+            paymentMode,
+            payments,
+            status,
+            createdBy: req.user!._id,
+        });
     });
 
-    // Decrement stock + movements — batched, so a 20-item bill costs 3 round-trips, not 40.
-    await applyStockChanges(
-        businessId,
-        lineItems.map((li) => ({ productId: li.productId, delta: -li.quantity })),
-        { reason: 'sale', refType: 'Invoice', refId: invoice._id }
-    );
-
-    // Udhar ledger for the due amount
-    if (due > 0 && resolvedCustomerId) {
-        const customer = await Customer.findById(resolvedCustomerId);
-        if (customer) {
-            customer.creditBalance += due;
-            customer.loyaltyPoints += Math.floor(grandTotal / 100);
-            await customer.save();
-            await CreditLedger.create({
-                businessId,
-                customerId: resolvedCustomerId,
-                type: 'credit',
-                amount: due,
-                balanceAfter: customer.creditBalance,
-                refType: 'Invoice',
-                refId: invoice._id,
-                note: `Credit sale ${invoiceNo}`,
-            });
-        }
-    }
-
+    // Udhar (any due) + loyalty points on the customer.
+    if (resolvedCustomerId) await postSaleToCustomer(businessId, resolvedCustomerId, { due, grandTotal, invoiceId, invoiceNo: invoice.invoiceNo });
     sendCreated(res, invoice, 'Sale recorded');
 });
 

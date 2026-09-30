@@ -17,6 +17,13 @@ export interface IUser {
     language: string;
     otp?: string;
     otpExpiry?: Date;
+    // sign-in guessing limits (utils/loginGuard.ts)
+    loginFails?: number;
+    loginFailAt?: Date;
+    lockedUntil?: Date;
+    otpSentAt?: Date;
+    otpSends?: number;
+    otpWindowAt?: Date;
     avatar?: string;
     isActive: boolean;
     lastLogin?: Date;
@@ -54,6 +61,12 @@ const userSchema = new Schema<IUserDocument>(
         language: { type: String, default: 'en' },
         otp: { type: String, select: false },
         otpExpiry: { type: Date, select: false },
+        loginFails: { type: Number, select: false },
+        loginFailAt: { type: Date, select: false },
+        lockedUntil: { type: Date, select: false },
+        otpSentAt: { type: Date, select: false },
+        otpSends: { type: Number, select: false },
+        otpWindowAt: { type: Date, select: false },
         avatar: String,
         isActive: { type: Boolean, default: true, index: true },
         lastLogin: Date,

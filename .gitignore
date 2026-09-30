@@ -35,3 +35,6 @@ public/uploads/
 Thumbs.db
 .vscode/
 .idea/
+
+# Database backups (npm run backup / the API daily backup) — customer data, never commit
+backups/

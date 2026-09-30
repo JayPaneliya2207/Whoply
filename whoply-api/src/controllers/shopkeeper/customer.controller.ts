@@ -126,17 +126,21 @@ export const getCustomerLedger = asyncHandler(async (req: AuthRequest, res: Resp
     sendSuccess(res, { customer, ledger, bills });
 });
 
-/** POST /customers/:id/repayment — customer pays back udhar */
+/**
+ * POST /customers/:id/repayment — customer pays back udhar.
+ * body: { amount, mode?: 'cash'|'upi'|'card' (default cash), note? } — day-close counts only cash in the drawer.
+ */
 export const recordRepayment = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const amount = Number(req.body.amount);
-    if (!amount || amount <= 0) throw AppError.badRequest('A positive amount is required');
+    const amount = +Number(req.body.amount).toFixed(2);
+    if (!(amount > 0) || !Number.isFinite(amount)) throw AppError.badRequest('A positive amount is required');
+    const mode = req.body.mode ?? 'cash';
+    if (!['cash', 'upi', 'card'].includes(mode)) throw AppError.badRequest('Mode must be cash, upi or card');
 
-    const customer = await Customer.findOne({ _id: req.params.id, businessId });
+    // Atomic — a bill or a return for the same customer at the same moment isn't overwritten.
+    const customer = await Customer.findOneAndUpdate({ _id: req.params.id, businessId }, { $inc: { creditBalance: -amount } }, { new: true });
     if (!customer) throw AppError.notFound('Customer not found');
-
-    customer.creditBalance = +(customer.creditBalance - amount).toFixed(2);
-    await customer.save();
+    customer.creditBalance = +customer.creditBalance.toFixed(2);
     // The money clears their oldest due bills, so those stop showing "due".
     const settled = await settleDueBills(businessId, customer._id, amount);
     const entry = await CreditLedger.create({
@@ -145,6 +149,7 @@ export const recordRepayment = asyncHandler(async (req: AuthRequest, res: Respon
         type: 'repayment',
         amount,
         balanceAfter: customer.creditBalance,
+        mode,
         note: [req.body.note || 'Udhar repayment', settledNote(settled)].filter(Boolean).join(' — '),
     });
     sendCreated(res, { customer, entry, settled }, 'Repayment recorded');

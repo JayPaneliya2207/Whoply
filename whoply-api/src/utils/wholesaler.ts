@@ -26,7 +26,7 @@ export const tierBase = (p: { wholesalePrice?: number; sellPrice?: number }) => 
  * (never stored), so a change to the base price flows straight through.
  */
 export const defaultTierPrice = (p: { wholesalePrice?: number; sellPrice?: number }, tier: string) =>
-    Math.round(tierBase(p) * (TIER_MULT[tier as Tier] ?? 1));
+    Math.round(tierBase(p) * (TIER_MULT[tier as Tier] ?? 1) * 100) / 100; // to the paisa — ₹2.40 must not become ₹2
 
 /** What a dealer of `tier` pays per unit: their saved price-list row, else the default. */
 export function tierUnitPrice(rows: { productId: any; tier: string; price: number }[], p: any, tier: string): number {
@@ -41,7 +41,7 @@ export function tierUnitPrice(rows: { productId: any; tier: string; price: numbe
 export async function priceDealerItems(businessId: any, dealer: { tier: DealerTier }, items: any[]) {
     const ids = items.map((i: any) => i.productId);
     const [products, priceRows] = await Promise.all([
-        Product.find({ _id: { $in: ids }, businessId }),
+        Product.find({ _id: { $in: ids }, businessId, isActive: true }),
         PriceList.find({ businessId, productId: { $in: ids }, tier: dealer.tier }).lean(),
     ]);
     const map = new Map(products.map((p) => [String(p._id), p]));
@@ -76,7 +76,8 @@ const PAY_MODES = ['cash', 'upi', 'bank', 'cheque', 'other'] as const;
 export async function recordAdvancePayment(
     order: { _id: any; businessId: any; dealerId: any; dealerName?: string; orderNo: string },
     amount: number,
-    mode?: string
+    mode?: string,
+    collectedBy?: unknown
 ) {
     if (!(amount > 0)) return;
     await Payment.create({
@@ -88,7 +89,77 @@ export async function recordAdvancePayment(
         amount,
         mode: ((PAY_MODES as readonly string[]).includes(String(mode)) ? mode : 'cash') as PaymentMode,
         note: 'Advance with order',
+        ...(collectedBy ? { collectedBy: new Types.ObjectId(String(collectedBy)) } : {}),
     });
+}
+
+const r2 = (n: number) => Math.round((+n || 0) * 100) / 100;
+
+/** What one dealer owes now (live order dues, cancelled orders excluded). */
+export async function dealerDue(bId: Types.ObjectId, dealerId: unknown): Promise<number> {
+    const rows = await Order.aggregate([
+        { $match: { businessId: bId, dealerId: new Types.ObjectId(String(dealerId)), dueAmount: { $gt: 0 }, status: { $ne: 'cancelled' } } },
+        { $group: { _id: null, due: { $sum: '$dueAmount' } } },
+    ]);
+    return r2(rows[0]?.due || 0);
+}
+
+/**
+ * Credit limit (0 = no limit): would `adding` more due take the dealer over it?
+ * A sales rep is stopped; the owner / manager gets a 409 (code OVER_CREDIT_LIMIT)
+ * and can save anyway by sending `overLimitOk: true`.
+ */
+export async function checkCreditLimit(
+    user: { role?: string } | undefined,
+    body: any,
+    bId: Types.ObjectId,
+    dealer: { _id: unknown; name: string; creditLimit?: number },
+    adding: number
+): Promise<void> {
+    const limit = Number(dealer.creditLimit) || 0;
+    if (limit <= 0 || !(adding > 0)) return;
+    const after = r2((await dealerDue(bId, dealer._id)) + adding);
+    if (after <= limit + 0.005) return;
+    const over = r2(after - limit);
+    if (user?.role === 'salesStaff') throw AppError.badRequest(`This takes ${dealer.name} over their credit limit of ₹${limit} by ₹${over} — ask the owner`);
+    if (body?.overLimitOk !== true) throw new AppError(`This takes ${dealer.name} over their credit limit of ₹${limit} by ₹${over}.`, 409, 'OVER_CREDIT_LIMIT');
+}
+
+/** A sales rep may act only on the dealers assigned to them (owner / manager: any). */
+export function assertRepDealer(user: { _id?: unknown; role?: string } | undefined, dealer: { assignedRepId?: unknown }): void {
+    if (user?.role === 'salesStaff' && String(dealer.assignedRepId || '') !== String(user._id)) {
+        throw AppError.forbidden('This dealer is looked after by another sales rep');
+    }
+}
+
+/**
+ * Spread a received amount over a dealer's unpaid orders, oldest first. Each
+ * order is updated in one atomic step that only applies while its due still
+ * covers the amount, so two collections at once can't both count against the
+ * same due. Returns what was actually applied (the Payment is written for that).
+ */
+export async function settleDealerOrders(businessId: Types.ObjectId, dealerId: Types.ObjectId, amount: number): Promise<number> {
+    let remaining = r2(amount);
+    for (let pass = 0; pass < 3 && remaining > 0; pass++) {
+        const orders = await Order.find({ businessId, dealerId, dueAmount: { $gt: 0 }, status: { $ne: 'cancelled' } }).sort({ createdAt: 1 }).select('dueAmount').lean();
+        if (!orders.length) break;
+        for (const o of orders) {
+            if (remaining <= 0) break;
+            const applied = r2(Math.min(o.dueAmount, remaining));
+            if (await applyToOrder(businessId, o._id, applied)) remaining = r2(remaining - applied);
+        }
+    }
+    return r2(amount - remaining);
+}
+
+/** Take `amount` off one order's due — atomically, and only if the due still covers it. */
+export async function applyToOrder(businessId: unknown, orderId: unknown, amount: number) {
+    const r = await Order.updateOne(
+        { _id: orderId, businessId, status: { $ne: 'cancelled' }, dueAmount: { $gte: amount - 0.005 } } as any,
+        [{ $set: { paidAmount: { $round: [{ $add: ['$paidAmount', amount] }, 2] }, dueAmount: { $max: [0, { $round: [{ $subtract: ['$dueAmount', amount] }, 2] }] } } }],
+        { updatePipeline: true }
+    );
+    return r.modifiedCount === 1;
 }
 
 /** Outstanding grouped per dealer, from live order dues (only dealers who owe). Cancelled orders excluded. */

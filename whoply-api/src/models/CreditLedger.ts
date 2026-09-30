@@ -16,6 +16,8 @@ export interface ICreditLedger {
     refType?: string;
     refId?: Types.ObjectId;
     note?: string;
+    /** How a repayment was paid (day-close splits money by mode). Absent on older rows = cash. */
+    mode?: 'cash' | 'upi' | 'card';
     reminderSentAt?: Date;
 }
 export interface ICreditLedgerDocument extends ICreditLedger, Document {
@@ -33,6 +35,7 @@ const creditLedgerSchema = new Schema<ICreditLedgerDocument>(
         refType: String,
         refId: Schema.Types.ObjectId,
         note: String,
+        mode: { type: String, enum: ['cash', 'upi', 'card'] },
         reminderSentAt: Date,
     },
     { timestamps: true, collection: 'credit_ledger' }

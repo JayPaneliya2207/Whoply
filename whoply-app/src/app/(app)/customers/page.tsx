@@ -33,6 +33,7 @@ export default function CustomersPage() {
     const [detailId, setDetailId] = useState<string | null>(null);
     const [payFor, setPayFor] = useState<any>(null);
     const [amount, setAmount] = useState('');
+    const [payMode, setPayMode] = useState<'cash' | 'upi' | 'card'>('cash');
     const [payErr, setPayErr] = useState('');
     const [modal, setModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
@@ -61,7 +62,7 @@ export default function CustomersPage() {
         if (!c.mobile) { alert(`No mobile number on file for ${c.name}. Add one to send a reminder.`); return; }
         window.open(whatsappLink(c.mobile, buildUdharReminderText(c.name, c.creditBalance, user?.business ? { name: user.business.name } : undefined), c.countryCode || '+91'), '_blank');
     };
-    const openPay = (c: any) => { setPayFor(c); setAmount(String(c.creditBalance)); setPayErr(''); };
+    const openPay = (c: any) => { setPayFor(c); setAmount(String(c.creditBalance)); setPayMode('cash'); setPayErr(''); };
     const openNew = () => { setEditing(null); setForm({ ...empty, name: /\d/.test(search) ? '' : search.trim() }); setFormErr(''); setModal(true); };
     const openEdit = (c: any) => {
         setEditing(c);
@@ -71,7 +72,7 @@ export default function CustomersPage() {
     };
 
     const repay = useMutation({
-        mutationFn: async () => (await api.post(`/shopkeeper/customers/${payFor._id}/repayment`, { amount: Number(amount) })).data.data,
+        mutationFn: async () => (await api.post(`/shopkeeper/customers/${payFor._id}/repayment`, { amount: Number(amount), mode: payMode })).data.data,
         onSuccess: () => { setPayFor(null); setAmount(''); refresh(); },
         onError: (e) => setPayErr(apiErr(e)),
     });
@@ -245,6 +246,12 @@ export default function CustomersPage() {
                 footer={<button className="wp-btn wp-btn-primary w-full" disabled={repay.isPending || !Number(amount)} onClick={() => repay.mutate()}><Check size={16} /> {t('confirmRepayment')}</button>}>
                 {payFor && <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>{payFor.name} · {t('udharBalance')} <b>{inr2(payFor.creditBalance)}</b></p>}
                 <Field label={t('amountReceived')}><input className="wp-input tabular" type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></Field>
+                <div className="grid grid-cols-3 gap-1.5 mt-2">
+                    {(['cash', 'upi', 'card'] as const).map((m) => (
+                        <button key={m} type="button" aria-pressed={payMode === m} onClick={() => setPayMode(m)} className="py-2 rounded-lg text-xs font-semibold capitalize"
+                            style={payMode === m ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{m}</button>
+                    ))}
+                </div>
                 {payErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{payErr}</p>}
             </Modal>
 

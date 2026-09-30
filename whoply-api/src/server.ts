@@ -9,6 +9,10 @@ import { initializeCronJobs } from './cron/index.js';
 
 export const app: Express = express();
 
+// Behind a proxy, req.ip must be the visitor's address (sign-in limits count per address).
+const trust = env.TRUST_PROXY;
+if (trust) app.set('trust proxy', /^\d+$/.test(trust) ? Number(trust) : trust === 'true' ? true : trust === 'false' ? false : trust);
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' }, crossOriginEmbedderPolicy: false }));
 // In production, only the known Whoply front-ends may call the API. Extra
 // origins can be added via CORS_ORIGINS (comma-separated). Dev stays open.
