@@ -1,9 +1,12 @@
 /**
- * Whoply RESET — wipes every collection and re-creates ONLY what you need to log
- * in and start testing with a clean slate. No demo products / bills / orders /
- * dealers / customers.
+ * Whoply RESET — backs up the database, wipes every collection and re-creates ONLY
+ * what you need to log in and start testing with a clean slate. No demo products /
+ * bills / orders / dealers / customers.
  *
- *   npm run seed:reset
+ *   npm run db:clear        (same as npm run seed:reset)
+ *
+ * The backup goes to ../backups/<database>/ like `npm run backup`; undo with
+ * `npm run restore`. Set RESET_BACKUP=off to skip it (the tests do).
  *
  * Logins (password: whoply123 · dev OTP: 123456):
  *   Shopkeeper (retail) owner   : 9000000001
@@ -17,38 +20,16 @@ import { env } from '../config/env.js';
 import { refuseOnLiveDatabase } from './guard.js';
 import Business from '../models/Business.js';
 import User from '../models/User.js';
-import Category from '../models/Category.js';
-import Product from '../models/Product.js';
-import Customer from '../models/Customer.js';
-import CreditLedger from '../models/CreditLedger.js';
-import Supplier from '../models/Supplier.js';
-import Invoice from '../models/Invoice.js';
-import Expense from '../models/Expense.js';
-import StockMovement from '../models/StockMovement.js';
-import Counter from '../models/Counter.js';
-import Dealer from '../models/Dealer.js';
-import PriceList from '../models/PriceList.js';
-import Order from '../models/Order.js';
-import Visit from '../models/Visit.js';
-import Notification from '../models/Notification.js';
-import PurchaseOrder from '../models/PurchaseOrder.js';
 import Plan from '../models/Plan.js';
 import { DEFAULT_PLANS } from './plans.js';
+import { wipeDatabase } from './wipe.js';
 
 async function run() {
     refuseOnLiveDatabase('npm run seed:reset');
     await mongoose.connect(env.MONGODB_URI);
     console.log(`Connected: ${mongoose.connection.name}`);
 
-    // Wipe everything.
-    await Promise.all([
-        Business.deleteMany({}), User.deleteMany({}), Category.deleteMany({}), Product.deleteMany({}),
-        Customer.deleteMany({}), CreditLedger.deleteMany({}), Supplier.deleteMany({}), Invoice.deleteMany({}),
-        Expense.deleteMany({}), StockMovement.deleteMany({}), Counter.deleteMany({}), Dealer.deleteMany({}),
-        PriceList.deleteMany({}), Order.deleteMany({}), Visit.deleteMany({}), Notification.deleteMany({}),
-        PurchaseOrder.deleteMany({}), Plan.deleteMany({}),
-    ]);
-    console.log('Cleared all collections');
+    await wipeDatabase();
 
     // Subscription plans are config the landing/pricing needs — keep them.
     await Plan.insertMany(DEFAULT_PLANS);

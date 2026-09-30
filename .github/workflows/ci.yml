@@ -44,6 +44,7 @@ jobs:
       JWT_SECRET: ci-only-secret-never-used-on-a-real-server-0123
       TRUST_PROXY: '1' # lets tests/login-limits.mjs check the per-address limit
       API_URL: http://localhost:7000/api
+      RESET_BACKUP: 'off' # seed:reset runs before every suite; no need to back up test data
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

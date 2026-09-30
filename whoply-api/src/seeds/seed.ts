@@ -4,6 +4,8 @@
  *
  *   npm run seed
  *
+ * Clears EVERY collection first (after a backup — see wipe.ts).
+ *
  * Demo logins (OTP is always 123456 in dev; password is "whoply123"):
  *   Retail owner   : 9000000001   (Sharma General Store)
  *   Retail cashier : 9000000002
@@ -36,6 +38,7 @@ import Notification from '../models/Notification.js';
 import Plan from '../models/Plan.js';
 import { DEFAULT_PLANS } from './plans.js';
 import { backfillOrderAdvances, settleRepaidBills } from './backfills.js';
+import { wipeDatabase } from './wipe.js';
 
 const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 const pick = <T>(arr: readonly T[]): T => arr[rand(0, arr.length - 1)];
@@ -45,31 +48,12 @@ async function run() {
     await mongoose.connect(env.MONGODB_URI);
     console.log(`Connected: ${mongoose.connection.name}`);
 
-    // Wipe existing collections (idempotent seed)
-    await Promise.all([
-        Business.deleteMany({}),
-        User.deleteMany({}),
-        Category.deleteMany({}),
-        Product.deleteMany({}),
-        Customer.deleteMany({}),
-        CreditLedger.deleteMany({}),
-        Supplier.deleteMany({}),
-        Invoice.deleteMany({}),
-        Expense.deleteMany({}),
-        StockMovement.deleteMany({}),
-        Counter.deleteMany({}),
-        Dealer.deleteMany({}),
-        PriceList.deleteMany({}),
-        Order.deleteMany({}),
-        Visit.deleteMany({}),
-        Notification.deleteMany({}),
-        Plan.deleteMany({}),
-    ]);
+    // Wipe every collection (idempotent seed); backs up real data first.
+    await wipeDatabase();
 
     /* ---------------- Subscription plans ---------------- */
     await Plan.insertMany(DEFAULT_PLANS);
     console.log('Created 3 subscription plans');
-    console.log('Cleared old data');
 
     const passwordHash = await bcrypt.hash('whoply123', 10);
 
