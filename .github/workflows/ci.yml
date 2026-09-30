@@ -68,6 +68,7 @@ jobs:
             grep -E '^(=+ .* =+|TOTAL:|  ❌)' tests.log || echo 'no results — open the Tests step'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=API tests::$(grep -cE '^TOTAL:' tests.log) suites — $(grep -E '^TOTAL:' tests.log | sed 's/TOTAL: //; s/ passed, / ok, /' | paste -sd ';' -)"
       - name: API log
         if: failure()
         run: tail -n 200 api.log
