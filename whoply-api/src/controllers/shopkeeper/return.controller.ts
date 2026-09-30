@@ -16,6 +16,24 @@ import { Types } from 'mongoose';
 import { istYm } from '../../utils/ist.js';
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** Units already returned per productId: the stored count, else (older documents) summed from credit notes. */
+export async function returnedSoFar(stored: Record<string, number> | undefined, notes: () => Promise<{ items: { productId: unknown; quantity: number }[] }[]>) {
+    const out = new Map<string, number>();
+    if (stored && typeof stored === 'object') {
+        for (const [k, v] of Object.entries(stored)) out.set(k, Number(v) || 0);
+        return out;
+    }
+    for (const n of await notes()) for (const it of n.items) out.set(String(it.productId), round3((out.get(String(it.productId)) || 0) + it.quantity));
+    return out;
+}
+
+/** The running count after this return. */
+export const addReturned = (before: Map<string, number>, adding: Map<string, number>) => {
+    const out: Record<string, number> = Object.fromEntries(before);
+    for (const [k, v] of adding) out[k] = round3((out[k] || 0) + v);
+    return out;
+};
 import { settleDueBills, settledNote } from '../../utils/udhar.js';
 
 /**
@@ -41,10 +59,9 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
     if (!invoice) throw AppError.notFound('Invoice not found');
     const rev = invoice.returnsRev || 0;
 
-    // How much of each product was already returned (across prior credit notes for this invoice).
-    const priorNotes = await CreditNote.find({ businessId, invoiceId: invoice._id }).lean();
-    const alreadyReturned = new Map<string, number>();
-    priorNotes.forEach((n) => n.items.forEach((it) => alreadyReturned.set(String(it.productId), (alreadyReturned.get(String(it.productId)) || 0) + it.quantity)));
+    // How much of each product was already returned: the bill's own running count (bills
+    // returned on before it existed: add up their credit notes).
+    const alreadyReturned = await returnedSoFar(invoice.returned, () => CreditNote.find({ businessId, invoiceId: invoice._id }).select('items.productId items.quantity').lean());
 
     // Asking for the same product on two lines counts as one request for the total.
     const wanted = new Map<string, number>();
@@ -83,9 +100,11 @@ export const createReturn = asyncHandler(async (req: AuthRequest, res: Response)
     }
     const total = round2(subtotal + totalGst);
 
-    // One return per bill at a time: the one that bumps returnsRev first goes ahead; one that
-    // read the bill before it did would double-count, so it is sent back to try again.
-    const claim = await Invoice.updateOne({ _id: invoice._id, businessId, returnsRev: rev === 0 ? { $in: [0, null] } : rev }, { $set: { returnsRev: rev + 1 } });
+    // One return per bill at a time: the new running count is saved in the same step as the
+    // returnsRev bump, and only if returnsRev is still what we read. A return that read the
+    // bill before another one landed is sent back to try again — it can't double-count.
+    const newCount = addReturned(alreadyReturned, wanted);
+    const claim = await Invoice.updateOne({ _id: invoice._id, businessId, returnsRev: rev === 0 ? { $in: [0, null] } : rev }, { $set: { returnsRev: rev + 1, returned: newCount } });
     if (claim.modifiedCount !== 1) throw AppError.conflict('Another return on this bill was just saved — open the bill again');
 
     const ym = istYm();

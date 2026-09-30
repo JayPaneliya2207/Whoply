@@ -36,6 +36,8 @@ export interface IOrder {
     source: OrderSource;
     salesRepId?: Types.ObjectId;
     dispatchedAt?: Date;
+    returnsRev?: number; // bumped by every return — two returns at once can't both pass the "already returned" check
+    returned?: Record<string, number>; // units returned so far per productId — saved in the same step as returnsRev
     deliveredAt?: Date;
     deliveryNote?: string;
 }
@@ -77,6 +79,8 @@ const orderSchema = new Schema<IOrderDocument>(
         source: { type: String, enum: ['whatsapp', 'phone', 'manual', 'field'], default: 'manual' },
         salesRepId: { type: Schema.Types.ObjectId, ref: 'User' },
         dispatchedAt: Date,
+        returnsRev: { type: Number, default: 0 },
+        returned: { type: Schema.Types.Mixed },
         deliveredAt: Date,
         deliveryNote: String,
     },
