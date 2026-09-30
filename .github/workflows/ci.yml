@@ -31,6 +31,7 @@ jobs:
     defaults:
       run:
         working-directory: whoply-api
+        shell: bash # = bash -eo pipefail: a failing test fails the step even when piped into tee
     env:
       NODE_ENV: test # dev behaviour (test OTP 123456, open CORS) without dev-only error output
       PORT: 7000
@@ -69,6 +70,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::notice title=API tests::$(grep -cE '^TOTAL:' tests.log) suites — $(grep -E '^TOTAL:' tests.log | sed 's/TOTAL: //; s/ passed, / ok, /' | paste -sd ';' -)"
+          grep -E '^  ❌' tests.log | head -20 | while read -r line; do echo "::error title=Failed test::$line"; done
       - name: API log
         if: failure()
         run: tail -n 200 api.log
