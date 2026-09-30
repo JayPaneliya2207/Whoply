@@ -23,7 +23,7 @@ echo "→ Building…"
 docker compose build
 
 echo "→ Updating the database (indexes and fixes — safe to repeat)…"
-docker compose run --rm --no-deps api node dist/seeds/migrate.js
+docker compose run --rm api node dist/seeds/migrate.js
 
 echo "→ Starting…"
 docker compose up -d --remove-orphans
