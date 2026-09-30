@@ -98,8 +98,10 @@ jobs:
       - name: The sites answer over HTTPS
         run: |
           code() { curl -sk --resolve "$1:443:127.0.0.1" -o /dev/null -w '%{http_code}' "https://$1$2"; }
+          # Caddy makes its local certificates on first start — give it up to a minute.
+          for i in $(seq 1 30); do [ "$(code api.localhost /api/health)" = 200 ] && [ "$(code app.localhost /login)" = 200 ] && break; sleep 2; done
           fail=0
-          check() { local got; got=$(code "$1" "$2"); if [ "$got" = "$3" ]; then echo "✅ https://$1$2 → $got"; else echo "❌ https://$1$2 → $got (want $3)"; fail=1; fi; }
+          check() { local got; got=$(code "$1" "$2"); if [ "$got" = "$3" ]; then echo "✅ https://$1$2 → $got"; else echo "::error title=HTTPS check::https://$1$2 → $got (want $3)"; fail=1; fi; }
           check api.localhost /api/health 200
           check localhost / 200
           check localhost /privacy 200
@@ -109,9 +111,10 @@ jobs:
           # The admin logs in from the admin site (CORS allows exactly that site).
           out=$(curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o body.json -H 'Origin: https://admin.localhost' -H 'Content-Type: application/json' \
             -d '{"mobile":"9876543210","password":"ci-admin-password-123"}' https://api.localhost/api/auth/password-login)
-          if grep -qi '^access-control-allow-origin: https://admin.localhost' <<<"$out" && grep -q '"role":"admin"' body.json; then echo '✅ admin login from the admin site'; else echo '❌ admin login'; echo "$out"; cat body.json; fail=1; fi
+          if grep -qi '^access-control-allow-origin: https://admin.localhost' <<<"$out" && grep -q '"role":"admin"' body.json; then echo '✅ admin login from the admin site'; else echo "::error title=admin login::$(tr '
+' ' ' <<<"$out" | head -c 600) $(head -c 300 body.json)"; fail=1; fi
           # Another website may not call the API.
-          if curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null -H 'Origin: https://evil.example' https://api.localhost/api/health | grep -qi '^access-control-allow-origin'; then echo '❌ CORS let another site in'; fail=1; else echo '✅ other websites are refused (CORS)'; fi
+          if curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null -H 'Origin: https://evil.example' https://api.localhost/api/health | grep -qi '^access-control-allow-origin'; then echo '::error title=CORS::another website was allowed'; fail=1; else echo '✅ other websites are refused (CORS)'; fi
           exit $fail
       - name: The demo reset refuses to wipe a live database
         run: |
