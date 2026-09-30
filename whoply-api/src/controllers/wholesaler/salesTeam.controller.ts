@@ -4,11 +4,14 @@ import { AppError } from '../../utils/AppError.js';
 import { sendSuccess, sendCreated } from '../../utils/response.js';
 import { businessOf, monthStart } from '../../utils/http.js';
 import { normalizePhone } from '../../utils/phone.js';
+import { passwordSchema } from '../../validators/common.validator.js';
+import { sanitizeKyc } from '../../utils/kyc.js';
 import User from '../../models/User.js';
 import Visit from '../../models/Visit.js';
 import Order from '../../models/Order.js';
 import Dealer from '../../models/Dealer.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { can } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
 
 /** POST /sales-team — add a sales rep (creates a salesStaff user in this business) */
@@ -16,6 +19,7 @@ export const createRep = asyncHandler(async (req: AuthRequest, res: Response) =>
     const businessId = businessOf(req);
     const { name, mobile } = req.body;
     if (!name || !mobile) throw AppError.badRequest('name and mobile are required');
+    if (req.body.password) passwordSchema.parse(req.body.password);
     const normalized = normalizePhone(mobile);
     const exists = await User.findOne({ mobile: normalized });
     if (exists) throw AppError.conflict('A user with this mobile already exists');
@@ -26,7 +30,7 @@ export const createRep = asyncHandler(async (req: AuthRequest, res: Response) =>
         role: 'salesStaff',
         businessId,
         salary: Number(req.body.salary) || 0,
-        kyc: req.body.kyc || {},
+        kyc: sanitizeKyc(req.body.kyc), // Aadhaar: last 4 digits only, no photo
         ...(req.body.password && { password: req.body.password }),
     });
     sendCreated(res, { _id: rep._id, name: rep.name, mobile: rep.mobile, salary: rep.salary });
@@ -51,61 +55,100 @@ export const deleteRep = asyncHandler(async (req: AuthRequest, res: Response) =>
     sendSuccess(res, { ok: true }, 'Sales rep removed');
 });
 
-/** GET /sales-team — reps with this month's visit & order stats + commission (2%) */
+/** Commission a rep earns: this share of their orders' value before GST. */
+export const COMMISSION_PCT = 2;
+
+/**
+ * GET /sales-team — each rep's month (IST): visits, orders, sales before GST
+ * and commission, plus how many dealers they look after. Owner / manager see
+ * every rep; a sales rep sees only themselves. Cancelled orders don't count.
+ */
 export const listReps = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const bId = new Types.ObjectId(String(businessId));
-    const reps = await User.find({ businessId, role: 'salesStaff', isActive: true }).lean();
+    const repFilter: any = { businessId, role: 'salesStaff', isActive: true };
+    if (!can(req.user?.role, 'team.view')) repFilter._id = req.user?._id;
+    const reps = await User.find(repFilter).select('name mobile').lean();
+    const ids = reps.map((r) => r._id);
+    const since = monthStart();
 
-    const enriched = await Promise.all(
-        reps.map(async (r) => {
-            const [visits, orderAgg] = await Promise.all([
-                Visit.countDocuments({ businessId: bId, salesRepId: r._id, visitedAt: { $gte: monthStart() } }),
-                Order.aggregate([
-                    { $match: { businessId: bId, salesRepId: r._id, createdAt: { $gte: monthStart() } } },
-                    { $group: { _id: null, count: { $sum: 1 }, sales: { $sum: '$total' } } },
-                ]),
-            ]);
-            const sales = orderAgg[0]?.sales || 0;
-            return {
-                _id: r._id,
-                name: r.name,
-                mobile: r.mobile,
-                visits,
-                orders: orderAgg[0]?.count || 0,
-                sales,
-                commission: +(sales * 0.02).toFixed(2),
-            };
-        })
-    );
-    sendSuccess(res, enriched);
+    const [visitAgg, orderAgg, dealerAgg] = await Promise.all([
+        Visit.aggregate([
+            { $match: { businessId: bId, salesRepId: { $in: ids }, visitedAt: { $gte: since } } },
+            { $group: { _id: '$salesRepId', n: { $sum: 1 } } },
+        ]),
+        Order.aggregate([
+            { $match: { businessId: bId, salesRepId: { $in: ids }, status: { $ne: 'cancelled' }, createdAt: { $gte: since } } },
+            // subtotal = value before GST; very old orders without it fall back to total
+            { $group: { _id: '$salesRepId', count: { $sum: 1 }, sales: { $sum: { $ifNull: ['$subtotal', '$total'] } } } },
+        ]),
+        Dealer.aggregate([
+            { $match: { businessId: bId, isActive: true, assignedRepId: { $in: ids } } },
+            { $group: { _id: '$assignedRepId', n: { $sum: 1 } } },
+        ]),
+    ]);
+    const by = <T>(rows: any[], f: (x: any) => T) => new Map(rows.map((x) => [String(x._id), f(x)]));
+    const visits = by(visitAgg, (x) => x.n);
+    const orders = by(orderAgg, (x) => x);
+    const dealers = by(dealerAgg, (x) => x.n);
+
+    sendSuccess(res, reps.map((r) => {
+        const o = orders.get(String(r._id));
+        const sales = +(o?.sales || 0).toFixed(2);
+        return {
+            _id: r._id,
+            name: r.name,
+            mobile: r.mobile,
+            dealers: dealers.get(String(r._id)) || 0,
+            visits: visits.get(String(r._id)) || 0,
+            orders: o?.count || 0,
+            sales,
+            commission: +((sales * COMMISSION_PCT) / 100).toFixed(2),
+            commissionPct: COMMISSION_PCT,
+        };
+    }));
 });
 
-/** GET /sales-team/visits — recent field visits */
+/** GET /sales-team/visits?dealerId= — recent field visits (a rep sees only their own). */
 export const listVisits = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const visits = await Visit.find({ businessId }).sort({ visitedAt: -1 }).limit(50).lean();
+    const filter: any = { businessId };
+    if (!can(req.user?.role, 'team.view')) filter.salesRepId = req.user?._id;
+    if (req.query.dealerId && Types.ObjectId.isValid(String(req.query.dealerId))) filter.dealerId = req.query.dealerId;
+    const visits = await Visit.find(filter).sort({ visitedAt: -1 }).limit(50).lean();
     sendSuccess(res, visits);
 });
 
-/** POST /sales-team/visits — record a visit */
+const OUTCOMES = ['order', 'no_order', 'follow_up'] as const;
+
+/**
+ * POST /sales-team/visits — log a visit to a dealer.
+ * body: { dealerId, outcome: 'order' | 'no_order' | 'follow_up', note?, salesRepId? }
+ * A rep logs their own; the owner / manager may log one for a rep (salesRepId).
+ */
 export const recordVisit = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { salesRepId, dealerId, outcome = 'no_order', note } = req.body;
-    if (!salesRepId || !dealerId) throw AppError.badRequest('salesRepId and dealerId are required');
+    const { dealerId } = req.body;
+    const outcome = req.body.outcome ?? 'no_order';
+    if (!OUTCOMES.includes(outcome)) throw AppError.badRequest('Outcome must be order, no_order or follow_up');
+    const note = String(req.body.note ?? '').trim();
+    if (note.length > 200) throw AppError.badRequest('Note is too long (200 characters max)');
+    const salesRepId = can(req.user?.role, 'team.view') ? req.body.salesRepId : req.user?._id;
+    if (!salesRepId || !dealerId) throw AppError.badRequest('Pick the dealer and the sales rep');
     const [rep, dealer] = await Promise.all([
-        User.findOne({ _id: salesRepId, businessId }).lean(),
-        Dealer.findOne({ _id: dealerId, businessId }).lean(),
+        User.findOne({ _id: salesRepId, businessId, role: 'salesStaff', isActive: true }).lean(),
+        Dealer.findOne({ _id: dealerId, businessId, isActive: true }).lean(),
     ]);
-    if (!rep || !dealer) throw AppError.badRequest('Rep or dealer not found');
+    if (!rep) throw AppError.badRequest('Pick one of your sales reps');
+    if (!dealer) throw AppError.badRequest('Dealer not found');
     const visit = await Visit.create({
         businessId,
-        salesRepId,
+        salesRepId: rep._id,
         salesRepName: rep.name,
-        dealerId,
+        dealerId: dealer._id,
         dealerName: dealer.name,
         outcome,
-        note,
+        note: note || undefined,
     });
     sendCreated(res, visit);
 });

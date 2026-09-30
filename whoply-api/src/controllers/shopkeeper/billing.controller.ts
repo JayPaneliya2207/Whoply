@@ -9,54 +9,57 @@ import Customer from '../../models/Customer.js';
 import CreditLedger from '../../models/CreditLedger.js';
 import Business from '../../models/Business.js';
 import { applyStockChanges } from '../../utils/stock.js';
+import { priceLines, round2 } from '../../utils/tax.js';
+import { resolvePayments } from '../../utils/payments.js';
+import { lineQty } from '../../utils/qty.js';
+import { normalizePhone } from '../../utils/phone.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { istYm } from '../../utils/ist.js';
 
 /**
  * POST /billing — create a POS sale.
- * body: { items: [{ productId, quantity, price? }], customerId?, discount?, paymentMode, paidAmount? }
+ * body: { items: [{ productId, quantity }], customerId?, discount?, payments?: [{ mode, amount }] }
+ * `payments` is the money received by mode (several = a split bill); anything
+ * unpaid goes on udhar. Older clients send { paymentMode, paidAmount } instead.
+ * `discount` is rupees off the amount payable; it is taken off before GST (utils/tax.ts).
+ * Unit prices always come from the product (sell price less its own discount %) —
+ * a price sent by the client is ignored, so a stale cart can't bill an old price.
  * Decrements stock, records movements, and posts to the udhar ledger for credit sales.
  */
 export const createSale = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { items = [], customerId, discount = 0, paymentMode = 'cash', paidAmount, walkInName, walkInMobile } = req.body;
+    const { items = [], customerId, discount = 0, walkInName, walkInMobile } = req.body;
     if (!Array.isArray(items) || items.length === 0) throw AppError.badRequest('At least one item is required');
+    if (!(Number(discount) >= 0)) throw AppError.badRequest('Discount cannot be negative');
 
     // Load products in one query
     const ids = items.map((i: any) => i.productId);
     const products = await Product.find({ _id: { $in: ids }, businessId });
     const map = new Map(products.map((p) => [String(p._id), p]));
 
-    let subtotal = 0;
-    let totalGst = 0;
-    const lineItems = items.map((i: any) => {
+    const rows = items.map((i: any) => {
         const p = map.get(String(i.productId));
         if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
-        const qty = Number(i.quantity);
-        if (qty <= 0) throw AppError.badRequest('Quantity must be positive');
+        const qty = lineQty(i.quantity, p);
         if (p.currentStock < qty) throw AppError.badRequest(`Insufficient stock for ${p.name} (have ${p.currentStock})`);
-        const price = i.price != null ? Number(i.price) : p.sellPrice;
-        const base = price * qty;
-        const gstAmount = +((base * p.gstRate) / 100).toFixed(2);
-        subtotal += base;
-        totalGst += gstAmount;
-        return {
-            productId: p._id,
-            name: p.name,
-            hsn: p.hsn,
-            quantity: qty,
-            unit: p.unit,
-            price,
-            gstRate: p.gstRate,
-            gstAmount,
-            lineTotal: +(base + gstAmount).toFixed(2),
-        };
+        return { p, qty, unitPrice: round2(p.sellPrice * (1 - (p.discountPct || 0) / 100)) };
     });
-
-    const grandTotal = +(subtotal + totalGst - Number(discount)).toFixed(2);
-    const paid = paymentMode === 'credit' ? Number(paidAmount || 0) : paidAmount != null ? Number(paidAmount) : grandTotal;
-    const due = +(grandTotal - paid).toFixed(2);
-    const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'credit';
+    const priced = priceLines(
+        rows.map((r) => ({ unitPrice: r.unitPrice, quantity: r.qty, gstRate: r.p.gstRate || 0, inclusive: r.p.priceIncludesGst === true })),
+        Number(discount)
+    );
+    const lineItems = rows.map((r, k) => ({
+        productId: r.p._id,
+        name: r.p.name,
+        hsn: r.p.hsn,
+        quantity: r.qty,
+        unit: r.p.unit,
+        gstRate: r.p.gstRate || 0,
+        ...priced.lines[k],
+    }));
+    const { subtotal, totalGst, grandTotal } = priced;
+    const { payments, paid, due, status, paymentMode } = resolvePayments(req.body, grandTotal);
 
     // Resolve the customer. A walk-in with a mobile is auto-matched to an existing
     // customer (fetch) or saved as a new one (add), so udhar & history stay linked.
@@ -72,8 +75,9 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
         customerMobile = c.mobile;
         customerGstin = c.gstin || bodyGstin;
     } else if (walkInMobile) {
-        const mobile = String(walkInMobile).replace(/\D/g, '');
-        let c = await Customer.findOne({ businessId, mobile });
+        // Same format as the customer screen saves (10 digits, no +91), and never a removed customer.
+        const mobile = normalizePhone(walkInMobile);
+        let c = await Customer.findOne({ businessId, mobile, isActive: true });
         if (!c) {
             c = await Customer.create({ businessId, name: walkInName?.trim() || 'Walk-in', mobile, gstin: bodyGstin });
         } else if (walkInName?.trim() && (!c.name || c.name === 'Walk-in')) {
@@ -93,7 +97,7 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
     if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A mobile number is required for credit (udhar) sales');
 
     // Invoice number: INV/<YYYYMM>/<seq>
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`invoice:${businessId}:${ym}`);
     const biz = await Business.findById(businessId).select('settings').lean();
     const prefix = biz?.settings?.invoicePrefix || 'INV';
@@ -107,13 +111,14 @@ export const createSale = asyncHandler(async (req: AuthRequest, res: Response) =
         customerMobile,
         customerGstin,
         items: lineItems,
-        subtotal: +subtotal.toFixed(2),
-        totalGst: +totalGst.toFixed(2),
-        discount: Number(discount),
+        subtotal,
+        totalGst,
+        discount: priced.discount,
         grandTotal,
         paidAmount: paid,
         dueAmount: due,
         paymentMode,
+        payments,
         status,
         createdBy: req.user!._id,
     });
@@ -196,7 +201,7 @@ export const getInvoice = asyncHandler(async (req: AuthRequest, res: Response) =
     const invoice = await Invoice.findOne({ _id: req.params.id, businessId }).lean();
     if (!invoice) throw AppError.notFound('Invoice not found');
     const business = await Business.findById(businessId)
-        .select('name ownerName mobile countryCode gstin address city state')
+        .select('name ownerName mobile countryCode gstin address city state pincode upiId') // upiId: "Pay UPI" on the printed bill
         .lean();
     sendSuccess(res, { ...invoice, business });
 });

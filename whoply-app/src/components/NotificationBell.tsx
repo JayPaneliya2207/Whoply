@@ -21,7 +21,7 @@ export function NotificationBell() {
         <Link href="/notifications" className="wp-btn wp-btn-ghost !px-2.5 relative" aria-label="Notifications">
             <Bell size={18} />
             {unread > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 grid place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: 'var(--danger-500)' }}>
+                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 grid place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: 'var(--danger-fill)' }}>
                     {unread}
                 </span>
             )}

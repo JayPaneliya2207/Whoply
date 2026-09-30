@@ -7,8 +7,10 @@ import Supplier from '../../models/Supplier.js';
 import Product from '../../models/Product.js';
 import PurchaseOrder from '../../models/PurchaseOrder.js';
 import { applyStockChanges } from '../../utils/stock.js';
+import { lineQty } from '../../utils/qty.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { istYm } from '../../utils/ist.js';
 
 /* ---- Suppliers ---- */
 export const listSuppliers = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -71,17 +73,20 @@ export const createPurchase = asyncHandler(async (req: AuthRequest, res: Respons
     const lineItems = items.map((i: any) => {
         const p = map.get(String(i.productId));
         if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
-        const qty = Number(i.quantity);
+        const qty = lineQty(i.quantity, p);
         const cost = i.costPrice != null ? Number(i.costPrice) : p.costPrice;
+        if (!(cost >= 0)) throw AppError.badRequest(`Cost price for ${p.name} must be 0 or more`);
         const lineTotal = +(qty * cost).toFixed(2);
         total += lineTotal;
         return { productId: p._id, name: p.name, quantity: qty, costPrice: cost, lineTotal };
     });
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`po:${businessId}:${ym}`);
     const poNo = `PO/${ym}/${String(seq).padStart(4, '0')}`;
-    const due = +(total - Number(paidAmount)).toFixed(2);
+    // Paid can't be negative or more than the order — else the supplier ends up owing you.
+    const paid = +Math.min(total, Math.max(0, Number(paidAmount) || 0)).toFixed(2);
+    const due = +(total - paid).toFixed(2);
 
     const po = await PurchaseOrder.create({
         businessId,
@@ -90,7 +95,7 @@ export const createPurchase = asyncHandler(async (req: AuthRequest, res: Respons
         supplierName: supplier.name,
         items: lineItems,
         total: +total.toFixed(2),
-        paidAmount: Number(paidAmount),
+        paidAmount: paid,
         dueAmount: due,
         status: 'pending',
     });

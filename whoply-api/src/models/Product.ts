@@ -17,6 +17,12 @@ export interface IProduct {
     wholesalePrice?: number; // base wholesale price (dealer tiers override)
     discountPct?: number; // optional default discount % applied at billing
     gstRate: number; // %
+    /**
+     * True when sellPrice / wholesalePrice / tier prices already include GST (MRP
+     * style); false when GST is added on top. Missing on older products → false,
+     * which is how they were always billed. See utils/tax.ts.
+     */
+    priceIncludesGst: boolean;
     currentStock: number;
     lowStockThreshold: number;
     /**
@@ -50,6 +56,7 @@ const productSchema = new Schema<IProductDocument>(
         wholesalePrice: { type: Number, default: 0 },
         discountPct: { type: Number, default: 0, min: 0, max: 100 },
         gstRate: { type: Number, default: 0 },
+        priceIncludesGst: { type: Boolean, default: false },
         currentStock: { type: Number, default: 0 },
         lowStockThreshold: { type: Number, default: 10 },
         isLowStock: { type: Boolean, default: false },

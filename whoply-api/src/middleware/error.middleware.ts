@@ -47,6 +47,13 @@ export const errorHandler: ErrorRequestHandler = (
         statusCode = err.statusCode;
         message = err.message;
         code = err.code;
+    } else if (err.name === 'ZodError') {
+        // Request validation (validators/*.ts). Show the first problem in plain words,
+        // e.g. "Password must be at least 6 characters" — not a 500.
+        const issue = (err as any).issues?.[0];
+        statusCode = 400;
+        message = issue ? `${issue.path?.length ? `${issue.path.join('.')}: ` : ''}${issue.message}` : 'Invalid request';
+        code = 'VALIDATION_ERROR';
     } else if (err.name === 'ValidationError') {
         statusCode = 400;
         message = err.message;

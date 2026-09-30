@@ -11,6 +11,10 @@ import { duesByDealer } from '../../utils/wholesaler.js';
 import { cleanGstin } from '../../utils/gstin.js';
 import { Types } from 'mongoose';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { containsText } from '../../utils/search.js';
+import { normalizePhone } from '../../utils/phone.js';
+import { can } from '../../utils/permissions.js';
+import User from '../../models/User.js';
 
 const MODES: PaymentMode[] = ['cash', 'upi', 'bank', 'cheque', 'other'];
 
@@ -19,35 +23,95 @@ export const listDealers = asyncHandler(async (req: AuthRequest, res: Response) 
     const bId = new Types.ObjectId(String(businessId));
     const { skip, limit, meta } = paginate(req.query);
     const filter: any = { businessId, isActive: true };
-    if (req.query.search) filter.name = { $regex: String(req.query.search), $options: 'i' };
+    if (req.query.search) filter.name = containsText(req.query.search);
     if (req.query.tier) filter.tier = req.query.tier;
+    if (req.query.mine === 'true') filter.assignedRepId = req.user?._id; // a rep's own dealers
 
     // Outstanding is derived from live order dues (source of truth), not the stored counter.
-    const [all, dues] = await Promise.all([Dealer.find(filter).lean(), duesByDealer(bId)]);
+    const [all, dues, reps] = await Promise.all([
+        Dealer.find(filter).lean(),
+        duesByDealer(bId),
+        User.find({ businessId, role: 'salesStaff' }).select('name').lean(),
+    ]);
     const dueMap = new Map(dues.map((d) => [String(d._id), d.due]));
-    let rows = all.map((d) => ({ ...d, outstandingBalance: dueMap.get(String(d._id)) || 0 }));
+    const repName = new Map(reps.map((r) => [String(r._id), r.name]));
+    let rows = all.map((d) => ({
+        ...d,
+        outstandingBalance: dueMap.get(String(d._id)) || 0,
+        assignedRepName: d.assignedRepId ? repName.get(String(d.assignedRepId)) : undefined,
+    }));
     if (req.query.hasDue === 'true') rows = rows.filter((d) => d.outstandingBalance > 0);
     rows.sort((a, b) => b.outstandingBalance - a.outstandingBalance || a.name.localeCompare(b.name));
     const total = rows.length;
     sendPaginated(res, rows.slice(skip, skip + limit), meta(total));
 });
 
+/**
+ * The dealer fields a client may set, validated. Balances are never taken from
+ * the client (outstanding comes from order dues). Only the owner / manager
+ * (team.view) choose the dealer's sales rep; a rep who adds a dealer gets it.
+ */
+async function dealerFields(req: AuthRequest, opts: { create: boolean }) {
+    const b = req.body || {};
+    const out: Record<string, any> = {};
+    const unset: Record<string, 1> = {};
+    const text = (k: string, max: number, required = false) => {
+        if (!opts.create && b[k] === undefined) return;
+        const v = String(b[k] ?? '').trim();
+        if (required && !v) throw AppError.badRequest('Name is required');
+        if (v.length > max) throw AppError.badRequest(`${k} is too long (${max} characters max)`);
+        out[k] = v;
+    };
+    text('name', 80, true);
+    text('shopName', 80);
+    text('city', 60);
+    if (b.countryCode !== undefined) out.countryCode = /^\+\d{1,4}$/.test(String(b.countryCode)) ? String(b.countryCode) : '+91';
+    if (b.mobile !== undefined) {
+        const cc = out.countryCode || '+91';
+        const mobile = cc === '+91' ? normalizePhone(b.mobile) : String(b.mobile).replace(/\D/g, '');
+        if (mobile && !(cc === '+91' ? /^[6-9]\d{9}$/ : /^\d{6,15}$/).test(mobile)) throw AppError.badRequest('Enter a valid mobile number');
+        if (mobile) out.mobile = mobile; else unset.mobile = 1;
+    }
+    if (b.gstin !== undefined) out.gstin = cleanGstin(b.gstin, (m) => AppError.badRequest(m)) ?? '';
+    if (b.tier !== undefined) {
+        if (!['A', 'B', 'C'].includes(b.tier)) throw AppError.badRequest('Price group must be A, B or C');
+        out.tier = b.tier;
+    }
+    if (b.creditLimit !== undefined && b.creditLimit !== '') {
+        const n = Number(b.creditLimit);
+        if (!Number.isFinite(n) || n < 0) throw AppError.badRequest('Credit limit must be 0 or more');
+        out.creditLimit = n;
+    }
+    if (can(req.user?.role, 'team.view')) {
+        if (b.assignedRepId !== undefined) {
+            if (!b.assignedRepId) unset.assignedRepId = 1;
+            else {
+                const rep = await User.findOne({ _id: b.assignedRepId, businessId: businessOf(req), role: 'salesStaff', isActive: true }).select('_id').lean();
+                if (!rep) throw AppError.badRequest('Pick one of your sales reps');
+                out.assignedRepId = rep._id;
+            }
+        }
+    } else if (opts.create && req.user?.role === 'salesStaff') {
+        out.assignedRepId = req.user._id; // the rep who found the dealer looks after them
+    }
+    return { out, unset };
+}
+
 export const createDealer = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    if (!req.body.name) throw AppError.badRequest('name is required');
-    const gstin = cleanGstin(req.body.gstin, (m) => AppError.badRequest(m));
-    const dealer = await Dealer.create({ ...req.body, gstin, businessId });
+    const { out } = await dealerFields(req, { create: true });
+    const dealer = await Dealer.create({ ...out, businessId });
     sendCreated(res, dealer);
 });
 
 export const updateDealer = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const patch: any = {};
-    ['name', 'shopName', 'mobile', 'tier', 'city', 'creditLimit', 'assignedRepId'].forEach((k) => {
-        if (req.body[k] !== undefined) patch[k] = req.body[k];
-    });
-    if (req.body.gstin !== undefined) patch.gstin = cleanGstin(req.body.gstin, (m) => AppError.badRequest(m)) ?? '';
-    const dealer = await Dealer.findOneAndUpdate({ _id: req.params.id, businessId }, patch, { new: true });
+    const { out, unset } = await dealerFields(req, { create: false });
+    const dealer = await Dealer.findOneAndUpdate(
+        { _id: req.params.id, businessId, isActive: true },
+        { $set: out, ...(Object.keys(unset).length && { $unset: unset }) },
+        { new: true }
+    );
     if (!dealer) throw AppError.notFound('Dealer not found');
     sendSuccess(res, dealer, 'Dealer updated');
 });

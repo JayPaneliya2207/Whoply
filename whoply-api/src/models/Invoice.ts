@@ -13,10 +13,18 @@ export interface IInvoiceItem {
     price: number; // per unit (pre-tax)
     gstRate: number;
     gstAmount: number;
+    taxableValue?: number; // after bill discount; absent on documents created before it existed
     lineTotal: number; // qty*price + gst
 }
 
-export type PaymentMode = 'cash' | 'upi' | 'card' | 'wallet' | 'credit';
+/** Summary of how a bill was paid: one mode, 'split' across several, or 'credit' (all udhar). */
+export type PaymentMode = 'cash' | 'upi' | 'card' | 'wallet' | 'credit' | 'split';
+
+/** Money received at the counter for a bill, by mode (see utils/payments.ts). */
+export interface IInvoicePayment {
+    mode: 'cash' | 'upi' | 'card' | 'wallet';
+    amount: number;
+}
 
 export interface IInvoice {
     businessId: Types.ObjectId;
@@ -33,6 +41,8 @@ export interface IInvoice {
     paidAmount: number;
     dueAmount: number;
     paymentMode: PaymentMode;
+    /** Absent on bills made before split payment — read paymentMode + paidAmount for those. */
+    payments?: IInvoicePayment[];
     status: 'paid' | 'partial' | 'credit';
     whatsappSentAt?: Date; // set when the bill is shared on WhatsApp
     createdBy?: Types.ObjectId;
@@ -52,6 +62,7 @@ const invoiceItemSchema = new Schema<IInvoiceItem>(
         price: { type: Number, required: true },
         gstRate: { type: Number, default: 0 },
         gstAmount: { type: Number, default: 0 },
+        taxableValue: Number, // line value after its share of the bill discount (absent on old docs)
         lineTotal: { type: Number, required: true },
     },
     { _id: false }
@@ -72,7 +83,11 @@ const invoiceSchema = new Schema<IInvoiceDocument>(
         grandTotal: { type: Number, default: 0 },
         paidAmount: { type: Number, default: 0 },
         dueAmount: { type: Number, default: 0 },
-        paymentMode: { type: String, enum: ['cash', 'upi', 'card', 'wallet', 'credit'], default: 'cash' },
+        paymentMode: { type: String, enum: ['cash', 'upi', 'card', 'wallet', 'credit', 'split'], default: 'cash' },
+        payments: {
+            type: [new Schema({ mode: { type: String, enum: ['cash', 'upi', 'card', 'wallet'], required: true }, amount: { type: Number, required: true } }, { _id: false })],
+            default: undefined,
+        },
         status: { type: String, enum: ['paid', 'partial', 'credit'], default: 'paid', index: true },
         whatsappSentAt: Date,
         createdBy: { type: Schema.Types.ObjectId, ref: 'User' },

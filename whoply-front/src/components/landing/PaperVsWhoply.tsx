@@ -204,7 +204,7 @@ function WhoplyPanel({ c }: { c: Copy }) {
                 <p className="mt-1 text-sm text-white/70">{c.appSub}</p>
                 <p className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#128C7E]/25 px-3 py-2 text-sm font-semibold text-emerald-200 ring-1 ring-[#25D366]/30">
                     <MessageCircle size={16} aria-hidden="true" />
-                    {c.autoSent} · 10:00
+                    {c.listReady} · 10:00
                 </p>
             </header>
 

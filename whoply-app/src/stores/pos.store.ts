@@ -1,7 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { round2 } from '@/lib/tax';
+import { stepQty } from '@/lib/qty';
 
-export interface CartRow { productId: string; name: string; price: number; mrp: number; discountPct: number; gstRate: number; unit: string; qty: number; stock: number; }
+/** `price` is per unit after the product's own discount, as entered — GST-inclusive when `inclusive`. */
+export interface CartRow { productId: string; name: string; price: number; mrp: number; discountPct: number; gstRate: number; inclusive: boolean; unit: string; qty: number; stock: number; }
+
+/** A cart row's pricing fields from the current product record. */
+const pricing = (p: any) => {
+    const disc = Number(p.discountPct) || 0;
+    return { name: p.name, price: round2(p.sellPrice * (1 - disc / 100)), mrp: p.sellPrice, discountPct: disc, gstRate: p.gstRate || 0, inclusive: p.priceIncludesGst === true, unit: p.unit, stock: p.currentStock };
+};
 
 interface PosState {
     cart: CartRow[];
@@ -12,7 +21,11 @@ interface PosState {
     setName: (v: string) => void;
     setMobile: (v: string) => void;
     add: (p: any) => void;
+    /** Bring saved rows up to date with freshly loaded products (price, GST, stock). */
+    refresh: (products: any[]) => void;
     setQty: (id: string, delta: number) => void;
+    /** Set a typed quantity (already validated for the unit by QtyInput); capped at stock. */
+    setQtyExact: (id: string, qty: number) => void;
     remove: (id: string) => void;
     clear: () => void;
 }
@@ -36,12 +49,16 @@ export const usePos = create<PosState>()(
             setMobile: (v) => set({ mobile: v }),
             add: (p) => set((s) => {
                 const ex = s.cart.find((r) => r.productId === p._id);
-                if (ex) return { cart: s.cart.map((r) => (r.productId === p._id ? { ...r, qty: Math.min(r.qty + 1, r.stock) } : r)) };
-                const disc = Number(p.discountPct) || 0;
-                const price = +(p.sellPrice * (1 - disc / 100)).toFixed(2); // per-product discount applied here
-                return { cart: [...s.cart, { productId: p._id, name: p.name, price, mrp: p.sellPrice, discountPct: disc, gstRate: p.gstRate, unit: p.unit, qty: 1, stock: p.currentStock }] };
+                if (ex) return { cart: s.cart.map((r) => (r.productId === p._id ? { ...r, ...pricing(p), qty: Math.min(r.qty + 1, p.currentStock) } : r)) };
+                return { cart: [...s.cart, { productId: p._id, ...pricing(p), qty: 1 }] };
             }),
-            setQty: (id, delta) => set((s) => ({ cart: s.cart.map((r) => (r.productId === id ? { ...r, qty: Math.max(1, Math.min(r.qty + delta, r.stock)) } : r)) })),
+            refresh: (products) => set((s) => {
+                const byId = new Map(products.map((p: any) => [p._id, p]));
+                if (!s.cart.some((r) => byId.has(r.productId))) return {};
+                return { cart: s.cart.map((r) => (byId.has(r.productId) ? { ...r, ...pricing(byId.get(r.productId)) } : r)) };
+            }),
+            setQty: (id, delta) => set((s) => ({ cart: s.cart.map((r) => (r.productId === id ? { ...r, qty: stepQty(r.qty, delta, r.unit, r.stock) } : r)) })),
+            setQtyExact: (id, qty) => set((s) => ({ cart: s.cart.map((r) => (r.productId === id && qty > 0 ? { ...r, qty: Math.min(qty, r.stock) } : r)) })),
             remove: (id) => set((s) => ({ cart: s.cart.filter((r) => r.productId !== id) })),
             clear: () => set({ cart: [], name: '', mobile: '' }),
         }),

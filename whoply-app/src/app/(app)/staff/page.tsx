@@ -9,17 +9,21 @@ import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { kycPlaceholder, formatKyc } from '@/lib/forms';
+
+/** The last 4 digits of whatever is entered or stored ("XXXX XXXX 1234" → "1234"). */
+const last4 = (v?: string) => String(v ?? '').replace(/[^0-9]/g, '').slice(-4);
 import { useT } from '@/i18n';
+import { staffRolesFor } from '@/lib/permissions';
 
 const ROLE_LABELS: Record<string, string> = {
     cashier: 'Cashier', manager: 'Manager', warehouse: 'Warehouse', salesStaff: 'Sales Staff', accountant: 'Accountant',
 };
 const DOC_LABELS: Record<string, string> = { aadhaar: 'Aadhaar', pan: 'PAN', voterid: 'Voter ID', driving: 'Driving Licence', other: 'Other' };
 const roleTone: Record<string, any> = {
-    cashier: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    manager: { background: '#fef3c7', color: 'var(--accent-600)' },
-    warehouse: { background: '#dcfce7', color: 'var(--success-600)' },
-    salesStaff: { background: '#e0e7ff', color: 'var(--brand-700)' },
+    cashier: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    manager: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+    warehouse: { background: 'var(--success-tint)', color: 'var(--success)' },
+    salesStaff: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
     accountant: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
 };
 
@@ -30,8 +34,7 @@ export default function StaffPage() {
     const { user } = useAuth();
     const qc = useQueryClient();
     const t = useT();
-    const isWholesale = user?.business?.type === 'wholesale';
-    const roleOptions = isWholesale ? ['warehouse', 'salesStaff', 'manager', 'accountant'] : ['cashier', 'manager', 'accountant'];
+    const roleOptions: string[] = staffRolesFor(user?.business?.type);
 
     const [modal, setModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
@@ -44,7 +47,7 @@ export default function StaffPage() {
     const openNew = () => { setEditing(null); setForm({ ...empty, role: roleOptions[0] }); setErr(''); setModal(true); };
     const openEdit = (s: any) => {
         setEditing(s);
-        setForm({ name: s.name, mobile: s.mobile, country: s.countryCode || '+91', role: s.role, salary: s.salary || '', password: '', kycDoc: s.kyc?.docType || 'aadhaar', kycNumber: s.kyc?.docNumber || '', kycVerified: s.kyc?.verified || false, kycDocs: s.kyc?.documents || [] });
+        setForm({ name: s.name, mobile: s.mobile, country: s.countryCode || '+91', role: s.role, salary: s.salary || '', password: '', kycDoc: s.kyc?.docType || 'aadhaar', kycNumber: s.kyc?.docType === 'aadhaar' ? last4(s.kyc?.docNumber) : s.kyc?.docNumber || '', kycVerified: s.kyc?.verified || false, kycDocs: s.kyc?.documents || [] });
         setErr(''); setModal(true);
     };
 
@@ -74,7 +77,9 @@ export default function StaffPage() {
 
     const save = useMutation({
         mutationFn: async () => {
-            const kyc = { docType: form.kycDoc, docNumber: form.kycNumber, verified: form.kycVerified, documents: form.kycDocs };
+            // Aadhaar: only the last 4 digits and no photo leave this screen (the server enforces it too).
+            const aadhaar = form.kycDoc === 'aadhaar';
+            const kyc = { docType: form.kycDoc, docNumber: aadhaar ? last4(form.kycNumber) : form.kycNumber, verified: form.kycVerified, documents: aadhaar ? [] : form.kycDocs };
             if (editing) return (await api.patch(`/staff/${editing._id}`, { name: form.name, role: form.role, salary: Number(form.salary) || 0, kyc })).data.data;
             return (await api.post('/staff', { name: form.name, mobile: form.mobile, countryCode: form.country, role: form.role, salary: Number(form.salary) || 0, kyc, password: form.password || undefined })).data.data;
         },
@@ -97,11 +102,11 @@ export default function StaffPage() {
             {/* Salary summary */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="wp-card p-5 flex items-center gap-3">
-                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><UserPlus size={20} /></div>
+                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><UserPlus size={20} /></div>
                     <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('totalStaff')}</p><p className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{data?.count || 0}</p></div>
                 </div>
                 <div className="wp-card p-5 flex items-center gap-3">
-                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: '#fef3c7', color: 'var(--accent-600)' }}><Wallet size={20} /></div>
+                    <div className="h-11 w-11 grid place-items-center rounded-xl" style={{ background: 'var(--warning-tint)', color: 'var(--warning)' }}><Wallet size={20} /></div>
                     <div><p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('monthlySalaryLabel')}</p><p className="text-2xl font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(data?.monthlySalary || 0)}</p></div>
                 </div>
             </div>
@@ -110,7 +115,7 @@ export default function StaffPage() {
                 {(data?.staff || []).map((s: any) => (
                     <div key={s._id} className="wp-card wp-card-hover p-4">
                         <div className="flex items-center gap-3">
-                            <div className="h-11 w-11 grid place-items-center rounded-full font-bold" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{s.name.charAt(0)}</div>
+                            <div className="h-11 w-11 grid place-items-center rounded-full font-bold" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{s.name.charAt(0)}</div>
                             <div className="flex-1 min-w-0">
                                 <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.mobile}</p>
@@ -124,12 +129,12 @@ export default function StaffPage() {
                             </div>
                             <div className="flex items-center gap-1.5">
                                 {(s.kyc?.docNumber || s.kyc?.documents?.length) ? (
-                                    <span className="wp-chip" style={s.kyc.verified ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' }}>
+                                    <span className="wp-chip" style={s.kyc.verified ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--warning-tint)', color: 'var(--warning)' }}>
                                         {s.kyc.verified ? <BadgeCheck size={12} /> : <ShieldAlert size={12} />} KYC
                                     </span>
                                 ) : <span className="wp-chip" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>{t('noKyc')}</span>}
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(s)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(s)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(s)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                             </div>
                         </div>
                         {(s.kyc?.docNumber || s.kyc?.documents?.length > 0) && (
@@ -152,18 +157,23 @@ export default function StaffPage() {
                 <div className="rounded-xl p-3 mt-1" style={{ background: 'var(--surface-2)' }}>
                     <p className="text-sm font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}><IdCard size={15} /> {t('kycDocument')} <span className="font-normal text-xs" style={{ color: 'var(--text-muted)' }}>(optional)</span></p>
                     <div className="grid grid-cols-2 gap-3">
-                        <Field label={t('documentLabel')}><select className="wp-input" value={form.kycDoc} onChange={(e) => { const dt = e.target.value; setForm((f: any) => ({ ...f, kycDoc: dt, kycNumber: formatKyc(dt, f.kycNumber) })); }}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-                        <Field label={t('numberLabel')}><input className="wp-input" inputMode={form.kycDoc === 'aadhaar' ? 'numeric' : 'text'} value={form.kycNumber} onChange={(e) => set('kycNumber', formatKyc(form.kycDoc, e.target.value))} placeholder={kycPlaceholder(form.kycDoc)} /></Field>
+                        <Field label={t('documentLabel')}><select className="wp-input" value={form.kycDoc} onChange={(e) => { const dt = e.target.value; setForm((f: any) => ({ ...f, kycDoc: dt, kycNumber: dt === 'aadhaar' ? last4(f.kycNumber) : formatKyc(dt, f.kycNumber), kycDocs: dt === 'aadhaar' ? [] : f.kycDocs })); }}>{Object.entries(DOC_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+                        {form.kycDoc === 'aadhaar'
+                            ? <Field label={t('aadhaarLast4')}><input className="wp-input tabular" inputMode="numeric" maxLength={4} value={form.kycNumber} onChange={(e) => set('kycNumber', last4(e.target.value))} placeholder="1234" /></Field>
+                            : <Field label={t('numberLabel')}><input className="wp-input" inputMode="text" value={form.kycNumber} onChange={(e) => set('kycNumber', formatKyc(form.kycDoc, e.target.value))} placeholder={kycPlaceholder(form.kycDoc)} /></Field>}
                     </div>
 
-                    {/* Document upload — up to 5 */}
-                    <div className="mb-2">
+                    {/* Aadhaar copies may not be kept — say why instead of offering an upload. */}
+                    {form.kycDoc === 'aadhaar' && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{t('aadhaarNoCopy')}</p>}
+
+                    {/* Document upload — up to 5 (not for Aadhaar) */}
+                    {form.kycDoc !== 'aadhaar' && <div className="mb-2">
                         <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>{t('uploadDocuments')} ({form.kycDocs.length}/{MAX_DOCS})</p>
                         <div className="flex flex-wrap gap-2">
                             {form.kycDocs.map((d: string, i: number) => (
                                 <div key={i} className="relative h-14 w-14 rounded-lg overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
                                     <img src={d} alt={`doc ${i + 1}`} className="h-full w-full object-cover" />
-                                    <button type="button" onClick={() => removeDoc(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 grid place-items-center rounded-full" style={{ background: 'var(--danger-500)', color: '#fff' }}><X size={11} /></button>
+                                    <button type="button" onClick={() => removeDoc(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 grid place-items-center rounded-full" style={{ background: 'var(--danger-fill)', color: '#fff' }}><X size={11} /></button>
                                 </div>
                             ))}
                             {form.kycDocs.length < MAX_DOCS && (
@@ -179,13 +189,13 @@ export default function StaffPage() {
                                 </>
                             )}
                         </div>
-                    </div>
+                    </div>}
 
                     <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
                         <input type="checkbox" checked={form.kycVerified} onChange={(e) => set('kycVerified', e.target.checked)} /> {t('markKycVerified')}
                     </label>
                 </div>
-                {err && <p className="text-sm mt-2" style={{ color: 'var(--danger-500)' }}>{err}</p>}
+                {err && <p className="text-sm mt-2" style={{ color: 'var(--danger)' }}>{err}</p>}
             </Modal>
 
             <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title={t('removeStaffTitle')} message={`Remove “${del?.name}” from your staff?`} />

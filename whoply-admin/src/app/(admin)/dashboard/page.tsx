@@ -23,17 +23,17 @@ export default function AdminDashboard() {
         <div className="space-y-6">
             <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Platform Overview</h1>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <Stat label="Total Businesses" value={data.businesses} icon={Building2} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} />
-                <Stat label="Retail Shops" value={data.retail} icon={Store} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} />
-                <Stat label="Wholesalers" value={data.wholesale} icon={Layers} tone={{ bg: '#fef3c7', fg: 'var(--accent-600)' }} />
-                <Stat label="Users" value={data.users} icon={Users} tone={{ bg: '#e0e7ff', fg: 'var(--brand-700)' }} />
-                <Stat label="Invoices" value={data.invoices} icon={Receipt} tone={{ bg: 'var(--brand-100)', fg: 'var(--brand-700)' }} />
-                <Stat label="Platform GMV" value={inr(data.gmv)} icon={IndianRupee} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} />
+                <Stat label="Total Businesses" value={data.businesses} icon={Building2} tone={{ bg: 'var(--brand-tint)', fg: 'var(--brand-text)' }} />
+                <Stat label="Retail Shops" value={data.retail} icon={Store} tone={{ bg: 'var(--success-tint)', fg: 'var(--success)' }} />
+                <Stat label="Wholesalers" value={data.wholesale} icon={Layers} tone={{ bg: 'var(--warning-tint)', fg: 'var(--warning)' }} />
+                <Stat label="Users" value={data.users} icon={Users} tone={{ bg: 'var(--brand-tint)', fg: 'var(--brand-text)' }} />
+                <Stat label="Invoices" value={data.invoices} icon={Receipt} tone={{ bg: 'var(--brand-tint)', fg: 'var(--brand-text)' }} />
+                <Stat label="Platform GMV" value={inr(data.gmv)} icon={IndianRupee} tone={{ bg: 'var(--success-tint)', fg: 'var(--success)' }} />
             </div>
 
             {/* Account tally — subscription revenue */}
             <div className="grid lg:grid-cols-3 gap-4">
-                <div className="wp-card p-5" style={{ background: 'var(--brand-700)', color: '#fff' }}>
+                <div className="wp-card p-5" style={{ background: 'var(--brand)', color: '#fff' }}>
                     <div className="flex items-center gap-2 mb-1"><TrendingUp size={18} /><p className="text-sm opacity-90">Monthly Recurring Revenue</p></div>
                     <p className="text-3xl font-extrabold tabular">{inr(data.mrr || 0)}</p>
                     <p className="text-sm opacity-80 mt-1">≈ {inr(data.arr || 0)} / year</p>
@@ -49,7 +49,7 @@ export default function AdminDashboard() {
                                         <td className="py-2 font-medium" style={{ color: 'var(--text-primary)' }}>{p.plan}</td>
                                         <td className="py-2 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{p.price === 0 ? 'Free' : inr(p.price)}</td>
                                         <td className="py-2 text-right tabular" style={{ color: 'var(--text-secondary)' }}>{p.subscribers}</td>
-                                        <td className="py-2 text-right tabular font-semibold" style={{ color: 'var(--success-600)' }}>{inr(p.monthlyRevenue)}</td>
+                                        <td className="py-2 text-right tabular font-semibold" style={{ color: 'var(--success)' }}>{inr(p.monthlyRevenue)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -59,9 +59,9 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <Stat label="Active" value={data.active} icon={Power} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} />
-                <Stat label="Suspended" value={data.suspended} icon={Power} tone={{ bg: '#fee2e2', fg: 'var(--danger-500)' }} />
-                <Stat label="Total GMV" value={inr(data.gmv)} icon={IndianRupee} tone={{ bg: '#dcfce7', fg: 'var(--success-600)' }} />
+                <Stat label="Active" value={data.active} icon={Power} tone={{ bg: 'var(--success-tint)', fg: 'var(--success)' }} />
+                <Stat label="Suspended" value={data.suspended} icon={Power} tone={{ bg: 'var(--danger-tint)', fg: 'var(--danger)' }} />
+                <Stat label="Total GMV" value={inr(data.gmv)} icon={IndianRupee} tone={{ bg: 'var(--success-tint)', fg: 'var(--success)' }} />
             </div>
         </div>
     );

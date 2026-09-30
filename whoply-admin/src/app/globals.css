@@ -1,57 +1,126 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Whoply Design System  —  premium, consistent (not copied)
-   Primary  Indigo  #4338CA
-   Accent   Amber   #F59E0B
-   Surface  Slate   #F8FAFC
+   Whoply Design System — navy · burnt orange · warm earth
+   (source: /color.md). Every text/background pair below clears
+   WCAG AA in light and dark.
+
+   Brand   Navy          #0F2B46   headers, brand text, selected state
+   Accent  Burnt orange  #C25000   primary buttons ONLY (≤3 per screen)
+   Earth   Sand          #D9C8B0   brand colour on dark surfaces
    ============================================================ */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #F8F9FB;
+  --foreground: #111827;
 
-  --brand-50:  #eef2ff;
-  --brand-100: #e0e7ff;
-  --brand-200: #c7d2fe;
-  --brand-500: #6366f1;
-  --brand-600: #4f46e5;
-  --brand-700: #4338ca;   /* primary */
-  --brand-800: #3730a3;
+  --card-bg: #FFFFFF;
+  --card-border: #E5E7EB;
+  --surface-2: #F3F4F6;
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  /* #6B7280 in color.md is 4.38:1 on --surface-2; this one is 4.6:1 */
+  --text-muted: #667085;
 
-  --accent-400: #fbbf24;
-  --accent-500: #f59e0b;  /* accent */
-  --accent-600: #d97706;
+  /* Navy. --brand is a fill that takes white text; --brand-text is navy used
+     as text or an icon. They split in dark mode (fill stays navy, text → sand). */
+  --brand: #0F2B46;
+  --brand-strong: #0A1F33;
+  --brand-text: #0F2B46;
+  --brand-line: #1B3A5F;    /* selected borders, chart bars */
+  --brand-tint: #EEF2F6;    /* soft navy wash behind --brand-text */
 
-  --success-500: #10b981;
-  --success-600: #059669;
-  --danger-500:  #ef4444;
-  --warning-500: #f59e0b;
+  /* Accent — primary actions only */
+  --accent: #C25000;        /* white text 4.73:1 */
+  --accent-hover: #A64400;
+  --accent-strong: #A64400; /* accent as text */
+  --accent-bright: #CC5500; /* icon strokes, rules — never text */
+  --accent-tint: #FFF4ED;
 
-  --card-bg: #ffffff;
-  --card-border: #e8ecf3;
-  --surface-2: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
+  --sand: #D9C8B0;
+  --warm-gray: #CFC7C2;
 
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 6px 20px -6px rgba(30, 41, 59, 0.14);
-  --shadow-lg: 0 18px 40px -12px rgba(30, 41, 59, 0.22);
+  /* States. *-fill takes white text; the plain token is for text on the tint. */
+  --success: #047857;
+  --success-fill: #047857;
+  --success-tint: #ECFDF5;
+  --danger: #B42318;
+  --danger-fill: #B42318;
+  --danger-tint: #FEF3F2;
+  --warning: #B54708;
+  --warning-bright: #F79009; /* chart bars, dots — never text */
+  --warning-tint: #FFFAEB;
+
+  --logo-bg: #0F2B46;
+
+  --shadow-sm: 0 1px 2px rgba(15, 43, 70, 0.06);
+  --shadow-md: 0 6px 20px -6px rgba(15, 43, 70, 0.14);
+  --shadow-lg: 0 18px 40px -12px rgba(15, 43, 70, 0.22);
+  --focus-ring: rgba(194, 80, 0, 0.4);
   --radius: 16px;
 }
 
+/* Dark: deep navy surfaces; navy can't also be the brand text here, so brand
+   text and lines move to sand while fills stay navy. */
 .dark {
-  --background: #0b1020;
-  --foreground: #e2e8f0;
-  --card-bg: #131a2e;
-  --card-border: #232c46;
-  --surface-2: #1a2338;
-  --text-primary: #f1f5f9;
-  --text-secondary: #9aa7bd;
-  --text-muted: #6b7793;
-  --brand-700: #6366f1;
+  --background: #0A1320;
+  --foreground: #E5E9F0;
+  --card-bg: #111C2B;
+  --card-border: #22324A;
+  --surface-2: #172538;
+  --text-primary: #F1F5F9;
+  --text-secondary: #B8C4D3;
+  --text-muted: #8B9BB0;
+
+  --brand: #1B3A5F;
+  --brand-strong: #25496F;
+  --brand-text: #D9C8B0;
+  --brand-line: #C2AE92;
+  --brand-tint: #1B2E45;
+
+  --accent-strong: #E8894A;
+  --accent-tint: #3A2212;
+
+  --success: #34D399;
+  --success-fill: #047857;
+  --success-tint: #0F2E24;
+  --danger: #F97066;
+  --danger-fill: #B42318;
+  --danger-tint: #3A1614;
+  --warning: #FDB022;
+  --warning-tint: #36260B;
+
+  --logo-bg: #1B3A5F;
+
   --shadow-md: 0 6px 22px -6px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 20px 44px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* Tokens as Tailwind utilities (bg-brand, text-muted, border-card, hover:bg-accent-hover…).
+   `inline` keeps them pointing at the variables so dark mode follows. */
+@theme inline {
+  --color-background: var(--background);
+  --color-card: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-surface-2: var(--surface-2);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-text: var(--brand-text);
+  --color-brand-line: var(--brand-line);
+  --color-brand-tint: var(--brand-tint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-tint: var(--accent-tint);
+  --color-sand: var(--sand);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
 }
 
 * { box-sizing: border-box; }
@@ -59,13 +128,19 @@ html, body { padding: 0; margin: 0; }
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  font-family: var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "tnum" 0;
 }
 
 /* number columns / money should be tabular */
 .tabular { font-variant-numeric: tabular-nums; }
+
+/* Keyboard focus: one visible ring on everything, never the browser default. */
+:where(a, button, input, select, textarea, summary, [role="button"], [role="switch"], [role="radio"], [tabindex]):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 
 /* ---- reusable primitives ---- */
 .wp-card {
@@ -83,14 +158,18 @@ body {
   transition: all .18s ease; cursor: pointer; border: 1px solid transparent;
   white-space: nowrap; font-size: .92rem;
 }
-.wp-btn-primary { background: var(--brand-700); color: #fff; box-shadow: var(--shadow-sm); }
-.wp-btn-primary:hover { background: var(--brand-800); box-shadow: var(--shadow-md); }
-.wp-btn-accent { background: var(--accent-500); color: #1a1205; }
-.wp-btn-accent:hover { background: var(--accent-600); color: #fff; }
+/* The one burnt-orange action on a screen. */
+.wp-btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+.wp-btn-primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); }
+/* Take money in — green, so it doesn't compete with the primary action. */
+.wp-btn-collect { background: var(--success-tint); color: var(--success); border-color: transparent; }
+.wp-btn-collect:hover { background: var(--success-fill); color: #fff; }
 .wp-btn-ghost { background: transparent; color: var(--text-secondary); border-color: var(--card-border); }
 .wp-btn-ghost:hover { background: var(--surface-2); color: var(--text-primary); }
 .wp-btn:disabled { opacity: .55; cursor: not-allowed; }
 
+/* In @layer components so Tailwind padding utilities (pl-11 etc.) override the
+   base horizontal padding — this keeps input icons from overlapping the text. */
 @layer components {
   .wp-input {
     width: 100%; background: var(--card-bg); color: var(--text-primary);
@@ -99,8 +178,11 @@ body {
     outline: none;
   }
 }
-.wp-input:focus { border-color: var(--brand-600); box-shadow: 0 0 0 3px var(--brand-100); }
-.dark .wp-input:focus { box-shadow: 0 0 0 3px rgba(79,70,229,.25); }
+.wp-input:focus { border-color: var(--brand-line); box-shadow: 0 0 0 3px var(--brand-tint); }
+.wp-input:focus-visible { outline: none; }
+.wp-input::placeholder { color: var(--text-muted); }
+/* 16px on phones: below that iOS zooms the page when an input is focused. */
+@media (max-width: 640px) { .wp-input { font-size: 16px; } }
 
 .wp-chip {
   display: inline-flex; align-items: center; gap: .35rem;
@@ -110,12 +192,21 @@ body {
 .wp-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .wp-scroll::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 8px; }
 
-/* subtle brand gradient used on auth + hero */
+/* subtle brand wash used on auth + hero */
 .wp-gradient {
   background:
-    radial-gradient(1100px 500px at 10% -10%, rgba(67,56,202,.16), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(245,158,11,.12), transparent 55%);
+    radial-gradient(1100px 500px at 10% -10%, rgba(15,43,70,.14), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(217,200,176,.28), transparent 55%);
+}
+.dark .wp-gradient {
+  background:
+    radial-gradient(1100px 500px at 10% -10%, rgba(27,58,95,.55), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(194,80,0,.10), transparent 55%);
 }
 
 @keyframes wp-fade-up { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none; } }
 .wp-fade-up { animation: wp-fade-up .4s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .wp-fade-up { animation: none; }
+  .wp-card-hover:hover { transform: none; }
+}

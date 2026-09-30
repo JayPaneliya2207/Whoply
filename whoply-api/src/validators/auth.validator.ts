@@ -13,10 +13,14 @@ export const verifyOtpSchema = z.object({
     language: languageSchema.optional(),
 });
 
-/** Step 2b — password login (alternative to OTP) */
+/**
+ * Step 2b — password login (alternative to OTP). No length rule here: the rule
+ * applies when a password is SET; staff created before it existed may have a
+ * shorter one and must still be able to log in.
+ */
 export const passwordLoginSchema = z.object({
     mobile: mobileSchema,
-    password: passwordSchema,
+    password: z.string().min(1, 'Enter your password'),
     language: languageSchema.optional(),
 });
 

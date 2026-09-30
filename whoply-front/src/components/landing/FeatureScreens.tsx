@@ -142,35 +142,8 @@ export function retailScreens(lang: Lang): ReactNode[] {
             </div>
         </div>,
 
-        // 1 · Batch-wise expiry
-        <div key="expiry" className="space-y-3">
-            <Rows>
-                {(
-                    [
-                        ['Britannia Bread 400g', 'B-2302', 2, 'danger'],
-                        ['Amul Butter 100g', 'B-2291', 7, 'warning'],
-                        ['Parle-G 200g', 'B-2240', 21, 'success'],
-                    ] as [string, string, number, Tone][]
-                ).map(([name, batch, d, tone], i) => (
-                    <Row key={batch}>
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="truncate text-sm font-semibold text-navy">{name}</p>
-                            <Chip tone={tone}>{m.expiresIn(d)}</Chip>
-                        </div>
-                        <p className="mt-0.5 text-[11px] text-muted">
-                            {m.batch} {batch}
-                        </p>
-                        <div className="mt-2">
-                            <Bar value={1 - d / 30} tone={tone} delay={i * 0.1} />
-                        </div>
-                    </Row>
-                ))}
-            </Rows>
-            <div className="flex items-center gap-2 rounded-xl bg-danger-tint px-3 py-2.5 text-sm font-semibold text-danger">
-                <BellRing size={16} className="bento-ring shrink-0" aria-hidden="true" />
-                Britannia Bread · {m.expiresIn(2)}
-            </div>
-        </div>,
+        // 1 · Low stock and what to reorder
+        <StockAlerts key="stock" lang={lang} />,
 
         // 2 · Udhar with aging
         <div key="udhar" className="space-y-3">
@@ -351,7 +324,7 @@ export function retailScreens(lang: Lang): ReactNode[] {
 
 /* ── Retail, grouped into four tabs ───────────────────── */
 
-/** Expiry and reorder on one screen: what's about to spoil, and what to order. */
+/** Low stock and reorder on one screen: what's about to run out, and what to order. */
 function StockAlerts({ lang }: { lang: Lang }) {
     const t = getCopy(lang);
     const m = t.shopkeepers.mock;
@@ -360,20 +333,17 @@ function StockAlerts({ lang }: { lang: Lang }) {
             <Rows>
                 {(
                     [
-                        ['Britannia Bread 400g', 'B-2302', 2, 'danger'],
-                        ['Amul Butter 100g', 'B-2291', 7, 'warning'],
-                    ] as [string, string, number, Tone][]
-                ).map(([name, batch, d, tone], i) => (
-                    <Row key={batch}>
+                        ['Britannia Bread 400g', 2, 'danger'],
+                        ['Amul Butter 100g', 5, 'warning'],
+                    ] as [string, number, Tone][]
+                ).map(([name, left, tone], i) => (
+                    <Row key={name}>
                         <div className="flex items-center justify-between gap-2">
                             <p className="truncate text-sm font-semibold text-navy">{name}</p>
-                            <Chip tone={tone}>{m.expiresIn(d)}</Chip>
+                            <Chip tone={tone}>{m.left(left)}</Chip>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-muted">
-                            {m.batch} {batch}
-                        </p>
                         <div className="mt-2">
-                            <Bar value={1 - d / 30} tone={tone} delay={i * 0.1} />
+                            <Bar value={left / 20} tone={tone} delay={i * 0.1} />
                         </div>
                     </Row>
                 ))}
@@ -401,5 +371,5 @@ function StockAlerts({ lang }: { lang: Lang }) {
 /** Screens for the four retail groups: GST bill, stock alerts, udhar, supplier POs. */
 export function retailGroupScreens(lang: Lang): ReactNode[] {
     const r = retailScreens(lang);
-    return [r[0], <StockAlerts key="stock" lang={lang} />, r[2], r[7]];
+    return [r[0], r[1], r[2], r[7]];
 }

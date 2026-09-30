@@ -33,6 +33,8 @@ import Order from '../models/Order.js';
 import Visit from '../models/Visit.js';
 import Notification from '../models/Notification.js';
 import Plan from '../models/Plan.js';
+import { DEFAULT_PLANS } from './plans.js';
+import { backfillOrderAdvances, settleRepaidBills } from './backfills.js';
 
 const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 const pick = <T>(arr: readonly T[]): T => arr[rand(0, arr.length - 1)];
@@ -63,11 +65,7 @@ async function run() {
     ]);
 
     /* ---------------- Subscription plans ---------------- */
-    await Plan.insertMany([
-        { key: 'free', name: 'Free', price: 0, period: 'month', order: 1, highlight: false, features: ['1 shop', 'Unlimited billing', 'Basic inventory', 'Udhar tracking'] },
-        { key: 'pro', name: 'Pro', price: 299, period: 'month', order: 2, highlight: true, features: ['Everything in Free', 'WhatsApp reminders', 'GST reports', 'Barcode scanning', '3 staff logins'] },
-        { key: 'business', name: 'Business', price: 799, period: 'month', order: 3, highlight: false, features: ['Everything in Pro', 'Wholesale suite', 'Dealers & price-lists', 'Dispatch & sales-team', 'AI reorder'] },
-    ]);
+    await Plan.insertMany(DEFAULT_PLANS);
     console.log('Created 3 subscription plans');
     console.log('Cleared old data');
 
@@ -100,11 +98,11 @@ async function run() {
     /* ---------------- Users ---------------- */
     await User.insertMany([
         { name: 'Rakesh Sharma', mobile: '9000000001', role: 'owner', businessId: retail._id, password: passwordHash },
-        { name: 'Anita Desai', mobile: '9000000002', role: 'cashier', businessId: retail._id, password: passwordHash, salary: 15000, kyc: { docType: 'aadhaar', docNumber: 'XXXX-XXXX-4521', verified: true } },
+        { name: 'Anita Desai', mobile: '9000000002', role: 'cashier', businessId: retail._id, password: passwordHash, salary: 15000, kyc: { docType: 'aadhaar', docNumber: 'XXXX XXXX 4521', verified: true } },
         { name: 'Vijay Rana', mobile: '9000000003', role: 'manager', businessId: retail._id, password: passwordHash, salary: 25000, kyc: { docType: 'pan', docNumber: 'ABCPR1234K', verified: true } },
         { name: 'Mahesh Gupta', mobile: '9000000010', role: 'owner', businessId: wholesale._id, password: passwordHash },
-        { name: 'Ramesh Warehouse', mobile: '9000000011', role: 'warehouse', businessId: wholesale._id, password: passwordHash, salary: 18000, kyc: { docType: 'aadhaar', docNumber: 'XXXX-XXXX-8890', verified: true } },
-        { name: 'Sunil Yadav', mobile: '9000000012', role: 'salesStaff', businessId: wholesale._id, password: passwordHash, salary: 20000, kyc: { docType: 'aadhaar', docNumber: 'XXXX-XXXX-2213', verified: true } },
+        { name: 'Ramesh Warehouse', mobile: '9000000011', role: 'warehouse', businessId: wholesale._id, password: passwordHash, salary: 18000, kyc: { docType: 'aadhaar', docNumber: 'XXXX XXXX 8890', verified: true } },
+        { name: 'Sunil Yadav', mobile: '9000000012', role: 'salesStaff', businessId: wholesale._id, password: passwordHash, salary: 20000, kyc: { docType: 'aadhaar', docNumber: 'XXXX XXXX 2213', verified: true } },
         { name: 'Farhan Sales', mobile: '9000000013', role: 'salesStaff', businessId: wholesale._id, password: passwordHash, salary: 20000, kyc: { docType: 'pan', docNumber: 'FGHPS8821L', verified: false } },
         { name: 'Whoply Admin', mobile: '9000000099', role: 'admin', password: passwordHash },
     ]);
@@ -458,6 +456,11 @@ async function run() {
         { updatePipeline: true } as any
     );
     console.log('Synced low-stock flags');
+
+    // Orders above were created with money already paid — give that money its
+    // Payment rows so the Payments ledger agrees with the dashboard.
+    console.log(`Recorded ${await backfillOrderAdvances()} order payments`);
+    console.log(`Cleared ${await settleRepaidBills()} bills already paid back as udhar`);
 
     console.log('\n✅ Seed complete. Demo logins (password: whoply123 / OTP: 123456):');
     console.log('   Retail owner    9000000001  (Sharma General Store)');

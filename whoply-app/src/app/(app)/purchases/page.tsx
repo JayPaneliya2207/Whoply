@@ -5,17 +5,21 @@ import { Truck, Plus, Pencil, Trash2, PackageCheck, Search, Minus, Check, Clipbo
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
+import { stepQty } from '@/lib/qty';
+import { QtyInput } from '@/components/QtyInput';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { ScanButton } from '@/components/BarcodeScanner';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 
 const emptySup = { name: '', mobile: '', country: '+91', gstin: '', address: '' };
 
 export default function PurchasesPage() {
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
     const [supModal, setSupModal] = useState(false);
     const [editingSup, setEditingSup] = useState<any>(null);
     const [supForm, setSupForm] = useState<any>(emptySup);
@@ -54,13 +58,14 @@ export default function PurchasesPage() {
     const doDelSup = useMutation({ mutationFn: async () => (await api.delete(`/shopkeeper/suppliers/${delSup._id}`)).data, onSuccess: () => { setDelSup(null); qc.invalidateQueries({ queryKey: ['suppliers'] }); } });
 
     // ---- purchase order ----
-    const addPo = (p: any) => setPoCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c; return [...c, { productId: p._id, name: p.name, costPrice: p.costPrice, quantity: 10 }]; });
+    const addPo = (p: any) => setPoCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c; return [...c, { productId: p._id, name: p.name, costPrice: p.costPrice, unit: p.unit, quantity: 10 }]; });
     const scanAddPo = async (code: string) => {
         const local = (products || []).find((p: any) => p.barcode === code || p.sku === code);
         const target = local || (await api.get(`/shopkeeper/products?barcode=${encodeURIComponent(code)}`)).data.data.items[0];
         if (target) addPo(target);
     };
-    const setPoQty = (id: string, d: number) => setPoCart((c) => c.map((r) => r.productId === id ? { ...r, quantity: Math.max(1, r.quantity + d) } : r));
+    const setPoQty = (id: string, d: number) => setPoCart((c) => c.map((r) => r.productId === id ? { ...r, quantity: stepQty(r.quantity, d, r.unit) } : r));
+    const setPoQtyTo = (id: string, n: number) => setPoCart((c) => c.map((r) => r.productId === id ? { ...r, quantity: n } : r));
     const setPoCost = (id: string, v: string) => setPoCart((c) => c.map((r) => r.productId === id ? { ...r, costPrice: v } : r));
     const poTotal = useMemo(() => poCart.reduce((s, r) => s + (Number(r.costPrice) || 0) * r.quantity, 0), [poCart]);
     const createPo = useMutation({
@@ -88,24 +93,24 @@ export default function PurchasesPage() {
             <div>
                 <div className="flex items-center justify-between mb-3">
                     <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('suppliersTitle')}</h1>
-                    <button className="wp-btn wp-btn-primary" onClick={openNewSup}><Plus size={16} /> {t('addSupplier')}</button>
+                    {can('purchases.manage') && <button className="wp-btn wp-btn-primary" onClick={openNewSup}><Plus size={16} /> {t('addSupplier')}</button>}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {(suppliers || []).length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('addSuppliersFirst')}</p>}
                     {(suppliers || []).map((s: any) => (
                         <div key={s._id} className="wp-card wp-card-hover p-4">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><Truck size={18} /></div>
+                                <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><Truck size={18} /></div>
                                 <div className="flex-1 min-w-0">
                                     <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.mobile || 'No contact'}{s.gstin ? ` · ${s.gstin}` : ''}</p>
                                 </div>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEditSup(s)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDelSup(s)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                {can('purchases.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEditSup(s)}><Pencil size={14} /></button>}
+                                {can('purchases.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDelSup(s)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
                             </div>
                             <div className="mt-2 flex justify-between items-center">
                                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('youOwePayable')}</span>
-                                <span className="font-bold tabular" style={{ color: s.payableBalance > 0 ? 'var(--accent-600)' : 'var(--success-600)' }}>{inr2(s.payableBalance)}</span>
+                                <span className="font-bold tabular" style={{ color: s.payableBalance > 0 ? 'var(--warning)' : 'var(--success)' }}>{inr2(s.payableBalance)}</span>
                             </div>
                         </div>
                     ))}
@@ -116,7 +121,7 @@ export default function PurchasesPage() {
             <div>
                 <div className="flex items-center justify-between mb-3">
                     <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><ClipboardList size={18} /> {t('purchaseOrders')}</h2>
-                    <button className="wp-btn wp-btn-ghost" onClick={() => { setPoModal(true); setPoErr(''); }} disabled={!(suppliers || []).length}><Plus size={16} /> {t('newPo')}</button>
+                    {can('purchases.manage') && <button className="wp-btn wp-btn-ghost" onClick={() => { setPoModal(true); setPoErr(''); }} disabled={!(suppliers || []).length}><Plus size={16} /> {t('newPo')}</button>}
                 </div>
                 {(purchases || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noPurchaseOrders')}</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -124,19 +129,19 @@ export default function PurchasesPage() {
                         <div key={p._id} className="wp-card p-4">
                             <div className="flex items-center justify-between mb-2">
                                 <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{p.poNo}</p>
-                                <span className="wp-chip capitalize shrink-0" style={p.status === 'received' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{p.status}</span>
+                                <span className="wp-chip capitalize shrink-0" style={p.status === 'received' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{p.status}</span>
                             </div>
                             <p className="text-xs truncate mb-2" style={{ color: 'var(--text-muted)' }}>{p.supplierName}</p>
                             <div className="flex items-end justify-between gap-2">
                                 <div>
                                     <p className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.total)}</p>
                                     {p.dueAmount > 0
-                                        ? <p className="text-xs tabular" style={{ color: 'var(--accent-600)' }}>You owe {inr2(p.dueAmount)}</p>
-                                        : <p className="text-xs" style={{ color: 'var(--success-600)' }}>{t('fullyPaid')}</p>}
+                                        ? <p className="text-xs tabular" style={{ color: 'var(--warning)' }}>You owe {inr2(p.dueAmount)}</p>
+                                        : <p className="text-xs" style={{ color: 'var(--success)' }}>{t('fullyPaid')}</p>}
                                 </div>
                                 <div className="flex flex-col gap-1.5 items-stretch shrink-0">
-                                    {p.status === 'pending' && <button className="wp-btn wp-btn-primary !py-1.5 !text-xs" disabled={receivePo.isPending} onClick={() => receivePo.mutate(p._id)}><PackageCheck size={13} /> {t('receiveStock')}</button>}
-                                    {p.dueAmount > 0 && <button className="wp-btn wp-btn-ghost !py-1.5 !text-xs" onClick={() => openPay(p)}><RupeeIcon size={13} /> {t('recordPaymentBtn')}</button>}
+                                    {can('purchases.manage') && p.status === 'pending' && <button className="wp-btn wp-btn-primary !py-1.5 !text-xs" disabled={receivePo.isPending} onClick={() => receivePo.mutate(p._id)}><PackageCheck size={13} /> {t('receiveStock')}</button>}
+                                    {can('purchases.manage') && p.dueAmount > 0 && <button className="wp-btn wp-btn-ghost !py-1.5 !text-xs" onClick={() => openPay(p)}><RupeeIcon size={13} /> {t('recordPaymentBtn')}</button>}
                                 </div>
                             </div>
                         </div>
@@ -153,7 +158,7 @@ export default function PurchasesPage() {
                     <Field label="GSTIN"><input className="wp-input uppercase" value={supForm.gstin} onChange={(e) => setSup('gstin', e.target.value)} placeholder="22AAAAA0000A1Z5" maxLength={15} /></Field>
                     <Field label={t('cityAddress')}><input className="wp-input" value={supForm.address} onChange={(e) => setSup('address', e.target.value)} placeholder="Optional" /></Field>
                 </div>
-                {supErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{supErr}</p>}
+                {supErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{supErr}</p>}
             </Modal>
 
             {/* PO modal */}
@@ -177,10 +182,10 @@ export default function PurchasesPage() {
                         <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
                             <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
                             <button onClick={() => setPoQty(r.productId, -1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Minus size={12} /></button>
-                            <span className="w-7 text-center text-sm tabular">{r.quantity}</span>
+                            <QtyInput value={r.quantity} unit={r.unit} onChange={(n) => setPoQtyTo(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-14" />
                             <button onClick={() => setPoQty(r.productId, 1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Plus size={12} /></button>
                             <input className="wp-input !py-1 !px-2 w-20 text-sm tabular text-right" type="number" value={r.costPrice} onChange={(e) => setPoCost(r.productId, e.target.value)} placeholder="cost" />
-                            <button onClick={() => setPoCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                            <button onClick={() => setPoCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                         </div>
                     ))}
                 </div>
@@ -189,7 +194,7 @@ export default function PurchasesPage() {
                     <div className="flex items-end justify-end pb-3"><span className="font-bold text-lg tabular" style={{ color: 'var(--text-primary)' }}>{inr2(poTotal)}</span></div>
                 </div>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Stock is added when you tap “Receive” on the PO.</p>
-                {poErr && <p className="text-sm mt-1" style={{ color: 'var(--danger-500)' }}>{poErr}</p>}
+                {poErr && <p className="text-sm mt-1" style={{ color: 'var(--danger)' }}>{poErr}</p>}
             </Modal>
 
             {/* Record a payment you make to the supplier */}
@@ -198,9 +203,9 @@ export default function PurchasesPage() {
                 {payPo && (
                     <>
                         <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{payPo.poNo} · {payPo.supplierName}</p>
-                        <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>You owe <b style={{ color: 'var(--accent-600)' }}>{inr2(payPo.dueAmount)}</b> on this order.</p>
+                        <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>You owe <b style={{ color: 'var(--warning)' }}>{inr2(payPo.dueAmount)}</b> on this order.</p>
                         <Field label="Amount you are paying now ₹"><input className="wp-input tabular" type="number" value={payAmt} onChange={(e) => setPayAmt(e.target.value)} autoFocus /></Field>
-                        {payErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{payErr}</p>}
+                        {payErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{payErr}</p>}
                         <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>This reduces the order’s due and how much you owe this supplier.</p>
                     </>
                 )}

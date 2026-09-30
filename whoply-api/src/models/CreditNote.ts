@@ -43,6 +43,7 @@ const cnItemSchema = new Schema<IInvoiceItem>(
         price: { type: Number, required: true },
         gstRate: { type: Number, default: 0 },
         gstAmount: { type: Number, default: 0 },
+        taxableValue: Number, // line value after its share of the bill discount (absent on old docs)
         lineTotal: { type: Number, required: true },
     },
     { _id: false }

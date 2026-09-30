@@ -32,7 +32,7 @@ export default function AdminLogin() {
         <div className="min-h-screen wp-gradient grid place-items-center p-6">
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="wp-card p-8 w-full max-w-sm">
                 <Logo size={32} />
-                <div className="mt-6 flex items-center gap-2 wp-chip w-fit" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>
+                <div className="mt-6 flex items-center gap-2 wp-chip w-fit" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>
                     <ShieldCheck size={13} /> Platform Console
                 </div>
                 <h1 className="text-2xl font-bold mt-3" style={{ color: 'var(--text-primary)' }}>Admin login</h1>
@@ -48,7 +48,7 @@ export default function AdminLogin() {
                     <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
                     <input type="password" className="wp-input pl-11" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && login()} placeholder="Password" style={{ fontSize: 16 }} />
                 </div>
-                {error && <p className="text-sm mb-3" style={{ color: 'var(--danger-500)' }}>{error}</p>}
+                {error && <p className="text-sm mb-3" style={{ color: 'var(--danger)' }}>{error}</p>}
                 <button className="wp-btn wp-btn-primary w-full" disabled={loading} onClick={login}>
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <>Login <ArrowRight size={17} /></>}
                 </button>

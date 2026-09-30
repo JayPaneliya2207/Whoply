@@ -37,24 +37,24 @@ export default function GstPage() {
     };
     const exportRateWise = () => {
         if (!data) return;
-        const rows = data.rateWise.map((r: any) => [rate(r.rate), r.taxable, r.cgst, r.sgst, 0, r.gst]);
+        const rows = data.rateWise.map((r: any) => [rate(r.rate), r.taxable, r.cgst, r.sgst, r.igst ?? 0, r.gst]);
         downloadFile(`gstr1-b2c-ratewise-${month}.csv`, toCsv(['Rate', 'Taxable', 'CGST', 'SGST', 'IGST', 'Total Tax'], rows));
     };
     const exportHsn = () => {
         if (!data) return;
-        const rows = data.hsnWise.map((h: any) => [h.hsn, h.name, rate(h.rate), h.qty, h.taxable, h.gst]);
-        downloadFile(`gst-hsn-${month}.csv`, toCsv(['HSN', 'Description', 'Rate', 'Qty', 'Taxable', 'Tax'], rows));
+        const rows = data.hsnWise.map((h: any) => [h.hsn, h.name, rate(h.rate), h.qty, h.taxable, h.cgst ?? 0, h.sgst ?? 0, h.igst ?? 0, h.gst]);
+        downloadFile(`gst-hsn-${month}.csv`, toCsv(['HSN', 'Description', 'Rate', 'Qty', 'Taxable', 'CGST', 'SGST', 'IGST', 'Total Tax'], rows));
     };
     const exportB2b = () => {
         if (!data) return;
-        const rows = data.b2b.map((b: any) => [b.gstin, b.name, b.invoices, b.taxable, b.gst, b.total]);
-        downloadFile(`gstr1-b2b-${month}.csv`, toCsv(['GSTIN', 'Party', 'Invoices', 'Taxable', 'Tax', 'Invoice Value'], rows));
+        const rows = data.b2b.map((b: any) => [b.gstin, b.name, b.invoices, b.taxable, b.gst, b.igst ?? 0, b.total]);
+        downloadFile(`gstr1-b2b-${month}.csv`, toCsv(['GSTIN', 'Party', 'Invoices', 'Taxable', 'Tax', 'of which IGST', 'Invoice Value'], rows));
     };
 
     const tiles = [
-        { label: t('taxableValue'), value: sum?.taxableValue, icon: RupeeIcon, tone: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' } },
-        { label: t('totalTax'), value: sum?.totalTax, icon: Percent, tone: { bg: '#fef3c7', fg: 'var(--accent-600)' } },
-        { label: t('invoiceValue'), value: sum?.invoiceValue, icon: FileSpreadsheet, tone: { bg: '#dcfce7', fg: 'var(--success-600)' } },
+        { label: t('taxableValue'), value: sum?.taxableValue, icon: RupeeIcon, tone: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' } },
+        { label: t('totalTax'), value: sum?.totalTax, icon: Percent, tone: { bg: 'var(--warning-tint)', fg: 'var(--warning)' } },
+        { label: t('invoiceValue'), value: sum?.invoiceValue, icon: FileSpreadsheet, tone: { bg: 'var(--success-tint)', fg: 'var(--success)' } },
     ];
 
     return (
@@ -78,7 +78,7 @@ export default function GstPage() {
             {/* GSTR-3B summary */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><FileSpreadsheet size={17} style={{ color: 'var(--brand-700)' }} /> {t('gstr3bSummary')}</h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><FileSpreadsheet size={17} style={{ color: 'var(--brand-text)' }} /> {t('gstr3bSummary')}</h3>
                     <button className="wp-btn wp-btn-ghost" onClick={exportGstr3b} disabled={!sum?.invoices}><Download size={15} /> {t('exportCsv')}</button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
@@ -95,21 +95,22 @@ export default function GstPage() {
             {/* Rate-wise (B2C) */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Percent size={17} style={{ color: 'var(--brand-700)' }} /> {t('rateWise')}</h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Percent size={17} style={{ color: 'var(--brand-text)' }} /> {t('rateWise')}</h3>
                     <button className="wp-btn wp-btn-ghost" onClick={exportRateWise} disabled={!(data?.rateWise || []).length}><Download size={15} /> {t('exportCsv')}</button>
                 </div>
                 <div className="space-y-2">
                     {(data?.rateWise || []).map((r: any) => (
                         <div key={r.rate} className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
                             <div className="flex items-center justify-between mb-2.5">
-                                <span className="wp-chip font-bold" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}>{rate(r.rate)} GST</span>
+                                <span className="wp-chip font-bold" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{rate(r.rate)} GST</span>
                                 <div className="text-right">
                                     <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('totalTax')}</p>
                                     <p className="text-base font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{inr(r.gst)}</p>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[[t('taxableValue'), r.taxable], ['CGST', r.cgst], ['SGST', r.sgst]].map(([l, v]: any) => (
+                            {/* IGST only shows when this rate has sales to other-state buyers. */}
+                            <div className={`grid gap-2 ${r.igst > 0 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+                                {[[t('taxableValue'), r.taxable], ['CGST', r.cgst], ['SGST', r.sgst], ...(r.igst > 0 ? [['IGST', r.igst]] : [])].map(([l, v]: any) => (
                                     <div key={l}>
                                         <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{l}</p>
                                         <p className="text-sm font-semibold tabular" style={{ color: 'var(--text-secondary)' }}>{inr(v)}</p>
@@ -125,7 +126,7 @@ export default function GstPage() {
             {/* HSN summary */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><FileSpreadsheet size={17} style={{ color: 'var(--brand-700)' }} /> {t('hsnSummary')}</h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><FileSpreadsheet size={17} style={{ color: 'var(--brand-text)' }} /> {t('hsnSummary')}</h3>
                     <button className="wp-btn wp-btn-ghost" onClick={exportHsn} disabled={!(data?.hsnWise || []).length}><Download size={15} /> {t('exportCsv')}</button>
                 </div>
                 <div className="space-y-2">
@@ -136,7 +137,7 @@ export default function GstPage() {
                                     <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{h.name}</p>
                                     <p className="text-[11px] tabular" style={{ color: 'var(--text-muted)' }}>HSN {h.hsn}</p>
                                 </div>
-                                <span className="wp-chip font-bold shrink-0" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}>{rate(h.rate)}</span>
+                                <span className="wp-chip font-bold shrink-0" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{rate(h.rate)}</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                                 {[[t('qtyWord'), h.qty], [t('taxableValue'), inr(h.taxable)], [t('totalTax'), inr(h.gst)]].map(([l, v]: any) => (
@@ -155,7 +156,7 @@ export default function GstPage() {
             {/* B2B */}
             <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Building2 size={17} style={{ color: 'var(--brand-700)' }} /> {t('b2bInvoices')} <span className="wp-chip" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>{(data?.b2b || []).length}</span></h3>
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Building2 size={17} style={{ color: 'var(--brand-text)' }} /> {t('b2bInvoices')} <span className="wp-chip" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>{(data?.b2b || []).length}</span></h3>
                     <button className="wp-btn wp-btn-ghost" onClick={exportB2b} disabled={!(data?.b2b || []).length}><Download size={15} /> {t('exportCsv')}</button>
                 </div>
                 {!(data?.b2b || []).length && <p className="text-sm flex items-center gap-2" style={{ color: 'var(--text-muted)' }}><Users size={14} /> {t('noB2b')}</p>}

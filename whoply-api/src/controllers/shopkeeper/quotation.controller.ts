@@ -10,28 +10,37 @@ import Customer from '../../models/Customer.js';
 import CreditLedger from '../../models/CreditLedger.js';
 import Business from '../../models/Business.js';
 import { applyStockChanges } from '../../utils/stock.js';
+import { priceLines, round2 } from '../../utils/tax.js';
+import { resolvePayments } from '../../utils/payments.js';
+import { lineQty } from '../../utils/qty.js';
+import { normalizePhone } from '../../utils/phone.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { istYm } from '../../utils/ist.js';
 
-/** Build priced line items from a product list (no stock check — quotes are estimates). */
-async function buildLines(businessId: any, items: any[]) {
+/**
+ * Build priced line items from a product list (no stock check — quotes are
+ * estimates). Priced exactly like a POS bill: sell price less the product's own
+ * discount %, GST per the product's inclusive flag, bill discount before tax.
+ */
+async function buildLines(businessId: any, items: any[], discount: number) {
     const ids = items.map((i: any) => i.productId);
     const products = await Product.find({ _id: { $in: ids }, businessId });
     const map = new Map(products.map((p) => [String(p._id), p]));
-    let subtotal = 0, totalGst = 0;
-    const lineItems = items.map((i: any) => {
+    const rows = items.map((i: any) => {
         const p = map.get(String(i.productId));
         if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
-        const qty = Number(i.quantity);
-        if (qty <= 0) throw AppError.badRequest('Quantity must be positive');
-        const price = i.price != null ? Number(i.price) : p.sellPrice;
-        const base = price * qty;
-        const gstAmount = +((base * p.gstRate) / 100).toFixed(2);
-        subtotal += base;
-        totalGst += gstAmount;
-        return { productId: p._id, name: p.name, hsn: p.hsn, quantity: qty, unit: p.unit, price, gstRate: p.gstRate, gstAmount, lineTotal: +(base + gstAmount).toFixed(2) };
+        const qty = lineQty(i.quantity, p);
+        return { p, qty, unitPrice: round2(p.sellPrice * (1 - (p.discountPct || 0) / 100)) };
     });
-    return { lineItems, subtotal, totalGst };
+    const priced = priceLines(
+        rows.map((r) => ({ unitPrice: r.unitPrice, quantity: r.qty, gstRate: r.p.gstRate || 0, inclusive: r.p.priceIncludesGst === true })),
+        discount
+    );
+    const lineItems = rows.map((r, k) => ({
+        productId: r.p._id, name: r.p.name, hsn: r.p.hsn, quantity: r.qty, unit: r.p.unit, gstRate: r.p.gstRate || 0, ...priced.lines[k],
+    }));
+    return { lineItems, ...priced };
 }
 
 /** POST /quotations — save a price estimate (no stock/payment side effects). */
@@ -39,9 +48,9 @@ export const createQuotation = asyncHandler(async (req: AuthRequest, res: Respon
     const businessId = businessOf(req);
     const { items = [], discount = 0, customerId, walkInName, walkInMobile, customerGstin, validDays } = req.body;
     if (!Array.isArray(items) || items.length === 0) throw AppError.badRequest('At least one item is required');
+    if (!(Number(discount) >= 0)) throw AppError.badRequest('Discount cannot be negative');
 
-    const { lineItems, subtotal, totalGst } = await buildLines(businessId, items);
-    const grandTotal = +(subtotal + totalGst - Number(discount)).toFixed(2);
+    const { lineItems, subtotal, totalGst, discount: preTaxDiscount, grandTotal } = await buildLines(businessId, items, Number(discount));
 
     let customerName = walkInName?.trim();
     let customerMobile = walkInMobile ? String(walkInMobile).replace(/\D/g, '') : undefined;
@@ -50,7 +59,7 @@ export const createQuotation = asyncHandler(async (req: AuthRequest, res: Respon
         if (c) { customerName = c.name; customerMobile = c.mobile; }
     }
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`quotation:${businessId}:${ym}`);
     const quoteNo = `QUO/${ym}/${String(seq).padStart(4, '0')}`;
     const validUntil = validDays ? new Date(Date.now() + Number(validDays) * 86400000) : undefined;
@@ -58,7 +67,7 @@ export const createQuotation = asyncHandler(async (req: AuthRequest, res: Respon
     const quote = await Quotation.create({
         businessId, quoteNo, customerId: customerId || undefined, customerName, customerMobile,
         customerGstin: (customerGstin || '').toString().trim().toUpperCase() || undefined,
-        items: lineItems, subtotal: +subtotal.toFixed(2), totalGst: +totalGst.toFixed(2), discount: Number(discount), grandTotal,
+        items: lineItems, subtotal, totalGst, discount: preTaxDiscount, grandTotal,
         validUntil, createdBy: req.user!._id,
     });
     sendCreated(res, quote, 'Quotation saved');
@@ -93,11 +102,11 @@ export const deleteQuotation = asyncHandler(async (req: AuthRequest, res: Respon
 
 /**
  * POST /quotations/:id/convert — turn an open quote into a real Invoice.
- * body: { paymentMode?, paidAmount? }. Validates stock, decrements it, posts udhar for any due.
+ * body: { payments?: [{ mode, amount }] } (or the older { paymentMode, paidAmount }).
+ * Validates stock, decrements it, posts udhar for any due.
  */
 export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const { paymentMode = 'cash', paidAmount } = req.body;
     const quote = await Quotation.findOne({ _id: req.params.id, businessId });
     if (!quote) throw AppError.notFound('Quotation not found');
     if (quote.status === 'converted') throw AppError.badRequest('This quotation is already converted');
@@ -116,18 +125,17 @@ export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Respo
     // Resolve customer (find-or-create by mobile so udhar & history link).
     let resolvedCustomerId = quote.customerId as any;
     if (!resolvedCustomerId && quote.customerMobile) {
-        let c = await Customer.findOne({ businessId, mobile: quote.customerMobile });
-        if (!c) c = await Customer.create({ businessId, name: quote.customerName || 'Walk-in', mobile: quote.customerMobile, gstin: quote.customerGstin });
+        const mobile = normalizePhone(quote.customerMobile);
+        let c = await Customer.findOne({ businessId, mobile, isActive: true });
+        if (!c) c = await Customer.create({ businessId, name: quote.customerName || 'Walk-in', mobile, gstin: quote.customerGstin });
         resolvedCustomerId = c._id;
     }
 
     const grandTotal = quote.grandTotal;
-    const paid = paymentMode === 'credit' ? Number(paidAmount || 0) : paidAmount != null ? Number(paidAmount) : grandTotal;
-    const due = +(grandTotal - paid).toFixed(2);
-    const status = due <= 0 ? 'paid' : paid > 0 ? 'partial' : 'credit';
+    const { payments, paid, due, status, paymentMode } = resolvePayments(req.body, grandTotal);
     if (due > 0 && !resolvedCustomerId) throw AppError.badRequest('A customer mobile is required for a credit (udhar) sale');
 
-    const ym = new Date().toISOString().slice(0, 7).replace('-', '');
+    const ym = istYm();
     const seq = await nextSequence(`invoice:${businessId}:${ym}`);
     const biz = await Business.findById(businessId).select('settings').lean();
     const invoiceNo = `${biz?.settings?.invoicePrefix || 'INV'}/${ym}/${String(seq).padStart(4, '0')}`;
@@ -136,7 +144,7 @@ export const convertQuotation = asyncHandler(async (req: AuthRequest, res: Respo
         businessId, invoiceNo, customerId: resolvedCustomerId, customerName: quote.customerName,
         customerMobile: quote.customerMobile, customerGstin: quote.customerGstin, items: quote.items,
         subtotal: quote.subtotal, totalGst: quote.totalGst, discount: quote.discount, grandTotal,
-        paidAmount: paid, dueAmount: due, paymentMode, status, createdBy: req.user!._id,
+        paidAmount: paid, dueAmount: due, paymentMode, payments, status, createdBy: req.user!._id,
     });
 
     await applyStockChanges(

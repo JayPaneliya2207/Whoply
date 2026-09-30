@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Building2, Check, MessageCircle, Plus, Pencil, Trash2, QrCode } from 'lucide-react';
+import { Building2, Check, MessageCircle, Plus, Pencil, Trash2, QrCode, MapPin, UserRound } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
@@ -10,22 +10,25 @@ import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PhoneInput } from '@/components/PhoneInput';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 import { UpiQr } from '@/components/UpiQr';
+import { VisitModal } from '@/components/VisitModal';
 import { buildDealerPaymentText, whatsappLink } from '@/lib/bill';
 import { GSTIN_PLACEHOLDER, maskGstin, isValidGstin } from '@/lib/gstin';
 
 const tierTone: Record<string, any> = {
-    A: { background: '#dcfce7', color: 'var(--success-600)' },
-    B: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    C: { background: '#fef3c7', color: 'var(--accent-600)' },
+    A: { background: 'var(--success-tint)', color: 'var(--success)' },
+    B: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    C: { background: 'var(--warning-tint)', color: 'var(--warning)' },
 };
 // "tier" renamed to a friendly Price Group for clarity
 const groupKey: Record<string, string> = { A: 'tierPremium', B: 'tierStandard', C: 'tierBasic' };
-const empty = { name: '', shopName: '', mobile: '', country: '+91', gstin: '', tier: 'B', city: '', creditLimit: '100000' };
+const empty = { name: '', shopName: '', mobile: '', country: '+91', gstin: '', tier: 'B', city: '', creditLimit: '100000', assignedRepId: '' };
 
 export default function DealersPage() {
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
     const [showQr, setShowQr] = useState(false);
     const { data: biz } = useQuery({ queryKey: ['ws-business'], queryFn: async () => (await api.get('/wholesaler/business')).data.data });
     // Remind a dealer on WhatsApp — includes how to pay (UPI + bank details).
@@ -43,16 +46,22 @@ export default function DealersPage() {
     const [form, setForm] = useState<any>(empty);
     const [formErr, setFormErr] = useState('');
     const [del, setDel] = useState<any>(null);
+    const [visitFor, setVisitFor] = useState<any>(null);
+    // A sales rep can narrow the list to the dealers they look after.
+    const isRep = can('visits.record') && !can('team.view');
+    const [mineOnly, setMineOnly] = useState(false);
 
-    const { data } = useQuery({ queryKey: ['dealers'], queryFn: async () => (await api.get('/wholesaler/dealers?limit=100')).data.data.items });
+    const { data } = useQuery({ queryKey: ['dealers', mineOnly], queryFn: async () => (await api.get(`/wholesaler/dealers?limit=100${mineOnly ? '&mine=true' : ''}`)).data.data.items });
+    // Reps to assign a dealer to — only the owner / manager choose.
+    const { data: reps } = useQuery({ queryKey: ['reps'], queryFn: async () => (await api.get('/wholesaler/sales-team')).data.data, enabled: can('team.view') });
 
     const openNew = () => { setEditing(null); setForm(empty); setFormErr(''); setModal(true); };
-    const openEdit = (d: any) => { setEditing(d); setForm({ name: d.name, shopName: d.shopName || '', mobile: d.mobile || '', country: d.countryCode || '+91', gstin: d.gstin || '', tier: d.tier, city: d.city || '', creditLimit: d.creditLimit }); setFormErr(''); setModal(true); };
+    const openEdit = (d: any) => { setEditing(d); setForm({ name: d.name, shopName: d.shopName || '', mobile: d.mobile || '', country: d.countryCode || '+91', gstin: d.gstin || '', tier: d.tier, city: d.city || '', creditLimit: d.creditLimit, assignedRepId: d.assignedRepId ? String(d.assignedRepId) : '' }); setFormErr(''); setModal(true); };
 
     const save = useMutation({
         mutationFn: async () => {
-            const { country, ...rest } = form;
-            const body = { ...rest, countryCode: country, creditLimit: Number(form.creditLimit) || 0 };
+            const { country, assignedRepId, ...rest } = form;
+            const body = { ...rest, countryCode: country, creditLimit: Number(form.creditLimit) || 0, ...(can('team.view') && { assignedRepId: assignedRepId || null }) };
             if (editing) return (await api.patch(`/wholesaler/dealers/${editing._id}`, body)).data.data;
             return (await api.post('/wholesaler/dealers', body)).data.data;
         },
@@ -82,7 +91,15 @@ export default function DealersPage() {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('dealersTitle')}</h1>
-                <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addDealer')}</button>
+                <div className="flex gap-2">
+                    {isRep && (
+                        <button onClick={() => setMineOnly((v) => !v)} className="wp-btn wp-btn-ghost text-sm" aria-pressed={mineOnly}
+                            style={mineOnly ? { background: 'var(--brand-tint)', color: 'var(--brand-text)', borderColor: 'transparent' } : {}}>
+                            <UserRound size={15} /> {t('myDealers')}
+                        </button>
+                    )}
+                    {can('dealers.manage') && <button className="wp-btn wp-btn-primary" onClick={openNew}><Plus size={16} /> {t('addDealer')}</button>}
+                </div>
             </div>
 
             {(data || []).length === 0 && <p className="text-sm wp-card p-6 text-center" style={{ color: 'var(--text-muted)' }}>{t('noDealersYet')}</p>}
@@ -90,25 +107,27 @@ export default function DealersPage() {
                 {(data || []).map((d: any) => (
                     <motion.div key={d._id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="wp-card wp-card-hover p-4">
                         <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}><Building2 size={18} /></div>
+                            <div className="h-10 w-10 grid place-items-center rounded-xl" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><Building2 size={18} /></div>
                             <div className="flex-1 min-w-0">
                                 <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{d.name}</p>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{d.city || '—'} · {d.mobile}</p>
+                                {d.assignedRepName && <p className="text-xs flex items-center gap-1 mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}><UserRound size={11} className="shrink-0" /> {d.assignedRepName}</p>}
                             </div>
                             <span className="wp-chip" style={tierTone[d.tier]}>{t(groupKey[d.tier])}</span>
                         </div>
                         <div className="mt-3 flex items-center justify-between">
                             <div>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('outstandingWord')}</p>
-                                <p className="text-lg font-extrabold tabular" style={{ color: d.outstandingBalance > 0 ? 'var(--accent-600)' : 'var(--success-600)' }}>{inr2(d.outstandingBalance)}</p>
+                                <p className="text-lg font-extrabold tabular" style={{ color: d.outstandingBalance > 0 ? 'var(--warning)' : 'var(--success)' }}>{inr2(d.outstandingBalance)}</p>
                             </div>
                             <div className="flex gap-1.5">
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(d)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(d)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
+                                {can('visits.record') && <button className="wp-btn wp-btn-ghost !p-2" title={t('logVisit')} aria-label={`${t('logVisit')} · ${d.name}`} onClick={() => setVisitFor(d)}><MapPin size={14} /></button>}
+                                {can('dealers.manage') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(d)}><Pencil size={14} /></button>}
+                                {can('dealers.delete') && <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(d)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>}
                                 {d.outstandingBalance > 0 && (
                                     <>
-                                        <button className="wp-btn wp-btn-ghost !p-2" title="Send WhatsApp payment reminder" onClick={() => remindDealer(d)}><MessageCircle size={14} style={{ color: 'var(--success-600)' }} /></button>
-                                        <button className="wp-btn wp-btn-accent !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>
+                                        <button className="wp-btn wp-btn-ghost !p-2" title="Send WhatsApp payment reminder" onClick={() => remindDealer(d)}><MessageCircle size={14} style={{ color: 'var(--success)' }} /></button>
+                                        {can('payments.collect') && <button className="wp-btn wp-btn-collect !p-2" onClick={() => { setCollectFor(d); setAmount(String(d.outstandingBalance)); }}><RupeeIcon size={14} /></button>}
                                     </>
                                 )}
                             </div>
@@ -116,6 +135,8 @@ export default function DealersPage() {
                     </motion.div>
                 ))}
             </div>
+
+            <VisitModal open={!!visitFor} dealer={visitFor || undefined} onClose={() => setVisitFor(null)} />
 
             {/* Add/Edit dealer */}
             <Modal open={modal} onClose={() => setModal(false)} title={editing ? t('editDealer') : t('addDealer')}
@@ -125,14 +146,23 @@ export default function DealersPage() {
                 <Field label={t('mobile')}><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} /></Field>
                 <Field label={`${t('gstin')} (${t('optionalWord')})`}>
                     <input className="wp-input uppercase" value={form.gstin} maxLength={15} onChange={(e) => set('gstin', maskGstin(e.target.value))} placeholder={GSTIN_PLACEHOLDER} />
-                    {form.gstin.length === 15 && !isValidGstin(form.gstin) && <p className="text-xs mt-1" style={{ color: 'var(--danger-500)' }}>{t('gstinInvalid')}</p>}
+                    {form.gstin.length === 15 && !isValidGstin(form.gstin) && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{t('gstinInvalid')}</p>}
                 </Field>
                 <div className="grid grid-cols-3 gap-3">
                     <Field label={t('priceGroup')}><select className="wp-input" value={form.tier} onChange={(e) => set('tier', e.target.value)}><option value="A">{t('premiumBest')}</option><option value="B">{t('tierStandard')}</option><option value="C">{t('tierBasic')}</option></select></Field>
                     <Field label={t('cityLabel')}><input className="wp-input" value={form.city} onChange={(e) => set('city', e.target.value)} /></Field>
                     <Field label={t('creditRs')}><input className="wp-input tabular" type="number" value={form.creditLimit} onChange={(e) => set('creditLimit', e.target.value)} /></Field>
                 </div>
-                {formErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{formErr}</p>}
+                {can('team.view') && (
+                    <Field label={`${t('salesRepLabel')} (${t('optionalWord')})`}>
+                        <select className="wp-input" value={form.assignedRepId} onChange={(e) => set('assignedRepId', e.target.value)}>
+                            <option value="">{t('noRepAssigned')}</option>
+                            {(reps || []).map((r: any) => <option key={r._id} value={r._id}>{r.name}</option>)}
+                        </select>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('repAssignHint')}</p>
+                    </Field>
+                )}
+                {formErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{formErr}</p>}
             </Modal>
 
             {/* Collect payment */}
@@ -159,9 +189,9 @@ export default function DealersPage() {
                     </div>
                 )}
                 {collectFor && collectFor.mobile && (
-                    <button type="button" className="wp-btn wp-btn-ghost w-full mb-1" onClick={() => remindDealer(collectFor)}><MessageCircle size={15} style={{ color: 'var(--success-600)' }} /> {t('sendReminderWa')}</button>
+                    <button type="button" className="wp-btn wp-btn-ghost w-full mb-1" onClick={() => remindDealer(collectFor)}><MessageCircle size={15} style={{ color: 'var(--success)' }} /> {t('sendReminderWa')}</button>
                 )}
-                {collectErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{collectErr}</p>}
+                {collectErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{collectErr}</p>}
             </Modal>
 
             {showQr && collectFor && <UpiQr amount={Number(amount) || collectFor.outstandingBalance} upiId={biz?.upiId} qrImage={biz?.upiQrImage} shopName={biz?.name} onClose={() => setShowQr(false)} />}

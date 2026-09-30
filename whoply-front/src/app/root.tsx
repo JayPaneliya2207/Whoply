@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Kalam, Manrope, Noto_Sans_Devanagari, Noto_Sans_Gujarati } from 'next/font/google';
+import { HREF_LANG, type Lang } from '@/i18n/landing';
 import './globals.css';
+
+/*
+ * Shared by the three root layouts — `(en)`, `(hi)` and `(gu)`. Each locale
+ * has its own root layout so `<html lang>` is exact for that page (screen
+ * readers pick the right voice, search engines the right language) while the
+ * URLs stay `/`, `/hi` and `/gu`.
+ */
 
 const inter = Inter({
     subsets: ['latin'],
@@ -53,26 +61,23 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://whoply.in';
  * Per-locale title/description/canonical/OG live on each page
  * (`/`, `/hi`, `/gu`). Only site-wide defaults belong here.
  */
-export const metadata: Metadata = {
+export const rootMetadata: Metadata = {
     metadataBase: new URL(SITE),
     title: 'Whoply',
     openGraph: { type: 'website', siteName: 'Whoply' },
     twitter: { card: 'summary_large_image' },
 };
 
-export const viewport: Viewport = {
+export const rootViewport: Viewport = {
     themeColor: '#0F2B46',
     width: 'device-width',
     initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-    // NOTE: the root layout is shared across locales, so `lang` here is the
-    // default. Each locale re-declares it on its own wrapper in Landing.tsx.
-    // Moving the routes under `app/[lang]/` would let this be exact.
+export function RootDocument({ lang, children }: { lang: Lang; children: React.ReactNode }) {
     return (
         <html
-            lang="en"
+            lang={HREF_LANG[lang]}
             className={`${inter.variable} ${manrope.variable} ${devanagari.variable} ${gujarati.variable} ${hand.variable}`}
         >
             <body>{children}</body>

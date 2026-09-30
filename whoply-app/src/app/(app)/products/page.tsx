@@ -1,23 +1,28 @@
 'use client';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Plus, Pencil, Trash2, FolderPlus, Boxes, ChevronDown } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
+import { useCan } from '@/lib/permissions';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CatIcon, catEmoji } from '@/lib/icons';
 import { SearchInput } from '@/components/SearchInput';
 import { ScanButton } from '@/components/BarcodeScanner';
+import { StockSheet } from '@/components/StockSheet';
 import { useT } from '@/i18n';
 
-const emptyProduct = { name: '', categoryId: '', sku: '', barcode: '', hsn: '', unit: 'pcs', costPrice: '', sellPrice: '', wholesalePrice: '', discountPct: '', gstRate: '0', currentStock: '0', lowStockThreshold: '10', trackExpiry: false };
+// New products: shop prices are MRP (GST included), wholesale prices have GST added on top.
+const emptyProduct = (isWholesale: boolean) => ({ name: '', categoryId: '', sku: '', barcode: '', hsn: '', unit: 'pcs', costPrice: '', sellPrice: '', wholesalePrice: '', discountPct: '', gstRate: '0', priceIncludesGst: !isWholesale, currentStock: '0', lowStockThreshold: '10', trackExpiry: false });
 
 export default function ProductsPage() {
     const { user } = useAuth();
     const qc = useQueryClient();
     const t = useT();
+    const can = useCan();
+    const manage = can('products.manage'); // cashier, sales rep, accountant: look only
     const base = user?.business?.type === 'wholesale' ? '/wholesaler' : '/shopkeeper';
     const isWholesale = user?.business?.type === 'wholesale';
 
@@ -25,9 +30,10 @@ export default function ProductsPage() {
     const [catFilter, setCatFilter] = useState('');
     const [lowOnly, setLowOnly] = useState(false);
 
+    const [stockFor, setStockFor] = useState<any>(null);
     const [prodModal, setProdModal] = useState(false);
     const [editing, setEditing] = useState<any>(null);
-    const [form, setForm] = useState<any>(emptyProduct);
+    const [form, setForm] = useState<any>(() => emptyProduct(isWholesale));
     const [formErr, setFormErr] = useState('');
 
     const [catModal, setCatModal] = useState(false);
@@ -38,17 +44,21 @@ export default function ProductsPage() {
     const [del, setDel] = useState<any>(null);
 
     const { data: cats } = useQuery({ queryKey: ['categories', base], queryFn: async () => (await api.get(`${base}/categories`)).data.data });
-    const { data, isLoading } = useQuery({
+    // The API returns at most 100 per page — page through instead of silently stopping there.
+    const { data: pages, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
         queryKey: ['products-page', base, search, catFilter, lowOnly],
-        queryFn: async () => (await api.get(`${base}/products?limit=200&search=${encodeURIComponent(search)}${catFilter ? `&categoryId=${catFilter}` : ''}${lowOnly ? '&lowStock=true' : ''}`)).data.data.items,
+        queryFn: async ({ pageParam }) => (await api.get(`${base}/products?limit=100&page=${pageParam}&search=${encodeURIComponent(search)}${catFilter ? `&categoryId=${catFilter}` : ''}${lowOnly ? '&lowStock=true' : ''}`)).data.data,
+        initialPageParam: 1,
+        getNextPageParam: (last: any) => (last.meta.page < last.meta.totalPages ? last.meta.page + 1 : undefined),
     });
+    const data = pages?.pages.flatMap((p: any) => p.items);
 
     const activeCat = (cats || []).find((c: any) => c._id === catFilter) || null;
 
-    const openNew = () => { setEditing(null); setForm({ ...emptyProduct, categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); };
+    const openNew = () => { setEditing(null); setForm({ ...emptyProduct(isWholesale), categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); };
     const openEdit = (p: any) => {
         setEditing(p);
-        setForm({ name: p.name, categoryId: p.categoryId?._id || p.categoryId || '', sku: p.sku, barcode: p.barcode || '', hsn: p.hsn || '', unit: p.unit, costPrice: p.costPrice, sellPrice: p.sellPrice, wholesalePrice: p.wholesalePrice || '', discountPct: p.discountPct || '', gstRate: p.gstRate, currentStock: p.currentStock, lowStockThreshold: p.lowStockThreshold, trackExpiry: p.trackExpiry });
+        setForm({ name: p.name, categoryId: p.categoryId?._id || p.categoryId || '', sku: p.sku, barcode: p.barcode || '', hsn: p.hsn || '', unit: p.unit, costPrice: p.costPrice, sellPrice: p.sellPrice, wholesalePrice: p.wholesalePrice || '', discountPct: p.discountPct || '', gstRate: p.gstRate, priceIncludesGst: p.priceIncludesGst === true, currentStock: p.currentStock, lowStockThreshold: p.lowStockThreshold, trackExpiry: p.trackExpiry });
         setFormErr(''); setProdModal(true);
     };
 
@@ -56,13 +66,14 @@ export default function ProductsPage() {
     const scanLookup = async (code: string) => {
         const items = (await api.get(`${base}/products?barcode=${encodeURIComponent(code)}`)).data.data.items;
         if (items[0]) { openEdit(items[0]); }
-        else { setEditing(null); setForm({ ...emptyProduct, barcode: code, categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); }
+        else { setEditing(null); setForm({ ...emptyProduct(isWholesale), barcode: code, categoryId: catFilter || (cats?.[0]?._id ?? '') }); setFormErr(''); setProdModal(true); }
     };
 
     const saveProduct = useMutation({
         mutationFn: async () => {
             const body: any = { ...form, costPrice: +form.costPrice || 0, sellPrice: +form.sellPrice || 0, wholesalePrice: +form.wholesalePrice || 0, discountPct: +form.discountPct || 0, gstRate: +form.gstRate || 0, currentStock: +form.currentStock || 0, lowStockThreshold: +form.lowStockThreshold || 0 };
             if (!body.categoryId) delete body.categoryId;
+            if (editing) delete body.currentStock; // stock only changes through sales/purchases/returns
             if (editing) return (await api.patch(`${base}/products/${editing._id}`, body)).data.data;
             return (await api.post(`${base}/products`, body)).data.data;
         },
@@ -89,10 +100,10 @@ export default function ProductsPage() {
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{isWholesale ? t('warehouseStock') : t('productsInventory')}</h1>
-                <div className="flex gap-2">
+                {manage && <div className="flex gap-2">
                     <button className="wp-btn wp-btn-ghost text-sm" onClick={() => { setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> {t('category')}</button>
                     <button className="wp-btn wp-btn-primary text-sm" onClick={openNew}><Plus size={16} /> {t('addProduct')}</button>
-                </div>
+                </div>}
             </div>
 
             {/* Category filter — opens a popup of category boxes */}
@@ -108,7 +119,7 @@ export default function ProductsPage() {
             <div className="flex gap-2">
                 <SearchInput value={search} onChange={setSearch} placeholder={t('searchNameBarcode')} />
                 <ScanButton onScan={scanLookup} label={t('scan')} />
-                <button onClick={() => setLowOnly((v) => !v)} className="wp-btn wp-btn-ghost shrink-0" style={lowOnly ? { background: '#fef3c7', color: 'var(--accent-600)', borderColor: 'transparent' } : {}}><AlertTriangle size={15} /></button>
+                <button onClick={() => setLowOnly((v) => !v)} className="wp-btn wp-btn-ghost shrink-0" style={lowOnly ? { background: 'var(--warning-tint)', color: 'var(--warning)', borderColor: 'transparent' } : {}}><AlertTriangle size={15} /></button>
             </div>
 
             {/* One product per row — scrolls up/down only */}
@@ -123,23 +134,32 @@ export default function ProductsPage() {
                             <div className="flex-1 min-w-0">
                                 <p className="font-semibold truncate flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
                                     <span className="truncate">{p.name}</span>
-                                    {p.discountPct > 0 && <span className="wp-chip shrink-0" style={{ background: '#dcfce7', color: 'var(--success-600)' }}>{p.discountPct}% off</span>}
+                                    {p.discountPct > 0 && <span className="wp-chip shrink-0" style={{ background: 'var(--success-tint)', color: 'var(--success)' }}>{p.discountPct}% off</span>}
                                 </p>
                                 <p className="text-xs capitalize truncate" style={{ color: 'var(--text-muted)' }}>{p.categoryId?.name || p.sku}{p.barcode ? ` · ${p.barcode}` : ''}</p>
                             </div>
                             <div className="text-right shrink-0">
                                 <p className="font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.sellPrice)}</p>
-                                <p className="text-[11px] tabular hidden sm:block" style={{ color: 'var(--text-muted)' }}>cost {inr2(p.costPrice)} · GST {p.gstRate}%</p>
+                                <p className="text-[11px] tabular hidden sm:block" style={{ color: 'var(--text-muted)' }}>{can('products.cost') && <>cost {inr2(p.costPrice)} · </>}GST {p.gstRate}%</p>
                             </div>
-                            <span className="wp-chip tabular shrink-0" style={low ? { background: '#fef3c7', color: 'var(--accent-600)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}</span>
-                            <div className="flex items-center gap-0.5 shrink-0">
+                            {/* Tap the stock to see its history — and adjust it, for roles that manage stock. */}
+                            <button type="button" onClick={() => setStockFor(p)} title={t('stockTitle')} aria-label={`${t('stockTitle')} · ${p.name}: ${p.currentStock} ${p.unit}`}
+                                className="wp-chip tabular shrink-0 cursor-pointer hover:brightness-95" style={low ? { background: 'var(--warning-tint)', color: 'var(--warning)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                                {low && <AlertTriangle size={11} />} {p.currentStock} {p.unit}
+                            </button>
+                            {manage && <div className="flex items-center gap-0.5 shrink-0">
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => openEdit(p)}><Pencil size={14} /></button>
-                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger-500)' }} /></button>
-                            </div>
+                                <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(p)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
+                            </div>}
                         </div>
                     );
                 })}
             </div>
+            {hasNextPage && (
+                <button className="wp-btn wp-btn-ghost w-full" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>{t('loadMore')}</button>
+            )}
+
+            <StockSheet product={stockFor} base={base} canAdjust={manage} onClose={() => setStockFor(null)} />
 
             {/* Product modal */}
             <Modal open={prodModal} onClose={() => setProdModal(false)} title={editing ? t('editProductTitle') : t('addProduct')}
@@ -164,14 +184,21 @@ export default function ProductsPage() {
                     <Field label={t('sellRs')}><input className="wp-input tabular" type="number" value={form.sellPrice} onChange={(e) => set('sellPrice', e.target.value)} /></Field>
                     <Field label={t('gstPct')}><input className="wp-input tabular" type="number" value={form.gstRate} onChange={(e) => set('gstRate', e.target.value)} /></Field>
                 </div>
+                <label className="flex items-start gap-3 mb-3 cursor-pointer">
+                    <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={!!form.priceIncludesGst} onChange={(e) => set('priceIncludesGst', e.target.checked)} />
+                    <span>
+                        <span className="block text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('priceInclGst')}</span>
+                        <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{t('priceInclGstHint')}</span>
+                    </span>
+                </label>
                 <Field label={t('discountPctOptional')}><input className="wp-input tabular" type="number" value={form.discountPct} onChange={(e) => set('discountPct', e.target.value)} placeholder="0 — auto-applies at billing" /></Field>
                 <div className="grid grid-cols-3 gap-3">
                     {isWholesale && <Field label={t('wholesaleRs')}><input className="wp-input tabular" type="number" value={form.wholesalePrice} onChange={(e) => set('wholesalePrice', e.target.value)} /></Field>}
                     <Field label={t('stock')}><input className="wp-input tabular" type="number" value={form.currentStock} onChange={(e) => set('currentStock', e.target.value)} disabled={!!editing} /></Field>
                     <Field label={t('lowStockAt')}><input className="wp-input tabular" type="number" value={form.lowStockThreshold} onChange={(e) => set('lowStockThreshold', e.target.value)} /></Field>
                 </div>
-                {editing && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Stock is changed via sales/purchases, not edited directly.</p>}
-                {formErr && <p className="text-sm" style={{ color: 'var(--danger-500)' }}>{formErr}</p>}
+                {editing && <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{t('stockEditHint')}</p>}
+                {formErr && <p className="text-sm" style={{ color: 'var(--danger)' }}>{formErr}</p>}
             </Modal>
 
             {/* Category modal */}
@@ -182,17 +209,17 @@ export default function ProductsPage() {
 
             {/* Category picker — boxes, gesture-dismiss */}
             <Modal open={catPicker} onClose={() => setCatPicker(false)} title={t('categories')}
-                footer={<button className="wp-btn wp-btn-ghost w-full" onClick={() => { setCatPicker(false); setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> {t('addCategory')}</button>}>
+                footer={manage ? <button className="wp-btn wp-btn-ghost w-full" onClick={() => { setCatPicker(false); setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> {t('addCategory')}</button> : undefined}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <button onClick={() => { setCatFilter(''); setCatPicker(false); }} className="wp-card p-3 text-center"
-                        style={!catFilter ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
-                        <Boxes size={20} className="mx-auto mb-1" style={{ color: 'var(--brand-700)' }} />
+                        style={!catFilter ? { borderColor: 'var(--brand-line)', boxShadow: '0 0 0 1px var(--brand-line)' } : {}}>
+                        <Boxes size={20} className="mx-auto mb-1" style={{ color: 'var(--brand-text)' }} />
                         <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{t('all')}</p>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{(cats || []).reduce((s: number, c: any) => s + (c.productCount ?? 0), 0)} {t('items')}</p>
                     </button>
                     {(cats || []).map((c: any) => (
-                        <div key={c._id} className="wp-card p-3 text-center relative" style={catFilter === c._id ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
-                            <button onClick={(e) => { e.stopPropagation(); setEditingCat(c); setCatName(c.name); setCatPicker(false); setCatModal(true); }} className="absolute top-1.5 right-1.5 opacity-60"><Pencil size={12} /></button>
+                        <div key={c._id} className="wp-card p-3 text-center relative" style={catFilter === c._id ? { borderColor: 'var(--brand-line)', boxShadow: '0 0 0 1px var(--brand-line)' } : {}}>
+                            {manage && <button onClick={(e) => { e.stopPropagation(); setEditingCat(c); setCatName(c.name); setCatPicker(false); setCatModal(true); }} className="absolute top-1.5 right-1.5 opacity-60"><Pencil size={12} /></button>}
                             <button onClick={() => { setCatFilter(c._id); setCatPicker(false); }} className="w-full">
                                 <span className="text-2xl block leading-none mb-1">{catEmoji(c.name)}</span>
                                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{c.name}</p>

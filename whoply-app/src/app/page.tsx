@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/Logo';
 import { useLang } from '@/i18n';
+import { homeFor, storedUser } from '@/stores/auth.store';
 
 export default function Home() {
     const router = useRouter();
@@ -10,7 +11,7 @@ export default function Home() {
     useEffect(() => {
         hydrateLang();
         const token = localStorage.getItem('whoply_token');
-        router.replace(token ? '/dashboard' : '/login');
+        router.replace(token ? homeFor(storedUser()) : '/login');
     }, [router, hydrateLang]);
     return (
         <div className="min-h-screen wp-gradient grid place-items-center">

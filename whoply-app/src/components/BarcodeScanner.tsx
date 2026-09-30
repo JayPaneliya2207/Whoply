@@ -107,7 +107,7 @@ function ScannerModal({ onScan, onClose }: { onScan: (code: string) => void; onC
                     {!scanning && !err && <div className="absolute inset-0 grid place-items-center text-white/70 text-sm">Starting camera…</div>}
                 </div>
 
-                {err && <p className="text-xs mb-3 flex items-start gap-1.5" style={{ color: 'var(--accent-600)' }}><ScanLine size={14} className="mt-0.5 shrink-0" /> {err}</p>}
+                {err && <p className="text-xs mb-3 flex items-start gap-1.5" style={{ color: 'var(--warning)' }}><ScanLine size={14} className="mt-0.5 shrink-0" /> {err}</p>}
 
                 <p className="text-xs mb-1.5 flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}><Keyboard size={13} /> Or enter the code manually</p>
                 <form onSubmit={(e) => { e.preventDefault(); if (manual.trim().length >= 4) onScan(manual.trim()); }} className="flex gap-2">

@@ -5,6 +5,7 @@ import { Tags } from 'lucide-react';
 import { api } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useT } from '@/i18n';
+import { useCan } from '@/lib/permissions';
 
 const TIERS: { key: 'A' | 'B' | 'C'; labelKey: string; hintKey: string }[] = [
     { key: 'A', labelKey: 'tierPremium', hintKey: 'bestPrice' },
@@ -14,6 +15,7 @@ const TIERS: { key: 'A' | 'B' | 'C'; labelKey: string; hintKey: string }[] = [
 
 function PriceCell({ row, tier }: { row: any; tier: 'A' | 'B' | 'C' }) {
     const qc = useQueryClient();
+    const canEdit = useCan()('priceList.manage'); // a sales rep can look, not change
     const [val, setVal] = useState<string>(row[tier] != null ? String(row[tier]) : '');
     const save = useMutation({
         mutationFn: async () => (await api.put('/wholesaler/price-lists', { productId: row.productId, tier, price: Number(val) })).data.data,
@@ -24,7 +26,8 @@ function PriceCell({ row, tier }: { row: any; tier: 'A' | 'B' | 'C' }) {
             className="wp-input !py-1.5 !px-2 text-right tabular text-sm w-full"
             value={val}
             onChange={(e) => setVal(e.target.value)}
-            onBlur={() => { if (val && Number(val) !== row[tier]) save.mutate(); }}
+            onBlur={() => { if (canEdit && val && Number(val) !== row[tier]) save.mutate(); }}
+            readOnly={!canEdit}
             placeholder={String(row.base)}
         />
     );
@@ -36,7 +39,7 @@ export default function PriceListsPage() {
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-2">
-                <Tags size={20} style={{ color: 'var(--brand-700)' }} />
+                <Tags size={20} style={{ color: 'var(--brand-text)' }} />
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('dealerPriceLists')}</h1>
             </div>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('priceListDesc')}</p>

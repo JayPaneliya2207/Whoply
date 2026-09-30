@@ -287,10 +287,11 @@ function SalesChart({ lang }: { lang: Lang }) {
     );
 }
 
-/* Which permissions each role gets: billing, stock, reports, profit. */
+/* Which permissions each role gets: billing, stock, reports, profit — as the app enforces
+   them (whoply-api/src/utils/permissions.ts). A manager runs the shop, so sees profit. */
 const ACCESS: boolean[][] = [
     [true, true, true, true], // owner
-    [true, true, true, false], // manager
+    [true, true, true, true], // manager
     [true, false, false, false], // cashier
     [false, true, false, false], // warehouse
     [true, true, false, false], // sales

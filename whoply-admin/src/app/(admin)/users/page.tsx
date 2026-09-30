@@ -5,9 +5,9 @@ import { Power, Search } from 'lucide-react';
 import { api } from '@/lib/api';
 
 const roleColors: Record<string, any> = {
-    owner: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-    admin: { background: '#fef3c7', color: 'var(--accent-600)' },
-    manager: { background: '#e0e7ff', color: 'var(--brand-700)' },
+    owner: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+    admin: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+    manager: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
     cashier: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
     warehouse: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
     salesStaff: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
@@ -43,7 +43,7 @@ export default function UsersPage() {
                                 <tr key={u._id} style={{ borderTop: '1px solid var(--card-border)' }}>
                                     <td className="p-3">
                                         <div className="flex items-center gap-2.5">
-                                            <div className="h-8 w-8 grid place-items-center rounded-full font-bold text-xs" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>{u.name.charAt(0)}</div>
+                                            <div className="h-8 w-8 grid place-items-center rounded-full font-bold text-xs" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{u.name.charAt(0)}</div>
                                             <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{u.name}</span>
                                         </div>
                                     </td>
@@ -52,9 +52,9 @@ export default function UsersPage() {
                                     <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{u.businessId?.name || '—'}</td>
                                     <td className="p-3 text-right">
                                         {u.role === 'admin' ? (
-                                            <span className="wp-chip" style={{ background: '#dcfce7', color: 'var(--success-600)' }}>Active</span>
+                                            <span className="wp-chip" style={{ background: 'var(--success-tint)', color: 'var(--success)' }}>Active</span>
                                         ) : (
-                                            <button onClick={() => toggle.mutate({ id: u._id, isActive: !u.isActive })} className="wp-chip" style={u.isActive ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fee2e2', color: 'var(--danger-500)' }}>
+                                            <button onClick={() => toggle.mutate({ id: u._id, isActive: !u.isActive })} className="wp-chip" style={u.isActive ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--danger-tint)', color: 'var(--danger)' }}>
                                                 <Power size={11} /> {u.isActive ? 'Active' : 'Inactive'}
                                             </button>
                                         )}

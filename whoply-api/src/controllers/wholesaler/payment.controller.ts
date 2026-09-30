@@ -9,21 +9,14 @@ import Payment, { type PaymentMode } from '../../models/Payment.js';
 import { duesByDealer } from '../../utils/wholesaler.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types } from 'mongoose';
+import { istPeriodStart } from '../../utils/ist.js';
 
 const MODES: PaymentMode[] = ['cash', 'upi', 'bank', 'cheque', 'other'];
 const normMode = (m: any): PaymentMode => (MODES.includes(m) ? m : 'cash');
 
 type Period = 'week' | 'month' | 'quarter' | 'year';
-/** Start of the selected reporting window (rolling: last week / month / quarter / year). */
-const periodStart = (period: Period): Date => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    if (period === 'week') d.setDate(d.getDate() - 7);
-    else if (period === 'quarter') d.setMonth(d.getMonth() - 3);
-    else if (period === 'year') d.setFullYear(d.getFullYear() - 1);
-    else d.setMonth(d.getMonth() - 1); // month (default)
-    return d;
-};
+/** Start of the selected reporting window (rolling: last week / month / quarter / year), IST. */
+const periodStart = (period: Period): Date => istPeriodStart(period);
 
 /**
  * Apply a received amount across a dealer's unpaid orders, oldest first (FIFO).

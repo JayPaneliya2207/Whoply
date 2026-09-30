@@ -4,8 +4,11 @@ import { AppError } from '../../utils/AppError.js';
 import { sendSuccess, sendCreated } from '../../utils/response.js';
 import { businessOf } from '../../utils/http.js';
 import { normalizePhone } from '../../utils/phone.js';
+import { passwordSchema } from '../../validators/common.validator.js';
+import { sanitizeKyc } from '../../utils/kyc.js';
 import User from '../../models/User.js';
 import { STAFF_ROLES, type AuthRequest, type roles } from '../../interfaces/index.js';
+import { can, staffRolesFor } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
 
 /** GET /staff — all staff of the business + monthly salary total */
@@ -25,7 +28,8 @@ export const createStaff = asyncHandler(async (req: AuthRequest, res: Response) 
     const businessId = businessOf(req);
     const { name, mobile, role, salary, kyc, password } = req.body;
     if (!name || !mobile || !role) throw AppError.badRequest('name, mobile and role are required');
-    if (!STAFF_ROLES.includes(role as roles)) throw AppError.badRequest('Invalid staff role');
+    if (!staffRolesFor(req.user?.businessType).includes(role as roles)) throw AppError.badRequest('Invalid staff role');
+    if (password) passwordSchema.parse(password); // same rule as every other password — else they could never log in
 
     const normalized = normalizePhone(mobile);
     const exists = await User.findOne({ mobile: normalized });
@@ -38,7 +42,7 @@ export const createStaff = asyncHandler(async (req: AuthRequest, res: Response) 
         role,
         businessId,
         salary: Number(salary) || 0,
-        kyc: kyc || {},
+        kyc: sanitizeKyc(kyc), // Aadhaar: last 4 digits only, no photo
         ...(password && { password }),
     });
     sendCreated(res, { _id: staff._id, name: staff.name, mobile: staff.mobile, role: staff.role, salary: staff.salary, kyc: staff.kyc });
@@ -49,9 +53,9 @@ export const updateStaff = asyncHandler(async (req: AuthRequest, res: Response) 
     const businessId = businessOf(req);
     const patch: any = {};
     ['name', 'role', 'salary', 'kyc'].forEach((k) => {
-        if (req.body[k] !== undefined) patch[k] = k === 'salary' ? Number(req.body[k]) : req.body[k];
+        if (req.body[k] !== undefined) patch[k] = k === 'salary' ? Number(req.body[k]) : k === 'kyc' ? sanitizeKyc(req.body[k]) : req.body[k];
     });
-    if (patch.role && !STAFF_ROLES.includes(patch.role)) throw AppError.badRequest('Invalid staff role');
+    if (patch.role && !staffRolesFor(req.user?.businessType).includes(patch.role)) throw AppError.badRequest('Invalid staff role');
     const staff = await User.findOneAndUpdate(
         { _id: req.params.id, businessId, role: { $in: STAFF_ROLES } },
         patch,
@@ -76,7 +80,11 @@ export const deleteStaff = asyncHandler(async (req: AuthRequest, res: Response) 
 /** GET /staff/:id/detail — a staff member's profile (for sales reps: visits + orders) */
 export const staffDetail = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const staff = await User.findOne({ _id: req.params.id, businessId }).select('name mobile role salary kyc').lean();
+    // Only the owner sees salaries and ID details; a manager may open a sales rep's visits and orders.
+    const full = can(req.user?.role, 'staff.manage');
+    const staff = await User.findOne({ _id: req.params.id, businessId, role: full ? { $in: STAFF_ROLES } : 'salesStaff' })
+        .select(full ? 'name mobile role salary kyc' : 'name mobile role')
+        .lean();
     if (!staff) throw AppError.notFound('Staff not found');
 
     let visits: any[] = [];

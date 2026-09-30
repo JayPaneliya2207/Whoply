@@ -32,6 +32,7 @@ import Visit from '../models/Visit.js';
 import Notification from '../models/Notification.js';
 import PurchaseOrder from '../models/PurchaseOrder.js';
 import Plan from '../models/Plan.js';
+import { DEFAULT_PLANS } from './plans.js';
 
 async function run() {
     await mongoose.connect(env.MONGODB_URI);
@@ -48,11 +49,7 @@ async function run() {
     console.log('Cleared all collections');
 
     // Subscription plans are config the landing/pricing needs — keep them.
-    await Plan.insertMany([
-        { key: 'free', name: 'Free', price: 0, period: 'month', order: 1, highlight: false, features: ['1 shop', 'Unlimited billing', 'Basic inventory', 'Udhar tracking'] },
-        { key: 'pro', name: 'Pro', price: 299, period: 'month', order: 2, highlight: true, features: ['Everything in Free', 'WhatsApp reminders', 'GST reports', 'Barcode scanning', '3 staff logins'] },
-        { key: 'business', name: 'Business', price: 799, period: 'month', order: 3, highlight: false, features: ['Everything in Pro', 'Wholesale suite', 'Dealers & price-lists', 'Dispatch & sales-team', 'AI reorder'] },
-    ]);
+    await Plan.insertMany(DEFAULT_PLANS);
     console.log('Created 3 subscription plans');
 
     // Two empty businesses so each owner logs straight into a clean dashboard.

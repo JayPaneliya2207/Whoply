@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useInView, useReducedMotion } from 'framer-motion';
-import { CheckCheck, FileCheck2, FileSpreadsheet, Loader2, ReceiptText, Send, Truck, type LucideIcon } from 'lucide-react';
+import { CheckCheck, Download, FileCheck2, FileSpreadsheet, Loader2, ReceiptText, Truck, type LucideIcon } from 'lucide-react';
 import { getCopy, type Lang } from '@/i18n/landing';
 import { cn } from '@/lib/cn';
 
@@ -65,8 +65,8 @@ function Mini({ children, lit }: { children: ReactNode; lit: boolean }) {
 }
 
 /**
- * The GST work as one auto-filing pipeline: E-invoice → E-way bill → GSTR
- * reports → Tally export, joined by a flowing dashed line. While the pipeline
+ * The GST paperwork as one pipeline: E-invoice → E-way bill → GSTR reports →
+ * CSV export for the CA, joined by a flowing dashed line. While the pipeline
  * is on screen a light pulse walks node to node and each node lights up as it
  * arrives; hovering speeds the flow. Horizontal from lg, vertical below.
  */
@@ -85,7 +85,7 @@ export function CompliancePipeline({ lang }: { lang: Lang }) {
         return () => clearInterval(id);
     }, [inView, reduce, hover]);
 
-    // Tally node: idle → exporting → sent. Plays itself the first time the pulse arrives.
+    // Export node: idle → preparing → ready. Plays itself the first time the pulse arrives.
     const [exp, setExp] = useState<'idle' | 'busy' | 'sent'>('idle');
     const played = useRef(false);
     const runExport = () => {
@@ -118,7 +118,7 @@ export function CompliancePipeline({ lang }: { lang: Lang }) {
                 <div className="min-w-0">
                     <p className="text-xs font-semibold text-white">INV-2041</p>
                     <p className="tabular text-sm font-bold text-white/90">{inr(84200)}</p>
-                    <p className="tabular mt-0.5 truncate text-[10px] text-white/50">IRN a3f9…5c21e</p>
+                    <p className="tabular mt-0.5 truncate text-[10px] text-white/50">IRP JSON · v1.1</p>
                 </div>
             </div>
             <div className="mt-3">
@@ -127,7 +127,7 @@ export function CompliancePipeline({ lang }: { lang: Lang }) {
         </Mini>,
         // E-way bill
         <Mini key="ewb" lit={lit(1)}>
-            <p className="tabular text-xs font-semibold text-white">EWB 3410 2291 8876</p>
+            <p className="tabular text-xs font-semibold text-white">INV-2041 · {inr(84200)}</p>
             <p className="mt-1 text-[11px] text-white/60">
                 {p.vehicle} · <span className="tabular text-white/85">GJ 01 AB 4521</span>
             </p>
@@ -165,8 +165,8 @@ export function CompliancePipeline({ lang }: { lang: Lang }) {
                 <span className="tabular">{inr(1800)}</span>
             </div>
         </Mini>,
-        // Tally export
-        <Mini key="tally" lit={lit(3)}>
+        // CSV export for the CA
+        <Mini key="export" lit={lit(3)}>
             <button
                 type="button"
                 onClick={runExport}
@@ -202,7 +202,7 @@ export function CompliancePipeline({ lang }: { lang: Lang }) {
                     animate={exp === 'sent' ? { scale: [1, 1.25, 1], backgroundColor: 'rgb(16 185 129 / 0.35)' } : { scale: 1 }}
                     transition={{ duration: 0.5 }}
                 >
-                    <Send size={12} className={exp === 'sent' ? 'text-emerald-300' : 'text-white/60'} aria-hidden="true" />
+                    <Download size={12} className={exp === 'sent' ? 'text-emerald-300' : 'text-white/60'} aria-hidden="true" />
                 </motion.span>
                 <span className={cn('font-semibold', exp === 'sent' && 'text-emerald-300')}>{p.sent}</span>
                 <AnimatePresence>

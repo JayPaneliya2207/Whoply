@@ -9,9 +9,11 @@ import { RupeeIcon } from '@/components/RupeeIcon';
 import { api } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
 import { inr, inr2 } from '@/lib/cn';
+import { payModeLabel } from '@/lib/bill';
 import { useT } from '@/i18n';
 import { NavGrid } from '@/components/NavGrid';
 import { ShopStatusToggle } from '@/components/ShopStatusToggle';
+import { useCan } from '@/lib/permissions';
 
 const fetchDash = async (type: string) => {
     const base = type === 'wholesale' ? '/wholesaler/dashboard' : '/shopkeeper/dashboard';
@@ -39,6 +41,7 @@ function Kpi({ label, value, icon: Icon, tone, hint, href, alert }: any) {
 export default function DashboardPage() {
     const { user } = useAuth();
     const t = useT();
+    const can = useCan();
     const stLabel = (s: string) => t('st' + s.charAt(0).toUpperCase() + s.slice(1));
     const type = user?.business?.type || 'retail';
     const { data, isLoading } = useQuery({ queryKey: ['dashboard', type], queryFn: () => fetchDash(type) });
@@ -56,19 +59,21 @@ export default function DashboardPage() {
     if (type === 'wholesale') {
         const statusTone: Record<string, any> = {
             pending: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
-            confirmed: { background: 'var(--brand-100)', color: 'var(--brand-800)' },
-            dispatched: { background: '#fef3c7', color: 'var(--accent-600)' },
-            delivered: { background: '#dcfce7', color: 'var(--success-600)' },
-            cancelled: { background: '#fee2e2', color: 'var(--danger-500)' },
+            confirmed: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
+            dispatched: { background: 'var(--warning-tint)', color: 'var(--warning)' },
+            delivered: { background: 'var(--success-tint)', color: 'var(--success)' },
+            cancelled: { background: 'var(--danger-tint)', color: 'var(--danger)' },
         };
-        const pipeColor: Record<string, string> = { pending: '#94a3b8', confirmed: 'var(--brand-600)', dispatched: 'var(--accent-500)', delivered: 'var(--success-500)', cancelled: 'var(--danger-500)' };
+        const pipeColor: Record<string, string> = { pending: 'var(--text-muted)', confirmed: 'var(--brand-line)', dispatched: 'var(--warning-bright)', delivered: 'var(--success-fill)', cancelled: 'var(--danger)' };
         const T = {
-            brand: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
-            amber: { bg: '#fef3c7', fg: 'var(--accent-600)' },
-            green: { bg: '#dcfce7', fg: 'var(--success-600)' },
-            red: { bg: '#fee2e2', fg: 'var(--danger-500)' },
-            sky: { bg: '#e0e7ff', fg: 'var(--brand-700)' },
+            brand: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
+            amber: { bg: 'var(--warning-tint)', fg: 'var(--warning)' },
+            green: { bg: 'var(--success-tint)', fg: 'var(--success)' },
+            red: { bg: 'var(--danger-tint)', fg: 'var(--danger)' },
+            sky: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
         };
+        // Money totals come only for roles that handle money (not the godown team).
+        const money = can('payments.view');
         const billed = data.revenue || 0;
         const outstanding = data.outstandingPayments || 0;
         const collected = Math.max(0, billed - outstanding);
@@ -90,39 +95,40 @@ export default function DashboardPage() {
 
                 {/* KPI grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    <Kpi label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={T.brand} hint={`${inr(data.todaySales || 0)} ${t('billedTodayHint')}`} href="/orders" />
+                    <Kpi label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={T.brand} hint={money ? `${inr(data.todaySales || 0)} ${t('billedTodayHint')}` : undefined} href="/orders" />
                     <Kpi label={t('pendingDispatch')} value={data.pendingDispatch} icon={Truck} tone={T.amber} hint={t('toShipHint')} href="/orders?status=pending" alert={data.pendingDispatch > 0} />
-                    <Kpi label={t('outstanding')} value={inr(outstanding)} icon={Wallet} tone={T.amber} hint={`${data.outstandingDealers || 0} ${t('dealersToCollectHint')}`} href="/dealers" alert={outstanding > 0} />
+                    {money && <Kpi label={t('outstanding')} value={inr(outstanding)} icon={Wallet} tone={T.amber} hint={`${data.outstandingDealers || 0} ${t('dealersToCollectHint')}`} href="/dealers" alert={outstanding > 0} />}
                     <Kpi label={t('lowStockTitle')} value={data.lowStockCount || 0} icon={AlertTriangle} tone={T.red} hint={t('productsNeedReorder')} href="/products?lowStock=true" alert={(data.lowStockCount || 0) > 0} />
-                    <Kpi label={t('totalRevenue')} value={inr(billed)} icon={TrendingUp} tone={T.green} hint={t('allTimeBilledHint')} />
-                    <Kpi label={t('dealersCount')} value={data.dealerCount} icon={Users} tone={T.sky} hint={t('activeDealersHint')} href="/dealers" />
+                    {money && <Kpi label={t('totalRevenue')} value={inr(billed)} icon={TrendingUp} tone={T.green} hint={t('allTimeBilledHint')} />}
+                    {can('dealers.view') && <Kpi label={t('dealersCount')} value={data.dealerCount} icon={Users} tone={T.sky} hint={t('activeDealersHint')} href="/dealers" />}
                 </div>
 
                 {/* Money to collect — collection progress */}
-                <div className="wp-card p-5">
-                    <div className="flex items-start justify-between gap-3">
+                {money && <div className="wp-card p-5">
+                    {/* Wraps on phones: a 7-digit amount and the button don't fit on one line. */}
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('moneyToCollect')}</p>
-                            <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: 'var(--accent-600)' }}>{inr(outstanding)}</p>
+                            <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: 'var(--warning)' }}>{inr(outstanding)}</p>
                             <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{data.outstandingDealers || 0} {t('dealersWord')} · {t('dealersToCollectHint')}</p>
                         </div>
-                        <Link href="/dealers" className="wp-btn wp-btn-ghost shrink-0"><Wallet size={15} /> {t('collectPayment')}</Link>
+                        {can('payments.collect') && <Link href="/dealers" className="wp-btn wp-btn-ghost shrink-0"><Wallet size={15} /> {t('collectPayment')}</Link>}
                     </div>
                     <div className="mt-4">
                         <div className="flex items-center justify-between text-xs mb-1.5">
-                            <span className="font-medium" style={{ color: 'var(--success-600)' }}>{t('collected')} {inr(collected)}</span>
+                            <span className="font-medium" style={{ color: 'var(--success)' }}>{t('collected')} {inr(collected)}</span>
                             <span style={{ color: 'var(--text-muted)' }}>{t('totalBilled')} {inr(billed)}</span>
                         </div>
                         <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                            <div className="h-full rounded-full transition-all" style={{ width: `${collectedPct}%`, background: 'var(--success-500)' }} />
+                            <div className="h-full rounded-full transition-all" style={{ width: `${collectedPct}%`, background: 'var(--success-fill)' }} />
                         </div>
                         <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>{collectedPct}% {t('collected').toLowerCase()} · {t('allOrders')}</p>
                     </div>
-                </div>
+                </div>}
 
                 {/* Order pipeline — stacked bar + legend */}
                 <div className="wp-card p-5">
-                    <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Boxes size={17} style={{ color: 'var(--brand-700)' }} /> {t('orderPipeline')}</h3>
+                    <h3 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Boxes size={17} style={{ color: 'var(--brand-text)' }} /> {t('orderPipeline')}</h3>
                     <div className="flex h-3 rounded-full overflow-hidden gap-px" style={{ background: 'var(--surface-2)' }}>
                         {(data.statusBreakdown || []).map((s: any) => (
                             <div key={s.status} style={{ width: `${(s.count / pipeTotal) * 100}%`, background: pipeColor[s.status] || 'var(--surface-2)' }} title={`${stLabel(s.status)}: ${s.count}`} />
@@ -145,7 +151,7 @@ export default function DashboardPage() {
                 <div className="wp-card p-5">
                     <div className="flex items-center justify-between mb-1">
                         <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('recentOrders')}</h3>
-                        <Link href="/orders" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
+                        <Link href="/orders" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-text)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
                     </div>
                     {data.recentOrders.length === 0 && <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>{t('noOrdersYet')}</p>}
                     <div>
@@ -172,13 +178,16 @@ export default function DashboardPage() {
     }
 
     const rt = {
-        brand: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
-        amber: { bg: '#fef3c7', fg: 'var(--accent-600)' },
-        green: { bg: '#dcfce7', fg: 'var(--success-600)' },
-        red: { bg: '#fee2e2', fg: 'var(--danger-500)' },
-        sky: { bg: '#e0e7ff', fg: 'var(--brand-700)' },
+        brand: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
+        amber: { bg: 'var(--warning-tint)', fg: 'var(--warning)' },
+        green: { bg: 'var(--success-tint)', fg: 'var(--success)' },
+        red: { bg: 'var(--danger-tint)', fg: 'var(--danger)' },
+        sky: { bg: 'var(--brand-tint)', fg: 'var(--brand-text)' },
     };
-    const invTone = (s: string) => (s === 'paid' ? { background: '#dcfce7', color: 'var(--success-600)' } : { background: '#fef3c7', color: 'var(--accent-600)' });
+    const invTone = (s: string) => (s === 'paid' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--warning-tint)', color: 'var(--warning)' });
+    // Profit and supplier dues come only for roles allowed to see them (not a cashier).
+    const profit = can('profit.view');
+    const suppliers = can('purchases.view');
     const receivable = data.pendingUdhar || 0;
     const payable = data.supplierPayable || 0;
     const net = receivable - payable;
@@ -199,39 +208,39 @@ export default function DashboardPage() {
 
             {/* KPI grid */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                <Kpi label={t('todaysSales')} value={inr(data.todaySales)} icon={RupeeIcon} tone={rt.green} hint={`${t('todaysProfitEst')} ${inr(data.todayProfit || 0)}`} />
+                <Kpi label={t('todaysSales')} value={inr(data.todaySales)} icon={RupeeIcon} tone={rt.green} hint={profit ? `${t('todaysProfitEst')} ${inr(data.todayProfit || 0)}` : undefined} />
                 <Kpi label={t('todaysOrders')} value={data.todayOrders} icon={ShoppingBag} tone={rt.brand} href="/bills" />
-                <Kpi label={t('todaysProfitEst')} value={inr(data.todayProfit || 0)} icon={TrendingUp} tone={rt.sky} />
-                <Kpi label={t('pendingUdhar')} value={inr(receivable)} icon={Wallet} tone={rt.amber} hint={`${data.udharCustomers || 0} ${t('onUdharSuffix')}`} href="/customers?hasDue=true" alert={receivable > 0} />
+                {profit && <Kpi label={t('todaysProfitEst')} value={inr(data.todayProfit || 0)} icon={TrendingUp} tone={rt.sky} />}
+                {can('customers.view') && <Kpi label={t('pendingUdhar')} value={inr(receivable)} icon={Wallet} tone={rt.amber} hint={`${data.udharCustomers || 0} ${t('onUdharSuffix')}`} href="/customers?hasDue=true" alert={receivable > 0} />}
                 <Kpi label={t('lowStockTitle')} value={data.lowStockCount} icon={AlertTriangle} tone={rt.red} hint={t('productsNeedReorder')} href="/products?lowStock=true" alert={data.lowStockCount > 0} />
-                <Kpi label={t('youOweSuppliers')} value={inr(payable)} icon={Truck} tone={rt.amber} hint={`${data.supplierPayableCount || 0} ${t('suppliersCount')}`} href="/purchases" alert={payable > 0} />
+                {suppliers && <Kpi label={t('youOweSuppliers')} value={inr(payable)} icon={Truck} tone={rt.amber} hint={`${data.supplierPayableCount || 0} ${t('suppliersCount')}`} href="/purchases" alert={payable > 0} />}
             </div>
 
             {/* Money to settle — receivable vs payable balance */}
-            <div className="wp-card p-5">
+            {suppliers && <div className="wp-card p-5">
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('netPosition')}</p>
-                <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: net >= 0 ? 'var(--success-600)' : 'var(--danger-500)' }}>{inr(net)}</p>
+                <p className="text-3xl font-extrabold tabular mt-1 leading-none" style={{ color: net >= 0 ? 'var(--success)' : 'var(--danger)' }}>{inr(net)}</p>
                 <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{net >= 0 ? t('inYourFavour') : t('youOweMore')}</p>
                 <div className="mt-4">
                     <div className="flex h-2.5 rounded-full overflow-hidden gap-px" style={{ background: 'var(--surface-2)' }}>
-                        <div style={{ width: `${(receivable / settleTotal) * 100}%`, background: 'var(--success-500)' }} />
-                        <div style={{ width: `${(payable / settleTotal) * 100}%`, background: 'var(--accent-500)' }} />
+                        <div style={{ width: `${(receivable / settleTotal) * 100}%`, background: 'var(--success-fill)' }} />
+                        <div style={{ width: `${(payable / settleTotal) * 100}%`, background: 'var(--warning-bright)' }} />
                     </div>
                     <div className="flex items-center justify-between text-xs mt-2 gap-2">
-                        <Link href="/customers?hasDue=true" className="flex items-center gap-1.5 min-w-0"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--success-500)' }} /><span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('customersOweYou')}</span> <b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(receivable)}</b></Link>
-                        <Link href="/purchases" className="flex items-center gap-1.5 min-w-0"><b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(payable)}</b> <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('youOweSuppliers')}</span><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--accent-500)' }} /></Link>
+                        <Link href="/customers?hasDue=true" className="flex items-center gap-1.5 min-w-0"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--success-fill)' }} /><span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('customersOweYou')}</span> <b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(receivable)}</b></Link>
+                        <Link href="/purchases" className="flex items-center gap-1.5 min-w-0"><b className="tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr(payable)}</b> <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{t('youOweSuppliers')}</span><span className="h-2 w-2 rounded-full shrink-0" style={{ background: 'var(--warning-bright)' }} /></Link>
                     </div>
                 </div>
-            </div>
+            </div>}
 
             {/* Top products — compact 2-column layout */}
             <div className="wp-card p-5">
-                <h3 className="font-bold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}><Trophy size={18} style={{ color: 'var(--accent-500)' }} /> {t('topProducts')}</h3>
+                <h3 className="font-bold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}><Trophy size={18} style={{ color: 'var(--warning-bright)' }} /> {t('topProducts')}</h3>
                 {data.topProducts.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('noSalesThisMonth')}</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5">
                     {data.topProducts.map((p: any, i: number) => (
                         <div key={i} className="flex items-center gap-2.5">
-                            <span className="h-6 w-6 grid place-items-center rounded-md text-xs font-bold shrink-0" style={{ background: i < 3 ? 'var(--brand-100)' : 'var(--surface-2)', color: i < 3 ? 'var(--brand-800)' : 'var(--text-secondary)' }}>{i + 1}</span>
+                            <span className="h-6 w-6 grid place-items-center rounded-md text-xs font-bold shrink-0" style={{ background: i < 3 ? 'var(--brand-tint)' : 'var(--surface-2)', color: i < 3 ? 'var(--brand-text)' : 'var(--text-secondary)' }}>{i + 1}</span>
                             <p className="text-sm font-medium truncate flex-1" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
                             <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>{p.qty} {t('sold')}</span>
                             <span className="text-sm font-semibold tabular shrink-0 w-20 text-right" style={{ color: 'var(--text-primary)' }}>{inr(p.revenue)}</span>
@@ -241,10 +250,10 @@ export default function DashboardPage() {
             </div>
 
             {/* Recent activity — bills feed */}
-            <div className="wp-card p-5">
+            {can('bills.view') && <div className="wp-card p-5">
                 <div className="flex items-center justify-between mb-1">
                     <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('recentBills')}</h3>
-                    <Link href="/bills" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-700)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
+                    <Link href="/bills" className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--brand-text)' }}>{t('viewAll')} <ArrowRight size={14} /></Link>
                 </div>
                 {data.recentInvoices.length === 0 && <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>{t('noBillsYet')}</p>}
                 <div>
@@ -253,7 +262,7 @@ export default function DashboardPage() {
                             <div className="h-9 w-9 grid place-items-center rounded-xl shrink-0" style={invTone(inv.status)}><ReceiptText size={16} /></div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{inv.invoiceNo}</p>
-                                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{inv.customerName || t('walkIn')} · {inv.paymentMode}</p>
+                                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{inv.customerName || t('walkIn')} · {payModeLabel(inv)}</p>
                             </div>
                             <div className="text-right shrink-0">
                                 <p className="text-sm font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(inv.grandTotal)}</p>
@@ -262,7 +271,7 @@ export default function DashboardPage() {
                         </Link>
                     ))}
                 </div>
-            </div>
+            </div>}
 
             {/* All features */}
             <div className="wp-card p-4 sm:p-5"><NavGrid /></div>

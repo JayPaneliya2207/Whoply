@@ -51,7 +51,7 @@ Pricing → FAQ → Final CTA → Footer.
 
 **OG image text:** `Billing · Stock · Udhar · Dispatch` over the app dashboard, Whoply mark top-left.
 
-**Canonical:** `https://whoply.in/` · **Locale:** `en_IN` · **Theme colour:** `#4338CA`
+**Canonical:** `https://whoply.in/` · **Locale:** `en_IN` · **Theme colour:** `#0F2B46` (navy — see color.md)
 
 ---
 
@@ -212,10 +212,10 @@ much, and how many days you have left. No black box — you can see the maths.
 
 **H2:** Your cashier bills. Your cashier never sees your profit.
 **Body:** Every person gets their own login and sees only their own work. Cashiers get billing
-and today's sales. Warehouse gets stock and dispatch. Sales staff get their own dealers and
-route. Your margins, expenses and reports stay yours.
+and today's sales. Warehouse gets stock and dispatch. Sales staff get dealers, orders and
+collections. Your margins, expenses and reports stay with you, your manager and your accountant.
 
-**Sub-point:** One login can't be shared across five phones — device limits are enforced per role.
+**Sub-point:** Staff logins and salaries are owner-only — a manager can't add a login or change pay.
 
 ---
 
@@ -297,7 +297,7 @@ rather have a bigger screen.
 | **Do I need a computer?** | No. Any Android phone is enough. Whoply installs from your browser — no Play Store, no laptop. |
 | **Is it really in Hindi?** | Yes — the entire app, not just the menus. Switch between English and हिंदी any time from settings. |
 | **Will my CA get what he needs?** | Yes. GSTR-ready reports plus a Tally export, so he keeps working the way he already does. |
-| **Can my staff see my profit?** | Only if you allow it. A cashier sees billing and today's sales — nothing about margins, expenses or reports. |
+| **Can my staff see my profit?** | Only your manager and accountant. A cashier sees billing and today's sales — nothing about margins, cost prices, expenses or reports. |
 | **Can I move my existing product list in?** | Yes, import it. You don't retype your catalogue. |
 | **What happens if I stop paying?** | Your data stays yours and you can export it. You're never locked out of your own records. |
 | **Does it work without internet?** | You can open the app without a signal, but billing needs a connection today. Offline billing is on the way. |
@@ -359,12 +359,14 @@ Everything in this deck is backed by shipped code. Before adding a claim, check 
 
 ### ✅ Safe to claim — verified in code
 
-E-invoice (IRN) · e-way bill · GSTR reports · Tally export · GST POS billing with split payments ·
-batch & expiry (FEFO) · udhar ledger with aging · quotation→invoice · purchase orders with goods
-receipt · returns & credit notes · day-close report · reorder suggestions · dealer price tiers ·
-bulk orders · dispatch & delivery timeline · dealer collection · sales-rep visits & commission ·
-role-based access with per-role device limits · full Hindi UI · installable PWA · UPI QR per bill ·
-nightly 9 PM summary, 10 AM udhar list, Monday 9 AM payables.
+E-invoice and e-way bill JSON ready to upload to the portal · GSTR-1 / GSTR-3B reports as CSV ·
+GST POS billing with split payments (cash + UPI + card on one bill, rest on udhar) · MRP-style
+(GST-inclusive) prices · low-stock alerts · udhar ledger with aging · quotation→invoice · purchase
+orders with goods receipt · returns & credit notes · day-close report · reorder suggestions ·
+dealer price tiers · bulk orders · dispatch & delivery timeline · dealer collection by the rep ·
+separate staff logins · full Hindi & Gujarati UI · installable PWA · UPI QR per bill · barcode
+scanning (USB or camera) · 58mm / 80mm / A4 printing · nightly 9 PM summary, 10 AM udhar list,
+Monday 9 AM payables (in-app notifications).
 
 ### ❌ Do not claim — not true today
 
@@ -375,6 +377,13 @@ nightly 9 PM summary, 10 AM udhar list, Monday 9 AM payables.
 | "12,000+ shopkeepers · 4.2M invoices · 22 states" | Invented placeholders, hardcoded in the page **and** in `/api/public/stats`. | Use the §5 capability trust bar until real numbers exist. Fabricated traction is ASCI-actionable in India. |
 | "AI-powered forecasting" | `ai.service.ts` says it plainly: *"Not an LLM — a transparent heuristic."* | "Order before you run out — with the maths shown, not hidden." Stronger anyway. |
 | "Multi-shop" as a headline | Modelled but not proven end-to-end. | Keep it inside the Business plan feature list only. |
+| "Tally export" | Only an in-app account tally (billed = collected + outstanding). No Tally XML/import file. | "GSTR reports as CSV your CA can open in Excel." |
+| "IRN generated" / "no separate portal" | The app builds the e-invoice / e-way JSON; the IRN and EWB number come from the government portal after upload. | "E-invoice and e-way bill ready to upload — no re-typing." |
+| Expiry / batch alerts | The Batch model is never used and no expiry alert is created. | "Low-stock alerts". |
+| "Import your product list" | No import endpoint or file upload for products. | "Type them in or scan the barcode." |
+| Route tracking / GPS | Visits are logged by hand (dealer, outcome, note) — there is no route, map or location tracking. | "Reps log each dealer visit; commission is worked out for you." |
+| Device limits per role | No device limits exist. Roles are enforced (`whoply-api/src/utils/permissions.ts`); reps are assigned dealers ("My dealers") and see their own sales and commission. | "Each login sees only its own work." |
+| Credit limits enforced / driver assigned / out for delivery | Credit limit is stored but never checked; orders have no driver field or that status. | "Outstanding by dealer"; statuses pending → confirmed → dispatched → delivered. |
 
 ### 🔌 Wire these up
 `GET /api/public/plans` (already used) · `GET /api/public/stats` and `GET /api/public/features`

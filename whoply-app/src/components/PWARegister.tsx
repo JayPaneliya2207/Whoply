@@ -2,7 +2,8 @@
 import { useEffect } from 'react';
 
 /**
- * Registers the service worker so Whoply is installable & works offline.
+ * Registers the service worker so Whoply is installable and opens without a
+ * signal (app shell only — saving bills still needs the internet).
  *
  * Production only: in dev the SW would cache hot-reloaded chunks and serve
  * stale ones after every change. Any worker left over from an earlier dev

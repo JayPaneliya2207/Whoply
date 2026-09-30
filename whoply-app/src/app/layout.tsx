@@ -11,10 +11,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-    themeColor: '#4338CA',
+    themeColor: '#0F2B46',
     width: 'device-width',
     initialScale: 1,
-    maximumScale: 1,
+    // No maximumScale: people must be able to pinch-zoom (WCAG 1.4.4). Inputs use
+    // 16px text on phones so iOS doesn't zoom in on focus (globals.css).
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -5,6 +5,14 @@
  *
  * 1. Builds any newly-added indexes (syncIndexes per model).
  * 2. Backfills Product.isLowStock, which low-stock counts/filters now rely on.
+ * 3. Rewords plan feature lines the product can't back (see seeds/plans.ts) —
+ *    they appear on the landing page's pricing cards.
+ * 4. Money & stock fixes (seeds/backfills.ts): order advances get Payment rows,
+ *    return ledger rows stop counting as collections, credit notes get their
+ *    cash refund, auto-filled price-list rows are dropped, bills already paid
+ *    back through udhar repayments stop showing as due.
+ * 5. Privacy: staff Aadhaar numbers are cut to the last 4 digits and Aadhaar
+ *    card photos deleted (utils/kyc.ts).
  *
  * Note: syncIndexes also DROPS indexes that are no longer declared on a schema.
  * Everything here is declared in code, so that's intended — but run it against a
@@ -24,6 +32,9 @@ import Customer from '../models/Customer.js';
 import Dealer from '../models/Dealer.js';
 import Payment from '../models/Payment.js';
 import JobLock from '../models/JobLock.js';
+import Plan from '../models/Plan.js';
+import { PLAN_FEATURE_RENAMES } from './plans.js';
+import { backfillOrderAdvances, relabelReturnLedgerRows, backfillCashRefunds, dropDefaultTierRows, maskStoredAadhaar, settleRepaidBills } from './backfills.js';
 
 const MODELS = [
     ['Product', Product], ['Invoice', Invoice], ['Order', Order], ['StockMovement', StockMovement],
@@ -52,6 +63,28 @@ async function run() {
 
     const low = await Product.countDocuments({ isActive: true, isLowStock: true });
     console.log(`   ℹ ${low} active product(s) currently low on stock`);
+
+    console.log('\n→ Rewording plan features…');
+    let reworded = 0;
+    for (const plan of await Plan.find({})) {
+        const features = plan.features.map((f) => PLAN_FEATURE_RENAMES[f] ?? f);
+        if (features.some((f, i) => f !== plan.features[i])) {
+            plan.features = features;
+            await plan.save();
+            reworded++;
+        }
+    }
+    console.log(`   ✓ ${reworded} plan(s) updated`);
+
+    console.log('\n→ Money & stock fixes…');
+    console.log(`   ✓ ${await backfillOrderAdvances()} order advance(s) recorded as payments`);
+    console.log(`   ✓ ${await relabelReturnLedgerRows()} return ledger row(s) relabelled (no longer counted as collected)`);
+    console.log(`   ✓ ${await backfillCashRefunds()} credit note(s) given their cash refund`);
+    console.log(`   ✓ ${await dropDefaultTierRows()} auto-filled price-list row(s) dropped (defaults now follow the base price)`);
+    console.log(`   ✓ ${await settleRepaidBills()} bill(s) cleared by udhar the customer had already paid back`);
+
+    console.log('\n→ Privacy fixes…');
+    console.log(`   ✓ ${await maskStoredAadhaar()} staff Aadhaar record(s) cut to the last 4 digits, card photos removed`);
 
     console.log('\n✅ Migration complete.');
     await mongoose.connection.close();

@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Truck, CheckCircle2, PackageCheck, Clock } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useT } from '@/i18n';
 
@@ -21,14 +21,25 @@ export default function DispatchPage() {
     const t = useT();
     const stLabel = (s: string) => t('st' + s.charAt(0).toUpperCase() + s.slice(1));
     const [active, setActive] = useState('pending');
-    const { data: orders } = useQuery({ queryKey: ['dispatch-orders'], queryFn: async () => (await api.get('/wholesaler/orders?limit=100')).data.data.items });
+    const [error, setError] = useState('');
+    // One server-filtered query per status, so an older pending order is never pushed
+    // out of view by newer delivered ones (the API returns at most 100 per request).
+    const lists = useQueries({
+        queries: columns.map((c) => ({
+            queryKey: ['dispatch-orders', c.key],
+            queryFn: async () => (await api.get(`/wholesaler/orders?limit=100&status=${c.key}`)).data.data,
+        })),
+    });
+    const pageOf = (s: string) => lists[columns.findIndex((c) => c.key === s)]?.data;
 
     const advance = useMutation({
         mutationFn: async ({ id, status }: any) => (await api.patch(`/wholesaler/orders/${id}/status`, { status })).data.data,
+        onMutate: () => setError(''),
         onSuccess: () => { qc.invalidateQueries({ queryKey: ['dispatch-orders'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); },
+        onError: (e) => setError(apiErr(e)), // e.g. "Not enough stock for …" when dispatching
     });
 
-    const byStatus = (s: string) => (orders || []).filter((o: any) => o.status === s);
+    const byStatus = (s: string) => pageOf(s)?.items || [];
     const col = columns.find((c) => c.key === active)!;
     const list = byStatus(active);
 
@@ -40,18 +51,20 @@ export default function DispatchPage() {
             <div className="grid grid-cols-4 gap-2">
                 {columns.map((c) => {
                     const Icon = c.icon;
-                    const n = byStatus(c.key).length;
+                    const n = pageOf(c.key)?.meta?.total ?? 0;
                     const on = active === c.key;
                     return (
                         <button key={c.key} onClick={() => setActive(c.key)} className="wp-card p-3 text-center transition-all"
-                            style={on ? { borderColor: 'var(--brand-600)', boxShadow: '0 0 0 1px var(--brand-600)' } : {}}>
-                            <Icon size={17} className="mx-auto mb-1" style={{ color: on ? 'var(--brand-700)' : 'var(--text-muted)' }} />
+                            style={on ? { borderColor: 'var(--brand-line)', boxShadow: '0 0 0 1px var(--brand-line)' } : {}}>
+                            <Icon size={17} className="mx-auto mb-1" style={{ color: on ? 'var(--brand-text)' : 'var(--text-muted)' }} />
                             <p className="text-lg font-extrabold tabular leading-none" style={{ color: 'var(--text-primary)' }}>{n}</p>
-                            <p className="text-[11px] sm:text-xs mt-1 truncate" style={{ color: on ? 'var(--brand-700)' : 'var(--text-secondary)' }}>{stLabel(c.key)}</p>
+                            <p className="text-[11px] sm:text-xs mt-1 truncate" style={{ color: on ? 'var(--brand-text)' : 'var(--text-secondary)' }}>{stLabel(c.key)}</p>
                         </button>
                     );
                 })}
             </div>
+
+            {error && <p className="text-sm wp-card p-3" style={{ color: 'var(--danger)' }}>{error}</p>}
 
             {/* selected status orders */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

@@ -3,14 +3,15 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useEffect } from 'react';
-import { Moon, Sun, ArrowLeft } from 'lucide-react';
+import { Moon, Sun, ArrowLeft, Lock } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/stores/auth.store';
 import { NotificationBell } from '@/components/NotificationBell';
 import { OfflineBadge } from '@/components/OfflineBadge';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { BottomNav } from '@/components/BottomNav';
-import { useLang } from '@/i18n';
+import { useLang, useT } from '@/i18n';
+import { canOpen } from '@/lib/permissions';
 
 /**
  * App shell — sidebar-less, mobile-app style. The dashboard is the home screen
@@ -26,6 +27,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     useEffect(() => { hydrateLang(); }, [hydrateLang]);
 
     const isDash = pathname === '/dashboard';
+    // A staff role that can't use this screen (typed URL, old link) gets a short note instead.
+    const allowed = !user || canOpen(user.role, pathname);
 
     return (
         <div className="min-h-screen flex flex-col" style={{ background: 'var(--background)' }}>
@@ -52,13 +55,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     >
                         {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
-                    <Link href="/settings" aria-label="Profile & settings" className="h-9 w-9 grid place-items-center rounded-full font-bold text-sm shrink-0" style={{ background: 'var(--brand-100)', color: 'var(--brand-800)' }}>
+                    <Link href="/settings" aria-label="Profile & settings" className="h-9 w-9 grid place-items-center rounded-full font-bold text-sm shrink-0" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>
                         {user?.name?.charAt(0) || 'W'}
                     </Link>
                 </div>
             </header>
-            <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">{children}</main>
+            <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">{allowed ? children : <NoAccess />}</main>
             <BottomNav />
+        </div>
+    );
+}
+
+function NoAccess() {
+    const t = useT();
+    return (
+        <div className="wp-card p-8 max-w-md mx-auto mt-8 text-center">
+            <div className="h-12 w-12 mx-auto grid place-items-center rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}><Lock size={22} /></div>
+            <h1 className="text-lg font-bold mt-4" style={{ color: 'var(--text-primary)' }}>{t('noAccessTitle')}</h1>
+            <p className="text-sm mt-1.5" style={{ color: 'var(--text-secondary)' }}>{t('noAccessBody')}</p>
+            <Link href="/dashboard" className="wp-btn wp-btn-primary mt-5 inline-flex">{t('goHome')}</Link>
         </div>
     );
 }
