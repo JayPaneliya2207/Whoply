@@ -10,6 +10,7 @@
         "start": "node dist/server.js",
         "seed": "tsx src/seeds/seed.ts",
         "seed:reset": "tsx src/seeds/reset.ts",
+        "db:clear": "tsx src/seeds/reset.ts",
         "migrate": "tsx src/seeds/migrate.ts",
         "migrate:prod": "node dist/seeds/migrate.js",
         "backup": "tsx src/seeds/backup.ts",
