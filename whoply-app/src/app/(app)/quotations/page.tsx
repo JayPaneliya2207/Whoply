@@ -17,6 +17,12 @@ import { printQuote, buildQuoteText, whatsappLink } from '@/lib/bill';
 import { GSTIN_PLACEHOLDER, isValidGstin } from '@/lib/gstin';
 import { PriceSummary } from '@/components/PriceSummary';
 import { useDealerPricing } from '@/lib/dealerPricing';
+import { PaymentChoice, usePaymentChoice } from '@/components/PaymentChoice';
+
+/** Past its valid-till date: can't be converted (a new estimate is made at today's prices). */
+const isExpired = (q: any) => q?.status === 'open' && !!q.validUntil && new Date(q.validUntil).getTime() <= Date.now();
+const validTillText = (q: any) => q?.validUntil ? new Date(new Date(q.validUntil).getTime() - 1).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+const expiredTone = { background: 'var(--danger-tint)', color: 'var(--danger)' };
 
 const statusTone: Record<string, any> = {
     open: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
@@ -42,6 +48,8 @@ function RetailQuotes() {
     const [error, setError] = useState('');
     const [detail, setDetail] = useState<any>(null);
     const [del, setDel] = useState<any>(null);
+    const [paying, setPaying] = useState(false);
+    const pay = usePaymentChoice(detail?.grandTotal || 0);
 
     const { data: quotes } = useQuery({ queryKey: ['quotations'], queryFn: async () => (await api.get('/shopkeeper/quotations?limit=100')).data.data.items });
     const { data: products } = useQuery({ queryKey: ['q-products', search], queryFn: async () => (await api.get(`/shopkeeper/products?limit=40&search=${encodeURIComponent(search)}`)).data.data.items });
@@ -72,13 +80,14 @@ function RetailQuotes() {
         onError: (e) => setError(apiErr(e)),
     });
     const convert = useMutation({
-        mutationFn: async (id: string) => (await api.post(`/shopkeeper/quotations/${id}/convert`, { paymentMode: 'cash' })).data.data,
-        onSuccess: () => { setDetail(null); qc.invalidateQueries({ queryKey: ['quotations'] }); qc.invalidateQueries({ queryKey: ['bills'] }); qc.invalidateQueries({ queryKey: ['products'] }); },
-        onError: (e) => alert(apiErr(e)),
+        mutationFn: async (id: string) => (await api.post(`/shopkeeper/quotations/${id}/convert`, pay.body)).data.data,
+        onSuccess: () => { setDetail(null); setPaying(false); pay.reset(); qc.invalidateQueries({ queryKey: ['quotations'] }); qc.invalidateQueries({ queryKey: ['bills'] }); qc.invalidateQueries({ queryKey: ['products'] }); },
+        onError: (e) => { alert(apiErr(e)); qc.invalidateQueries({ queryKey: ['quotations'] }); },
     });
     const doDelete = useMutation({
         mutationFn: async () => (await api.delete(`/shopkeeper/quotations/${del._id}`)).data,
         onSuccess: () => { setDel(null); setDetail(null); qc.invalidateQueries({ queryKey: ['quotations'] }); },
+        onError: (e) => { setDel(null); alert(apiErr(e)); },
     });
 
     const shareQuote = (q: any) => {
@@ -101,9 +110,9 @@ function RetailQuotes() {
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{q.quoteNo}</p>
-                                <span className="wp-chip capitalize shrink-0" style={statusTone[q.status]}>{t(q.status === 'converted' ? 'converted' : 'openQuote')}</span>
+                                <span className="wp-chip capitalize shrink-0" style={isExpired(q) ? expiredTone : statusTone[q.status]}>{isExpired(q) ? t('expiredQuote') : t(q.status === 'converted' ? 'converted' : 'openQuote')}</span>
                             </div>
-                            <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{q.customerName || t('walkIn')} · {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{q.convertedInvoiceNo ? ` → ${q.convertedInvoiceNo}` : ''}</p>
+                            <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{q.customerName || t('walkIn')} · {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{q.convertedInvoiceNo ? ` → ${q.convertedInvoiceNo}` : q.status === 'open' && q.validUntil ? ` · ${t('validTill')} ${validTillText(q)}` : ''}</p>
                         </div>
                         <p className="font-bold tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr2(q.grandTotal)}</p>
                     </button>
@@ -111,21 +120,34 @@ function RetailQuotes() {
             </div>
 
             {/* Quote detail */}
-            <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.quoteNo || 'Quote'}
-                footer={detail && (
+            <Modal open={!!detail} onClose={() => { setDetail(null); setPaying(false); pay.reset(); }} title={detail?.quoteNo || 'Quote'}
+                footer={detail && (paying ? (
                     <div className="flex flex-col sm:flex-row gap-2">
-                        {detail.status === 'open' && <button className="wp-btn wp-btn-primary w-full sm:flex-1" disabled={convert.isPending} onClick={() => convert.mutate(detail._id)}><ArrowRightCircle size={16} /> {t('convertToBill')}</button>}
+                        <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => setPaying(false)}>{t('cancel')}</button>
+                        <button className="wp-btn wp-btn-primary w-full sm:flex-1" disabled={convert.isPending || pay.over || (pay.onUdhar && !detail.customerMobile)} onClick={() => convert.mutate(detail._id)}><Check size={16} /> {t('makeBill')} · {inr2(detail.grandTotal)}</button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        {detail.status === 'open' && !isExpired(detail) && <button className="wp-btn wp-btn-primary w-full sm:flex-1" onClick={() => { pay.reset(); setPaying(true); }}><ArrowRightCircle size={16} /> {t('convertToBill')}</button>}
                         <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareQuote(detail)}><MessageCircle size={16} style={{ color: 'var(--success)' }} /> WhatsApp</button>
                         <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => printQuote(detail, biz)}><Printer size={16} /> {t('printPdf')}</button>
                     </div>
-                )}>
-                {detail && (
+                ))}>
+                {detail && paying && (
+                    <div className="space-y-3">
+                        <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{t('howPaid')}</p>
+                        <PaymentChoice pay={pay} />
+                        {pay.onUdhar && !detail.customerMobile && <p className="text-xs" style={{ color: 'var(--danger)' }}>{t('udharNeedsMobile')}</p>}
+                    </div>
+                )}
+                {detail && !paying && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                             <span style={{ color: 'var(--text-secondary)' }}>{detail.customerName || t('walkIn')}{detail.customerMobile ? ` · ${detail.customerMobile}` : ''}</span>
-                            <span className="wp-chip capitalize" style={statusTone[detail.status]}>{t(detail.status === 'converted' ? 'converted' : 'openQuote')}</span>
+                            <span className="wp-chip capitalize" style={isExpired(detail) ? expiredTone : statusTone[detail.status]}>{isExpired(detail) ? t('expiredQuote') : t(detail.status === 'converted' ? 'converted' : 'openQuote')}</span>
                         </div>
                         {detail.convertedInvoiceNo && <p className="text-xs" style={{ color: 'var(--success)' }}>✓ {t('convertedTo')} {detail.convertedInvoiceNo}</p>}
+                        {isExpired(detail) ? <p className="text-xs" style={{ color: 'var(--danger)' }}>{t('expiredQuoteNote')}</p> : detail.status === 'open' && detail.validUntil && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('validTill')} {validTillText(detail)}</p>}
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
                             {detail.items.map((it: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-2.5 text-sm" style={{ borderTop: i ? '1px solid var(--card-border)' : 'none' }}>
@@ -135,7 +157,7 @@ function RetailQuotes() {
                             ))}
                         </div>
                         <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}><span>{t('estimatedTotal')}</span><span className="tabular">{inr2(detail.grandTotal)}</span></div>
-                        <button className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger)' }} onClick={() => setDel(detail)}><Trash2 size={14} /> {t('delete')}</button>
+                        {detail.status === 'open' && <button className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger)' }} onClick={() => setDel(detail)}><Trash2 size={14} /> {t('delete')}</button>}
                     </div>
                 )}
             </Modal>
@@ -253,9 +275,9 @@ function WholesaleQuotes() {
     const convert = useMutation({
         mutationFn: async (id: string) => (await api.post(`/wholesaler/quotations/${id}/convert`, {})).data.data,
         onSuccess: () => { setDetail(null); qc.invalidateQueries({ queryKey: ['ws-quotes'] }); qc.invalidateQueries({ queryKey: ['orders'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); },
-        onError: (e) => alert(apiErr(e)),
+        onError: (e) => { alert(apiErr(e)); qc.invalidateQueries({ queryKey: ['ws-quotes'] }); },
     });
-    const doDelete = useMutation({ mutationFn: async () => (await api.delete(`/wholesaler/quotations/${del._id}`)).data, onSuccess: () => { setDel(null); setDetail(null); qc.invalidateQueries({ queryKey: ['ws-quotes'] }); } });
+    const doDelete = useMutation({ mutationFn: async () => (await api.delete(`/wholesaler/quotations/${del._id}`)).data, onSuccess: () => { setDel(null); setDetail(null); qc.invalidateQueries({ queryKey: ['ws-quotes'] }); }, onError: (e) => { setDel(null); alert(apiErr(e)); } });
 
     const shareQuote = (q: any) => { if (!q.customerMobile) { alert(t('noMobileQuote')); return; } window.open(whatsappLink(q.customerMobile, buildQuoteText(q, biz), '+91'), '_blank'); };
 
@@ -274,9 +296,9 @@ function WholesaleQuotes() {
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{q.quoteNo}</p>
-                                <span className="wp-chip capitalize shrink-0" style={q.status === 'converted' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{t(q.status === 'converted' ? 'converted' : 'openQuote')}</span>
+                                <span className="wp-chip capitalize shrink-0" style={isExpired(q) ? expiredTone : statusTone[q.status]}>{isExpired(q) ? t('expiredQuote') : t(q.status === 'converted' ? 'converted' : 'openQuote')}</span>
                             </div>
-                            <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{q.customerName} · {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{q.convertedInvoiceNo ? ` → ${q.convertedInvoiceNo}` : ''}</p>
+                            <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>{q.customerName} · {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{q.convertedInvoiceNo ? ` → ${q.convertedInvoiceNo}` : q.status === 'open' && q.validUntil ? ` · ${t('validTill')} ${validTillText(q)}` : ''}</p>
                         </div>
                         <p className="font-bold tabular shrink-0" style={{ color: 'var(--text-primary)' }}>{inr2(q.grandTotal)}</p>
                     </button>
@@ -286,7 +308,7 @@ function WholesaleQuotes() {
             <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.quoteNo || 'Quote'}
                 footer={detail && (
                     <div className="flex flex-col sm:flex-row gap-2">
-                        {detail.status === 'open' && <button className="wp-btn wp-btn-primary w-full sm:flex-1" disabled={convert.isPending} onClick={() => convert.mutate(detail._id)}><ArrowRightCircle size={16} /> {t('convertToOrder')}</button>}
+                        {detail.status === 'open' && !isExpired(detail) && <button className="wp-btn wp-btn-primary w-full sm:flex-1" disabled={convert.isPending} onClick={() => convert.mutate(detail._id)}><ArrowRightCircle size={16} /> {t('convertToOrder')}</button>}
                         <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => shareQuote(detail)}><MessageCircle size={16} style={{ color: 'var(--success)' }} /> WhatsApp</button>
                         <button className="wp-btn wp-btn-ghost w-full sm:flex-1" onClick={() => printQuote(detail, biz)}><Printer size={16} /> {t('printPdf')}</button>
                     </div>
@@ -295,9 +317,10 @@ function WholesaleQuotes() {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                             <span style={{ color: 'var(--text-secondary)' }}>{detail.customerName}{detail.customerGstin ? ` · ${detail.customerGstin}` : ''}</span>
-                            <span className="wp-chip capitalize" style={detail.status === 'converted' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>{t(detail.status === 'converted' ? 'converted' : 'openQuote')}</span>
+                            <span className="wp-chip capitalize" style={isExpired(detail) ? expiredTone : statusTone[detail.status]}>{isExpired(detail) ? t('expiredQuote') : t(detail.status === 'converted' ? 'converted' : 'openQuote')}</span>
                         </div>
                         {detail.convertedInvoiceNo && <p className="text-xs" style={{ color: 'var(--success)' }}>✓ {t('convertedTo')} {detail.convertedInvoiceNo}</p>}
+                        {isExpired(detail) ? <p className="text-xs" style={{ color: 'var(--danger)' }}>{t('expiredQuoteNote')}</p> : detail.status === 'open' && detail.validUntil && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('validTill')} {validTillText(detail)}</p>}
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>
                             {detail.items.map((it: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-2.5 text-sm" style={{ borderTop: i ? '1px solid var(--card-border)' : 'none' }}>
@@ -312,7 +335,7 @@ function WholesaleQuotes() {
                             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}><span>{t('gst')}</span><span className="tabular">{inr2(detail.totalGst)}</span></div>
                             <div className="flex justify-between text-lg font-extrabold" style={{ color: 'var(--text-primary)' }}><span>{t('estimatedTotal')}</span><span className="tabular">{inr2(detail.grandTotal)}</span></div>
                         </div>
-                        <button className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger)' }} onClick={() => setDel(detail)}><Trash2 size={14} /> {t('delete')}</button>
+                        {detail.status === 'open' && <button className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger)' }} onClick={() => setDel(detail)}><Trash2 size={14} /> {t('delete')}</button>}
                     </div>
                 )}
             </Modal>

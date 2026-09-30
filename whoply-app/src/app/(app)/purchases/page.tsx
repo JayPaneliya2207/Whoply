@@ -25,6 +25,7 @@ export default function PurchasesPage() {
     const [supForm, setSupForm] = useState<any>(emptySup);
     const [supErr, setSupErr] = useState('');
     const [delSup, setDelSup] = useState<any>(null);
+    const [cancelPo, setCancelPo] = useState<any>(null);
 
     // PO builder
     const [poModal, setPoModal] = useState(false);
@@ -55,7 +56,7 @@ export default function PurchasesPage() {
         onSuccess: () => { setSupModal(false); qc.invalidateQueries({ queryKey: ['suppliers'] }); },
         onError: (e) => setSupErr(apiErr(e)),
     });
-    const doDelSup = useMutation({ mutationFn: async () => (await api.delete(`/shopkeeper/suppliers/${delSup._id}`)).data, onSuccess: () => { setDelSup(null); qc.invalidateQueries({ queryKey: ['suppliers'] }); } });
+    const doDelSup = useMutation({ mutationFn: async () => (await api.delete(`/shopkeeper/suppliers/${delSup._id}`)).data, onSuccess: () => { setDelSup(null); qc.invalidateQueries({ queryKey: ['suppliers'] }); }, onError: (e) => { setDelSup(null); alert(apiErr(e)); } });
 
     // ---- purchase order ----
     const addPo = (p: any) => setPoCart((c) => { const ex = c.find((r) => r.productId === p._id); if (ex) return c; return [...c, { productId: p._id, name: p.name, costPrice: p.costPrice, unit: p.unit, quantity: 10 }]; });
@@ -76,6 +77,13 @@ export default function PurchasesPage() {
     const receivePo = useMutation({
         mutationFn: async (id: string) => (await api.post(`/shopkeeper/purchases/${id}/receive`)).data.data,
         onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchases'] }); qc.invalidateQueries({ queryKey: ['products'] }); },
+        onError: (e) => { alert(apiErr(e)); qc.invalidateQueries({ queryKey: ['purchases'] }); },
+    });
+    // Cancel a PO entered by mistake (pending, nothing paid) — its due comes off the supplier.
+    const doCancelPo = useMutation({
+        mutationFn: async () => (await api.post(`/shopkeeper/purchases/${cancelPo._id}/cancel`)).data.data,
+        onSuccess: () => { setCancelPo(null); qc.invalidateQueries({ queryKey: ['purchases'] }); qc.invalidateQueries({ queryKey: ['suppliers'] }); },
+        onError: (e) => { setCancelPo(null); alert(apiErr(e)); },
     });
 
     const openPay = (po: any) => { setPayPo(po); setPayAmt(String(po.dueAmount)); setPayErr(''); };
@@ -129,19 +137,20 @@ export default function PurchasesPage() {
                         <div key={p._id} className="wp-card p-4">
                             <div className="flex items-center justify-between mb-2">
                                 <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{p.poNo}</p>
-                                <span className="wp-chip capitalize shrink-0" style={p.status === 'received' ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{p.status}</span>
+                                <span className="wp-chip capitalize shrink-0" style={p.status === 'received' ? { background: 'var(--success-tint)', color: 'var(--success)' } : p.status === 'cancelled' ? { background: 'var(--danger-tint)', color: 'var(--danger)' } : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }}>{p.status === 'cancelled' ? t('poCancelled') : p.status}</span>
                             </div>
                             <p className="text-xs truncate mb-2" style={{ color: 'var(--text-muted)' }}>{p.supplierName}</p>
                             <div className="flex items-end justify-between gap-2">
                                 <div>
                                     <p className="text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(p.total)}</p>
-                                    {p.dueAmount > 0
+                                    {p.status === 'cancelled' ? null : p.dueAmount > 0
                                         ? <p className="text-xs tabular" style={{ color: 'var(--warning)' }}>You owe {inr2(p.dueAmount)}</p>
                                         : <p className="text-xs" style={{ color: 'var(--success)' }}>{t('fullyPaid')}</p>}
                                 </div>
                                 <div className="flex flex-col gap-1.5 items-stretch shrink-0">
                                     {can('purchases.manage') && p.status === 'pending' && <button className="wp-btn wp-btn-primary !py-1.5 !text-xs" disabled={receivePo.isPending} onClick={() => receivePo.mutate(p._id)}><PackageCheck size={13} /> {t('receiveStock')}</button>}
-                                    {can('purchases.manage') && p.dueAmount > 0 && <button className="wp-btn wp-btn-ghost !py-1.5 !text-xs" onClick={() => openPay(p)}><RupeeIcon size={13} /> {t('recordPaymentBtn')}</button>}
+                                    {can('purchases.manage') && p.status !== 'cancelled' && p.dueAmount > 0 && <button className="wp-btn wp-btn-ghost !py-1.5 !text-xs" onClick={() => openPay(p)}><RupeeIcon size={13} /> {t('recordPaymentBtn')}</button>}
+                                    {can('purchases.manage') && p.status === 'pending' && !(p.paidAmount > 0) && <button className="text-xs font-semibold py-1" style={{ color: 'var(--danger)' }} onClick={() => setCancelPo(p)}>{t('cancelPo')}</button>}
                                 </div>
                             </div>
                         </div>
@@ -211,6 +220,7 @@ export default function PurchasesPage() {
                 )}
             </Modal>
 
+            <ConfirmDialog open={!!cancelPo} onClose={() => setCancelPo(null)} onConfirm={() => doCancelPo.mutate()} loading={doCancelPo.isPending} confirmLabel={t('cancelPo')} title={t('cancelPoTitle')} message={`${cancelPo?.poNo} · ${cancelPo?.supplierName} — ${t('cancelPoMsg')}`} />
             <ConfirmDialog open={!!delSup} onClose={() => setDelSup(null)} onConfirm={() => doDelSup.mutate()} loading={doDelSup.isPending} title="Remove supplier?" message={`Remove “${delSup?.name}”?`} />
         </div>
     );

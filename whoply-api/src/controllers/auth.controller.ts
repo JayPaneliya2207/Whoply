@@ -17,6 +17,14 @@ import Business from '../models/Business.js';
 import Session from '../models/Session.js';
 import { loginSchema, verifyOtpSchema, passwordLoginSchema, registerSchema, onboardingSchema } from '../validators/auth.validator.js';
 import type { AuthRequest } from '../interfaces/index.js';
+import { BUSINESS_SUSPENDED } from '../middleware/auth.middleware.js';
+
+/** A business the platform admin suspended: no sign-in for its owner or staff. */
+const assertBusinessOpen = async (user: { role: string; businessId?: unknown }) => {
+    if (!user.businessId || user.role === 'admin') return;
+    const b = await Business.findById(user.businessId).select('isActive').lean();
+    if (b?.isActive === false) throw AppError.forbidden(BUSINESS_SUSPENDED);
+};
 
 const createSession = async (userId: any, mobile: string, role: any, businessId: any, req: AuthRequest) => {
     const token = generateToken({ _id: userId, role, mobile, businessId });
@@ -84,6 +92,7 @@ export const requestOtp = asyncHandler(async (req, res) => {
     const user = await User.findOne({ mobile }).select(`+otp +otpExpiry ${GUARD_FIELDS}`);
     if (!user) throw AppError.notFound('No account found for this mobile. Please sign up first.');
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
+    await assertBusinessOpen(user);
     allowOtpSend(user);
 
     const otp = generateOtp();
@@ -110,6 +119,7 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     if (!user.otp || !user.otpExpiry) throw AppError.badRequest('Please request an OTP first');
     if (user.otpExpiry < new Date()) throw AppError.badRequest('OTP has expired. Please request a new one.');
     if (!sameOtp(String(body.otp), user.otp)) await wrongTry(user, req.ip, 'Incorrect OTP');
+    await assertBusinessOpen(user);
 
     user.otp = undefined;
     user.otpExpiry = undefined;
@@ -140,6 +150,7 @@ export const passwordLogin = asyncHandler(async (req, res) => {
 
     const ok = await user.comparePassword(body.password);
     if (!ok) await wrongTry(user, req.ip, 'Incorrect password');
+    await assertBusinessOpen(user);
 
     clearWrongTries(user);
     if (body.language) user.language = body.language;

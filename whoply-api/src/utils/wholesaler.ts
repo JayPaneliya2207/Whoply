@@ -41,7 +41,7 @@ export function tierUnitPrice(rows: { productId: any; tier: string; price: numbe
 export async function priceDealerItems(businessId: any, dealer: { tier: DealerTier }, items: any[]) {
     const ids = items.map((i: any) => i.productId);
     const [products, priceRows] = await Promise.all([
-        Product.find({ _id: { $in: ids }, businessId }),
+        Product.find({ _id: { $in: ids }, businessId, isActive: true }),
         PriceList.find({ businessId, productId: { $in: ids }, tier: dealer.tier }).lean(),
     ]);
     const map = new Map(products.map((p) => [String(p._id), p]));

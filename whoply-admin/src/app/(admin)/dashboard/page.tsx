@@ -61,7 +61,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <Stat label="Active" value={data.active} icon={Power} tone={{ bg: 'var(--success-tint)', fg: 'var(--success)' }} />
                 <Stat label="Suspended" value={data.suspended} icon={Power} tone={{ bg: 'var(--danger-tint)', fg: 'var(--danger)' }} />
-                <Stat label="Total GMV" value={inr(data.gmv)} icon={IndianRupee} tone={{ bg: 'var(--success-tint)', fg: 'var(--success)' }} />
+                <Stat label="Retail bills / wholesale orders" value={`${inr(data.retailGmv ?? data.gmv)} / ${inr(data.wholesaleGmv ?? 0)}`} icon={IndianRupee} tone={{ bg: 'var(--success-tint)', fg: 'var(--success)' }} />
             </div>
         </div>
     );
