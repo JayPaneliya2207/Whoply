@@ -12,7 +12,11 @@ import { lineQty } from '../../utils/qty.js';
 import { nextSequence } from '../../models/Counter.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 import { istYm } from '../../utils/ist.js';
-import { round2 } from '../../utils/tax.js';
+import { round2, priceLines } from '../../utils/tax.js';
+import { cleanGstin } from '../../utils/gstin.js';
+import { isInterState } from '../../utils/gstSplit.js';
+import { istDaysAgo } from '../../utils/ist.js';
+import Business from '../../models/Business.js';
 
 /* ---- Suppliers ---- */
 const SUPPLIER_FIELDS = ['name', 'mobile', 'countryCode', 'gstin', 'address'] as const;
@@ -21,6 +25,8 @@ const SUPPLIER_FIELDS = ['name', 'mobile', 'countryCode', 'gstin', 'address'] as
 function supplierFields(body: any, creating: boolean) {
     const patch: Record<string, any> = {};
     for (const k of SUPPLIER_FIELDS) if (body[k] !== undefined) patch[k] = typeof body[k] === 'string' ? body[k].trim() : body[k];
+    // A wrong GSTIN would put the wrong tax (IGST vs CGST + SGST) and wrong credit on its bills.
+    if (patch.gstin !== undefined) patch.gstin = cleanGstin(patch.gstin, (m) => AppError.badRequest(m)) ?? '';
     if ((creating || patch.name !== undefined) && !patch.name) throw AppError.badRequest('Supplier name is required');
     return patch;
 }
@@ -62,6 +68,23 @@ export const deleteSupplier = asyncHandler(async (req: AuthRequest, res: Respons
 });
 
 /* ---- Purchase Orders ---- */
+
+/** The supplier's bill number (GST allows 16 characters) and date (not in the future) — for GSTR-2B matching. */
+function billFields(body: any) {
+    const out: Record<string, any> = {};
+    if (body.supplierInvoiceNo !== undefined) {
+        const no = String(body.supplierInvoiceNo ?? '').trim();
+        if (no.length > 16) throw AppError.badRequest('Supplier bill number can be at most 16 characters');
+        out.supplierInvoiceNo = no || undefined;
+    }
+    if (body.supplierInvoiceDate) {
+        const d = new Date(body.supplierInvoiceDate);
+        if (Number.isNaN(d.getTime())) throw AppError.badRequest('Invalid supplier bill date');
+        if (d.getTime() > istDaysAgo(-1).getTime()) throw AppError.badRequest('The supplier bill date can not be in the future');
+        out.supplierInvoiceDate = d;
+    }
+    return out;
+}
 export const listPurchases = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const { skip, limit, meta } = paginate(req.query);
@@ -74,10 +97,19 @@ export const listPurchases = asyncHandler(async (req: AuthRequest, res: Response
     sendPaginated(res, items, meta(total));
 });
 
-/** POST /purchases — create a PO (pending receipt). body: { supplierId, items:[{ productId, quantity, costPrice? }], paidAmount? } */
+/**
+ * POST /purchases — create a PO (pending receipt).
+ * body: { supplierId, items:[{ productId, quantity, costPrice? }], pricesIncludeGst?, paidAmount?,
+ *         supplierInvoiceNo?, supplierInvoiceDate? }
+ * Cost is before GST unless pricesIncludeGst; GST is worked out per line at the product's rate,
+ * the same way bills are (utils/tax.ts). IGST when the supplier is in another state. The total,
+ * GST included, is what the business owes the supplier.
+ */
 export const createPurchase = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const { supplierId, items = [], paidAmount = 0 } = req.body;
+    const inclusive = req.body.pricesIncludeGst === true;
+    const bill = billFields(req.body);
     if (!supplierId) throw AppError.badRequest('supplierId is required');
     if (!Array.isArray(items) || !items.length) throw AppError.badRequest('At least one item is required');
 
@@ -88,18 +120,21 @@ export const createPurchase = asyncHandler(async (req: AuthRequest, res: Respons
     const products = await Product.find({ _id: { $in: ids }, businessId, isActive: true });
     const map = new Map(products.map((p) => [String(p._id), p]));
 
-    let total = 0;
-    const lineItems = items.map((i: any) => {
+    const rows = items.map((i: any) => {
         const p = map.get(String(i.productId));
         if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
         const qty = lineQty(i.quantity, p);
-        const cost = i.costPrice != null ? Number(i.costPrice) : p.costPrice;
-        if (!(cost >= 0)) throw AppError.badRequest(`Cost price for ${p.name} must be 0 or more`);
-        const lineTotal = round2(qty * cost);
-        total += lineTotal;
-        return { productId: p._id, name: p.name, quantity: qty, costPrice: cost, lineTotal };
+        const cost = i.costPrice != null && i.costPrice !== '' ? Number(i.costPrice) : p.costPrice;
+        if (!Number.isFinite(cost) || cost < 0) throw AppError.badRequest(`Cost price for ${p.name} must be 0 or more`);
+        return { p, qty, cost };
     });
-    total = round2(total);
+    const priced = priceLines(rows.map((r) => ({ unitPrice: r.cost, quantity: r.qty, gstRate: r.p.gstRate || 0, inclusive })), 0);
+    const lineItems = rows.map((r, k) => ({
+        productId: r.p._id, name: r.p.name, hsn: r.p.hsn, unit: r.p.unit, quantity: r.qty, costPrice: r.cost,
+        gstRate: r.p.gstRate || 0, taxableValue: priced.lines[k].taxableValue, gstAmount: priced.lines[k].gstAmount, lineTotal: priced.lines[k].lineTotal,
+    }));
+    const total = priced.grandTotal;
+    const biz = await Business.findById(businessId).select('gstin').lean();
 
     const paid = round2(Number(paidAmount) || 0);
     if (paid < 0) throw AppError.badRequest('Paid amount can not be negative');
@@ -113,7 +148,13 @@ export const createPurchase = asyncHandler(async (req: AuthRequest, res: Respons
         poNo: `PO/${ym}/${String(seq).padStart(4, '0')}`,
         supplierId,
         supplierName: supplier.name,
+        supplierGstin: supplier.gstin || undefined,
+        ...bill,
         items: lineItems,
+        pricesIncludeGst: inclusive,
+        subtotal: priced.subtotal,
+        totalGst: priced.totalGst,
+        interState: isInterState(supplier.gstin, biz?.gstin),
         total,
         paidAmount: paid,
         dueAmount: due,
@@ -145,12 +186,17 @@ export const payPurchase = asyncHandler(async (req: AuthRequest, res: Response) 
     sendSuccess(res, po, 'Payment recorded');
 });
 
-/** POST /purchases/:id/receive — mark received & add stock. Only once: a double tap or a second phone gets "Already received". */
+/**
+ * POST /purchases/:id/receive — mark received & add stock. Only once: a double tap or a second phone
+ * gets "Already received". body (optional): { supplierInvoiceNo, supplierInvoiceDate } — input tax
+ * credit counts in the month the goods are received.
+ */
 export const receivePurchase = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
+    const bill = billFields(req.body || {});
     const po = await PurchaseOrder.findOneAndUpdate(
         { _id: req.params.id, businessId, status: 'pending' },
-        { $set: { status: 'received', receivedAt: new Date() } },
+        { $set: { status: 'received', receivedAt: new Date(), ...bill } },
         { new: true }
     );
     if (!po) {
@@ -192,4 +238,14 @@ export const cancelPurchase = asyncHandler(async (req: AuthRequest, res: Respons
     }
     await addToPayable(businessId, po.supplierId, -po.dueAmount);
     sendSuccess(res, po, 'Purchase order cancelled');
+});
+
+/** PATCH /purchases/:id/bill — add or correct the supplier's bill number / date (any time unless cancelled). */
+export const updatePurchaseBill = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const businessId = businessOf(req);
+    const bill = billFields(req.body || {});
+    if (!Object.keys(bill).length) throw AppError.badRequest('Send supplierInvoiceNo and/or supplierInvoiceDate');
+    const po = await PurchaseOrder.findOneAndUpdate({ _id: req.params.id, businessId, status: { $ne: 'cancelled' } }, { $set: bill }, { new: true });
+    if (!po) throw AppError.notFound('Purchase order not found');
+    sendSuccess(res, po, 'Supplier bill saved');
 });

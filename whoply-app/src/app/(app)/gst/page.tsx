@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, FileSpreadsheet, Percent, Building2, Users } from 'lucide-react';
+import { Download, FileSpreadsheet, Percent, Building2, Users, Truck, Scale } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api } from '@/lib/api';
 import { inr } from '@/lib/cn';
@@ -32,6 +32,9 @@ export default function GstPage() {
             ['Discount', sum.discount],
             ['Invoice value', sum.invoiceValue],
             ['Invoices', sum.invoices],
+            ['Input tax credit — CGST', data.itc?.cgst ?? 0], ['Input tax credit — SGST', data.itc?.sgst ?? 0], ['Input tax credit — IGST', data.itc?.igst ?? 0],
+            ['GST to pay (estimate) — CGST', data.gstToPay?.payable?.cgst ?? 0], ['GST to pay (estimate) — SGST', data.gstToPay?.payable?.sgst ?? 0], ['GST to pay (estimate) — IGST', data.gstToPay?.payable?.igst ?? 0],
+            ['Credit carried forward', data.gstToPay?.carryForward?.total ?? 0],
         ];
         downloadFile(`gstr3b-${month}.csv`, toCsv(['GSTR-3B Summary', 'Amount'], rows));
     };
@@ -44,6 +47,11 @@ export default function GstPage() {
         if (!data) return;
         const rows = data.hsnWise.map((h: any) => [h.hsn, h.name, rate(h.rate), h.qty, h.taxable, h.cgst ?? 0, h.sgst ?? 0, h.igst ?? 0, h.gst]);
         downloadFile(`gst-hsn-${month}.csv`, toCsv(['HSN', 'Description', 'Rate', 'Qty', 'Taxable', 'CGST', 'SGST', 'IGST', 'Total Tax'], rows));
+    };
+    const exportItc = () => {
+        if (!data?.itc) return;
+        const rows = data.itc.list.map((b: any) => [b.supplierGstin, b.supplierName, b.supplierInvoiceNo, b.supplierInvoiceDate ? String(b.supplierInvoiceDate).slice(0, 10) : '', b.poNo, b.taxable, b.cgst, b.sgst, b.igst, b.gst, b.total]);
+        downloadFile(`input-tax-credit-${month}.csv`, toCsv(['Supplier GSTIN', 'Supplier', 'Bill No', 'Bill Date', 'Our PO', 'Taxable', 'CGST', 'SGST', 'IGST', 'Total Tax', 'Bill Value'], rows));
     };
     const exportB2b = () => {
         if (!data) return;
@@ -152,6 +160,42 @@ export default function GstPage() {
                     {!(data?.hsnWise || []).length && <p className="text-center py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{t('noGstData')}</p>}
                 </div>
             </div>
+
+            {/* Input tax credit — GST on purchases received this month from registered suppliers */}
+            <div className="wp-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}><Truck size={17} style={{ color: 'var(--brand-text)' }} /> {t('itcTitle')} <span className="wp-chip" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>{data?.itc?.bills || 0}</span></h3>
+                    <button className="wp-btn wp-btn-ghost" onClick={exportItc} disabled={!data?.itc?.bills}><Download size={15} /> {t('exportCsv')}</button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                    {[['CGST', data?.itc?.cgst], ['SGST', data?.itc?.sgst], ['IGST', data?.itc?.igst], [t('totalTax'), data?.itc?.total]].map(([l, v]: any) => (
+                        <div key={l} className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{l}</p>
+                            <p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--success)' }}>{inr(v || 0)}</p>
+                        </div>
+                    ))}
+                </div>
+                <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>{t('itcNote')}</p>
+                {(data?.itc?.missingBillNo || 0) > 0 && <p className="text-xs mt-1" style={{ color: 'var(--warning)' }}>{data.itc.missingBillNo} {t('itcMissingBillNo')}</p>}
+                {(data?.itc?.noCredit?.bills || 0) > 0 && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('itcNoCredit')} {inr(data.itc.noCredit.gst)} ({data.itc.noCredit.bills})</p>}
+            </div>
+
+            {/* GST to pay after credit (estimate) */}
+            {data?.gstToPay && (
+                <div className="wp-card p-5">
+                    <h3 className="font-bold flex items-center gap-2 mb-3" style={{ color: 'var(--text-primary)' }}><Scale size={17} style={{ color: 'var(--brand-text)' }} /> {t('gstToPayTitle')}</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                        {[['CGST', data.gstToPay.payable.cgst], ['SGST', data.gstToPay.payable.sgst], ['IGST', data.gstToPay.payable.igst], [t('totalWord'), data.gstToPay.payable.total]].map(([l, v]: any) => (
+                            <div key={l} className="rounded-xl p-3" style={{ background: 'var(--surface-2)' }}>
+                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{l}</p>
+                                <p className="text-base sm:text-lg font-extrabold tabular" style={{ color: 'var(--text-primary)' }}>{inr(v || 0)}</p>
+                            </div>
+                        ))}
+                    </div>
+                    {data.gstToPay.carryForward.total > 0 && <p className="text-xs mt-2" style={{ color: 'var(--success)' }}>{t('creditCarried')} {inr(data.gstToPay.carryForward.total)}</p>}
+                    <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>{t('gstToPayNote')}</p>
+                </div>
+            )}
 
             {/* B2B */}
             <div className="wp-card p-5">

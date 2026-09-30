@@ -34,7 +34,7 @@ const K = '/shopkeeper';
     };
 
     suite('setup');
-    const prod = d(await api('POST', `${K}/products`, st, { name: 'PO Soap', sku: 'POS1', sellPrice: 40, costPrice: 25, gstRate: 18, unit: 'pcs', currentStock: 0 }));
+    const prod = d(await api('POST', `${K}/products`, st, { name: 'PO Soap', sku: 'POS1', sellPrice: 40, costPrice: 25, gstRate: 0, unit: 'pcs', currentStock: 0 }));
     let r = await api('POST', `${K}/suppliers`, st, { name: 'Sneaky Supplier', payableBalance: 50000, isActive: false });
     const sup = d(r);
     check('new supplier ignores balance / active sent in the request', r.status === 201 && sup?.payableBalance === 0 && sup?.isActive !== false, JSON.stringify({ bal: sup?.payableBalance, active: sup?.isActive }));

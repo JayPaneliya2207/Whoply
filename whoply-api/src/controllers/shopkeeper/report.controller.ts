@@ -9,7 +9,8 @@ import CreditLedger from '../../models/CreditLedger.js';
 import CreditNote from '../../models/CreditNote.js';
 import User from '../../models/User.js';
 import Business from '../../models/Business.js';
-import { interStateExpr, splitTax, netRows, rateKey, hsnKey, rateTable, hsnTable } from '../../utils/gstSplit.js';
+import { interStateExpr, splitTax, netRows, rateKey, hsnKey, rateTable, hsnTable, setOffGst } from '../../utils/gstSplit.js';
+import { purchaseCredit } from '../../utils/purchaseGst.js';
 import { STAFF_ROLES, type AuthRequest } from '../../interfaces/index.js';
 import { can } from '../../utils/permissions.js';
 import { Types, type PipelineStage } from 'mongoose';
@@ -380,6 +381,7 @@ export const gstReport = asyncHandler(async (req: AuthRequest, res: Response) =>
     const cdnrGst = cdnr.reduce((a, x) => a + x.gst, 0);
     const netTaxable = s.taxable - cn.taxable;
     const netGst = s.gst - cn.gst;
+    const itc = await purchaseCredit(bId, from, to);
 
     sendSuccess(res, {
         month: label,
@@ -402,5 +404,8 @@ export const gstReport = asyncHandler(async (req: AuthRequest, res: Response) =>
         b2bGst: r2(b2bGst),
         b2cTaxable: r2(s.taxable - b2bTaxable - (cn.taxable - cdnrTaxable)),
         b2cGst: r2(s.gst - b2bGst - (cn.gst - cdnrGst)),
+        // Input tax credit from goods received this month, and the GST left to pay after it (estimate).
+        itc,
+        gstToPay: setOffGst(splitTax(netGst, s.igst - cn.igst), itc),
     });
 });

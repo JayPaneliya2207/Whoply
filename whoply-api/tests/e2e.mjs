@@ -148,12 +148,13 @@ async function testShopkeeper() {
     check('create supplier', r.status === 201 && !!supplier?._id);
     r = await api('POST', '/shopkeeper/purchases', token, { supplierId: supplier._id, items: [{ productId: products[0]._id, quantity: 100, costPrice: 320 }], paidAmount: 10000 });
     const po = dataOf(r);
-    check('create purchase order', r.status === 201 && po?.dueAmount === 22000, `due=${po?.dueAmount}`);
+    // Cost is before GST, so the order total adds the product's GST on top; ₹10,000 was paid now.
+    check('create purchase order (GST added)', r.status === 201 && Math.abs(po?.total - 32000 * (1 + (products[0].gstRate || 0) / 100)) < 0.02 && Math.abs(po?.dueAmount - (po?.total - 10000)) < 0.02, `total=${po?.total} due=${po?.dueAmount}`);
     r = await api('POST', `/shopkeeper/purchases/${po._id}/receive`, token);
     check('receive purchase (stock in)', r.status === 200 && dataOf(r)?.status === 'received');
     r = await api('GET', `/shopkeeper/products/${products[0]._id}`, token);
     check('stock increased after receive', dataOf(r)?.currentStock >= 100, `stock=${dataOf(r)?.currentStock}`);
-    r = await api('POST', `/shopkeeper/purchases/${po._id}/payment`, token, { amount: 22000 });
+    r = await api('POST', `/shopkeeper/purchases/${po._id}/payment`, token, { amount: po.dueAmount });
     check('pay supplier balance', r.status === 200 && dataOf(r)?.dueAmount === 0, `due=${dataOf(r)?.dueAmount}`);
 
     suite('shopkeeper:expenses');
