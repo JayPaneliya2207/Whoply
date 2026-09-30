@@ -18,7 +18,36 @@ export function interStateExpr(sellerGstin: string | null | undefined, buyerFiel
     return { $and: [{ $regexMatch: { input: buyer, regex: /^\d{2}/ } }, { $ne: [{ $substrCP: [buyer, 0, 2] }, seller] }] };
 }
 
+/** Plain check: are these two GSTINs in different states? (False if either has no state code.) */
+export function isInterState(a: string | null | undefined, b: string | null | undefined): boolean {
+    const sa = stateCode(a);
+    const sb = stateCode(b);
+    return !!sa && !!sb && sa !== sb;
+}
+
 const r2 = (n: number) => +(+n || 0).toFixed(2);
+
+type Heads = { igst: number; cgst: number; sgst: number };
+
+/**
+ * GST to pay after input tax credit, using credit in the order the GST law sets
+ * (s.49 CGST Act / rule 88A): IGST credit first against IGST, then CGST, then
+ * SGST; CGST credit against CGST, then IGST; SGST credit against SGST, then
+ * IGST. CGST credit never pays SGST (nor the reverse). Returns what is left to
+ * pay per head and the credit carried forward. An estimate — the CA files.
+ */
+export function setOffGst(output: Heads, credit: Heads) {
+    const pay = { igst: r2(output.igst), cgst: r2(output.cgst), sgst: r2(output.sgst) };
+    const left = { igst: r2(credit.igst), cgst: r2(credit.cgst), sgst: r2(credit.sgst) };
+    const use = (from: keyof Heads, to: keyof Heads) => {
+        const n = Math.min(left[from], pay[to]);
+        if (n > 0) { left[from] = r2(left[from] - n); pay[to] = r2(pay[to] - n); }
+    };
+    use('igst', 'igst'); use('igst', 'cgst'); use('igst', 'sgst');
+    use('cgst', 'cgst'); use('cgst', 'igst');
+    use('sgst', 'sgst'); use('sgst', 'igst');
+    return { payable: { ...pay, total: r2(pay.igst + pay.cgst + pay.sgst) }, carryForward: { ...left, total: r2(left.igst + left.cgst + left.sgst) } };
+}
 
 /** Split a tax total into CGST / SGST / IGST, rounded so the three add back up to the total. */
 export function splitTax(gst: number, igst: number) {

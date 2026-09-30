@@ -15,6 +15,19 @@ import { createOrder, previewDealerPrices, listOrders, updateOrderStatus, update
 import { recordOrderPayment, listPayments, tallyReport } from '../../controllers/wholesaler/payment.controller.js';
 import { createWsQuote, listWsQuotes, deleteWsQuote, convertWsQuote } from '../../controllers/wholesaler/quotation.controller.js';
 import { getPriceList, setPrice } from '../../controllers/wholesaler/priceList.controller.js';
+// Suppliers and purchase orders work the same for a wholesaler as for a shop (input tax credit included).
+import {
+    listSuppliers,
+    createSupplier,
+    updateSupplier,
+    deleteSupplier,
+    listPurchases,
+    createPurchase,
+    receivePurchase,
+    payPurchase,
+    cancelPurchase,
+    updatePurchaseBill,
+} from '../../controllers/shopkeeper/supplier.controller.js';
 import {
     listReps,
     createRep,
@@ -97,6 +110,18 @@ router.post('/quotations/:id/convert', p('quotations'), p('orders.create'), conv
 // Price lists
 router.get('/price-lists', p('priceList.view'), getPriceList);
 router.put('/price-lists', p('priceList.manage'), setPrice);
+
+// Suppliers & purchases (stock coming in, with GST input tax credit)
+router.get('/suppliers', p('purchases.view'), listSuppliers);
+router.post('/suppliers', p('purchases.manage'), createSupplier);
+router.patch('/suppliers/:id', p('purchases.manage'), updateSupplier);
+router.delete('/suppliers/:id', p('purchases.manage'), deleteSupplier);
+router.get('/purchases', p('purchases.view'), listPurchases);
+router.post('/purchases', p('purchases.manage'), createPurchase);
+router.post('/purchases/:id/receive', p('purchases.manage'), receivePurchase);
+router.post('/purchases/:id/payment', p('purchases.manage'), payPurchase);
+router.post('/purchases/:id/cancel', p('purchases.manage'), cancelPurchase);
+router.patch('/purchases/:id/bill', p('purchases.manage'), updatePurchaseBill);
 
 // Sales team
 router.get('/sales-team', p('team.view', 'visits.record'), listReps); // a rep sees only themselves

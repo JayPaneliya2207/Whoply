@@ -37,6 +37,7 @@ import {
     receivePurchase,
     payPurchase,
     cancelPurchase,
+    updatePurchaseBill,
 } from '../../controllers/shopkeeper/supplier.controller.js';
 import { listExpenses, createExpense, updateExpense, deleteExpense } from '../../controllers/shopkeeper/expense.controller.js';
 import { salesReport, productReport, profitReport, summaryReport, exportInvoicesCsv, dayCloseReport, gstReport } from '../../controllers/shopkeeper/report.controller.js';
@@ -104,6 +105,7 @@ router.post('/purchases', p('purchases.manage'), createPurchase);
 router.post('/purchases/:id/receive', p('purchases.manage'), receivePurchase);
 router.post('/purchases/:id/payment', p('purchases.manage'), payPurchase);
 router.post('/purchases/:id/cancel', p('purchases.manage'), cancelPurchase);
+router.patch('/purchases/:id/bill', p('purchases.manage'), updatePurchaseBill);
 
 // Expenses
 router.get('/expenses', p('expenses.view'), listExpenses);

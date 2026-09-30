@@ -18,7 +18,8 @@ import { buildEInvoiceJson, buildEWayBillJson, orderToGstDoc } from '../../utils
 import type { AuthRequest } from '../../interfaces/index.js';
 import { Types, type PipelineStage } from 'mongoose';
 import { istYm, gstMonth } from '../../utils/ist.js';
-import { interStateExpr, splitTax, netRows, rateKey, hsnKey, rateTable, hsnTable } from '../../utils/gstSplit.js';
+import { interStateExpr, splitTax, netRows, rateKey, hsnKey, rateTable, hsnTable, setOffGst } from '../../utils/gstSplit.js';
+import { purchaseCredit } from '../../utils/purchaseGst.js';
 
 /**
  * POST /price-preview — what an order or quotation for this dealer would cost,
@@ -301,6 +302,7 @@ export const wholesalerGstReport = asyncHandler(async (req: AuthRequest, res: Re
     const cdnrTaxable = cdnr.reduce((a, x) => a + x.taxable, 0);
     const cdnrGst = cdnr.reduce((a, x) => a + x.gst, 0);
     const netGst = s.gst - cn.gst;
+    const itc = await purchaseCredit(bId, from, to);
 
     sendSuccess(res, {
         month: label,
@@ -321,6 +323,9 @@ export const wholesalerGstReport = asyncHandler(async (req: AuthRequest, res: Re
         b2bGst: round2(b2bGst),
         b2cTaxable: round2(s.taxable - b2bTaxable - (cn.taxable - cdnrTaxable)),
         b2cGst: round2(s.gst - b2bGst - (cn.gst - cdnrGst)),
+        // Input tax credit from goods received this month, and the GST left to pay after it (estimate).
+        itc,
+        gstToPay: setOffGst(splitTax(netGst, s.igst - cn.igst), itc),
     });
 });
 

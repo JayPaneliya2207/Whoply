@@ -3,7 +3,7 @@
  *
  *   npx tsx tests/gst-rows.ts        (no server or database needed)
  */
-import { netRows, rateKey, hsnKey, rateTable, hsnTable } from '../src/utils/gstSplit.js';
+import { netRows, rateKey, hsnKey, rateTable, hsnTable, setOffGst } from '../src/utils/gstSplit.js';
 
 const results: { name: string; pass: boolean; detail: string }[] = [];
 const check = (name: string, cond: unknown, detail = '') => results.push({ name, pass: !!cond, detail });
@@ -37,6 +37,16 @@ const hsn = hsnTable(netRows(
 const rice = hsn.find((h) => h.rate === 5);
 check('HSN row: qty and value net of the return', rice?.qty === 10.3 && rice?.taxable === 515, JSON.stringify(rice));
 check('same HSN at another rate is its own row', hsn.length === 2 && hsn.some((h) => h.rate === 18 && h.qty === -1), JSON.stringify(hsn));
+
+// GST to pay after input tax credit — the legal set-off order.
+const a = setOffGst({ igst: 100, cgst: 50, sgst: 50 }, { igst: 30, cgst: 80, sgst: 0 });
+check('IGST credit pays IGST; spare CGST credit pays IGST too', a.payable.igst === 40 && a.payable.cgst === 0 && a.payable.sgst === 50 && a.carryForward.total === 0, JSON.stringify(a));
+const b = setOffGst({ igst: 0, cgst: 0, sgst: 100 }, { igst: 0, cgst: 100, sgst: 0 });
+check('CGST credit never pays SGST (carried forward instead)', b.payable.sgst === 100 && b.carryForward.cgst === 100, JSON.stringify(b));
+const c = setOffGst({ igst: 0, cgst: 60, sgst: 60 }, { igst: 100, cgst: 0, sgst: 0 });
+check('IGST credit pays CGST, then SGST', c.payable.cgst === 0 && c.payable.sgst === 20 && c.carryForward.igst === 0, JSON.stringify(c));
+const e = setOffGst({ igst: 10, cgst: 10, sgst: 10 }, { igst: 0, cgst: 0, sgst: 0 });
+check('no credit → pay everything', e.payable.total === 30 && e.carryForward.total === 0, JSON.stringify(e));
 
 const fails = results.filter((r) => !r.pass);
 for (const r of results) console.log(`${r.pass ? '✅' : '❌'} ${r.name}${r.pass ? '' : ' — got ' + r.detail}`);

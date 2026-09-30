@@ -72,6 +72,7 @@ export const wholesaleGroups: NavGroup[] = [
     {
         title: 'moreGroup', items: [
             { href: '/products', key: 'warehouse', icon: Package },
+            { href: '/purchases', key: 'suppliers', icon: Truck },
             { href: '/staff', key: 'staff', icon: UsersRound },
             { href: '/settings', key: 'settings', icon: Settings },
         ],
