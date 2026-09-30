@@ -12,6 +12,7 @@ import Payment from '../../models/Payment.js';
 import { netLineValue, round2 } from '../../utils/tax.js';
 import { lineQty } from '../../utils/qty.js';
 import CreditNote from '../../models/CreditNote.js';
+import { returnedSoFar, addReturned } from '../shopkeeper/return.controller.js';
 import { nextSequence } from '../../models/Counter.js';
 import { buildEInvoiceJson, buildEWayBillJson, orderToGstDoc } from '../../utils/gstJson.js';
 import type { AuthRequest } from '../../interfaces/index.js';
@@ -353,14 +354,21 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
         );
     }
 
-    const alreadyReturned = await returnedQty(businessId, order._id);
+    const rev = order.returnsRev || 0;
+    const alreadyReturned = await returnedSoFar(order.returned, () => CreditNote.find({ businessId, orderId: order._id }).select('items.productId items.quantity').lean());
+
+    // The same product listed twice counts as one request for the total.
+    const wanted = new Map<string, number>();
+    for (const i of items) {
+        const src = order.items.find((it) => String(it.productId) === String(i?.productId));
+        if (!src) throw AppError.badRequest('Item not part of this order');
+        wanted.set(String(src.productId), Math.round(((wanted.get(String(src.productId)) || 0) + lineQty(i.quantity, src)) * 1000) / 1000);
+    }
 
     let subtotal = 0, totalGst = 0;
-    const lineItems = items.map((i: any) => {
-        const src = order.items.find((it) => String(it.productId) === String(i.productId));
-        if (!src) throw AppError.badRequest('Item not part of this order');
-        const qty = lineQty(i.quantity, src);
-        const maxReturnable = src.quantity - (alreadyReturned.get(String(i.productId)) || 0);
+    const lineItems = [...wanted].map(([productId, qty]) => {
+        const src = order.items.find((it) => String(it.productId) === productId)!;
+        const maxReturnable = src.quantity - (alreadyReturned.get(productId) || 0);
         if (qty > maxReturnable) throw AppError.badRequest(`Only ${maxReturnable} of "${src.name}" can be returned`);
         // Credit what was charged for these units (GST-inclusive lines included).
         const net = netLineValue(order, src);
@@ -382,8 +390,8 @@ export const createOrderReturn = asyncHandler(async (req: AuthRequest, res: Resp
     if (order.paidAmount > order.total) { cashRefund = +(order.paidAmount - order.total).toFixed(2); order.paidAmount = order.total; }
     order.dueAmount = +Math.max(0, order.total - order.paidAmount).toFixed(2);
     const saved = await Order.updateOne(
-        { _id: order._id, businessId, status: order.status, total: before.total, paidAmount: before.paidAmount },
-        { $set: { subtotal: order.subtotal, totalGst: order.totalGst, total: order.total, paidAmount: order.paidAmount, dueAmount: order.dueAmount } }
+        { _id: order._id, businessId, status: order.status, total: before.total, paidAmount: before.paidAmount, returnsRev: rev === 0 ? { $in: [0, null] } : rev },
+        { $set: { subtotal: order.subtotal, totalGst: order.totalGst, total: order.total, paidAmount: order.paidAmount, dueAmount: order.dueAmount, returnsRev: rev + 1, returned: addReturned(alreadyReturned, wanted) } }
     );
     if (saved.modifiedCount !== 1) throw AppError.conflict('The order changed while you were recording the return — open it again');
 
