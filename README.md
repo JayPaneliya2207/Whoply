@@ -109,6 +109,9 @@ Checklist:
 - **Front-ends**: `NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api` (landing also
   `NEXT_PUBLIC_APP_URL`). Changing them means building again.
 - **HTTPS**: the app only installs and opens offline (service worker) over `https://`.
+- **Behind nginx / a load balancer**: set `TRUST_PROXY=1` in the API `.env`, so sign-in limits
+  count each visitor's own address (5 wrong tries lock an account for 15 minutes; 30 failed
+  sign-ins from one address in 15 minutes pause that address; OTP: one per 30 s, 5 an hour).
 - **Linux servers are case-sensitive**: an import must match the file name exactly
   (`priceList.controller.js`, not `pricelist…`) — Windows hides this mistake.
 - **OTP login**: production makes a real random code, but no SMS provider is connected yet, so
