@@ -105,7 +105,7 @@ jobs:
           check api.localhost /api/health 200
           check localhost / 200
           check localhost /privacy 200
-          check www.localhost / 308
+          check www.localhost / 301
           check app.localhost /login 200
           check admin.localhost /login 200
           # The admin logs in from the admin site (CORS allows exactly that site).
