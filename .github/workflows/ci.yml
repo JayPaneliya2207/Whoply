@@ -75,6 +75,55 @@ jobs:
         if: failure()
         run: tail -n 200 api.log
 
+  deploy:
+    name: Docker deploy — build, start, check over HTTPS
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest moves to 26.04 on 2026-10-19
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: deploy
+        shell: bash
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml # adds a local MongoDB (the server uses Atlas)
+    steps:
+      - uses: actions/checkout@v5
+      - name: Settings for a local test (DOMAIN=localhost)
+        run: |
+          printf 'DOMAIN=localhost\nMONGODB_URI=mongodb://mongo:27017/whoply\nJWT_SECRET=%s\n' "$(openssl rand -hex 48)" > .env
+          mkdir -p backups && chmod 777 backups
+      - name: deploy.sh (build, migrate, start)
+        run: ./deploy.sh
+      - name: One-time setup (plans + admin login)
+        run: docker compose run --rm -e ADMIN_MOBILE=9876543210 -e ADMIN_PASSWORD=ci-admin-password-123 api node dist/seeds/setup.js
+      - name: The sites answer over HTTPS
+        run: |
+          code() { curl -sk --resolve "$1:443:127.0.0.1" -o /dev/null -w '%{http_code}' "https://$1$2"; }
+          fail=0
+          check() { local got; got=$(code "$1" "$2"); if [ "$got" = "$3" ]; then echo "✅ https://$1$2 → $got"; else echo "❌ https://$1$2 → $got (want $3)"; fail=1; fi; }
+          check api.localhost /api/health 200
+          check localhost / 200
+          check localhost /privacy 200
+          check www.localhost / 308
+          check app.localhost /login 200
+          check admin.localhost /login 200
+          # The admin logs in from the admin site (CORS allows exactly that site).
+          out=$(curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o body.json -H 'Origin: https://admin.localhost' -H 'Content-Type: application/json' \
+            -d '{"mobile":"9876543210","password":"ci-admin-password-123"}' https://api.localhost/api/auth/password-login)
+          if grep -qi '^access-control-allow-origin: https://admin.localhost' <<<"$out" && grep -q '"role":"admin"' body.json; then echo '✅ admin login from the admin site'; else echo '❌ admin login'; echo "$out"; cat body.json; fail=1; fi
+          # Another website may not call the API.
+          if curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null -H 'Origin: https://evil.example' https://api.localhost/api/health | grep -qi '^access-control-allow-origin'; then echo '❌ CORS let another site in'; fail=1; else echo '✅ other websites are refused (CORS)'; fi
+          exit $fail
+      - name: The demo reset refuses to wipe a live database
+        run: |
+          if docker compose run --rm api node dist/seeds/reset.js; then echo '❌ reset ran in production'; exit 1; else echo '✅ reset refused'; fi
+      - name: The daily backup is written
+        run: |
+          for i in $(seq 1 18); do ls backups/whoply 2>/dev/null | grep -q '^whoply-' && break; sleep 5; done
+          ls -la backups/whoply && ls backups/whoply | grep -q '^whoply-' && echo '✅ backup saved'
+      - name: Logs
+        if: failure()
+        run: docker compose logs --tail 80
+
   web:
     name: ${{ matrix.app }} — production build
     runs-on: ubuntu-24.04 # pinned: ubuntu-latest moves to 26.04 on 2026-10-19

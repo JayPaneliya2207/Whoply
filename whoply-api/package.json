@@ -16,6 +16,8 @@
         "backup:prod": "node dist/seeds/backup.js",
         "restore": "tsx src/seeds/restore.ts",
         "restore:prod": "node dist/seeds/restore.js",
+        "setup": "tsx src/seeds/setup.ts",
+        "setup:prod": "node dist/seeds/setup.js",
         "test:e2e": "node tests/e2e.mjs",
         "test:edge": "node tests/edge.mjs",
         "test:explain": "node tests/explain.mjs",

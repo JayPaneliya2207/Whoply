@@ -1,0 +1,33 @@
+# Which web address goes to which part of Whoply. DOMAIN comes from deploy/.env.
+# Caddy fetches and renews free HTTPS certificates (Let's Encrypt) for each name;
+# the DNS A records must point at this server first (DEPLOY.md, step 3).
+
+(common) {
+	encode zstd gzip
+	header -Server
+	header Strict-Transport-Security "max-age=31536000"
+}
+
+{$DOMAIN} {
+	import common
+	reverse_proxy front:3000
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+app.{$DOMAIN} {
+	import common
+	reverse_proxy app:3000
+}
+
+admin.{$DOMAIN} {
+	import common
+	reverse_proxy admin:3000
+}
+
+api.{$DOMAIN} {
+	import common
+	reverse_proxy api:7000
+}

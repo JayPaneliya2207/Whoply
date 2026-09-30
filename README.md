@@ -118,6 +118,9 @@ npm run restore -- whoply-2026-09-30_0215 --drop # put the live database back to
 
 ## Going live (production build)
 
+**Step-by-step server guide: [DEPLOY.md](DEPLOY.md)** — one server with Docker (`deploy/`), MongoDB
+Atlas, automatic HTTPS. The notes below are for running it without Docker.
+
 All four build and run in production mode (`next build` / `tsc`). On the server:
 
 ```bash

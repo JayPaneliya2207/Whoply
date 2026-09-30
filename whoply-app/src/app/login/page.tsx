@@ -222,7 +222,7 @@ export default function LoginPage() {
 
                                     <p className="text-xs text-center mt-6" style={{ color: 'var(--text-muted)' }}>{t('agreeTerms')}</p>
                                 </div>
-                                <p className="text-xs text-center mt-4" style={{ color: 'var(--text-muted)' }}>Demo: <b>9000000001</b> · <b>whoply123</b> · OTP <b>123456</b></p>
+                                {process.env.NODE_ENV !== 'production' && <p className="text-xs text-center mt-4" style={{ color: 'var(--text-muted)' }}>Demo: <b>9000000001</b> · <b>whoply123</b> · OTP <b>123456</b></p>}
                             </div>
                         </div>
                     </div>

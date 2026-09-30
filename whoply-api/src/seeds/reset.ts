@@ -14,6 +14,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { env } from '../config/env.js';
+import { refuseOnLiveDatabase } from './guard.js';
 import Business from '../models/Business.js';
 import User from '../models/User.js';
 import Category from '../models/Category.js';
@@ -35,6 +36,7 @@ import Plan from '../models/Plan.js';
 import { DEFAULT_PLANS } from './plans.js';
 
 async function run() {
+    refuseOnLiveDatabase('npm run seed:reset');
     await mongoose.connect(env.MONGODB_URI);
     console.log(`Connected: ${mongoose.connection.name}`);
 
