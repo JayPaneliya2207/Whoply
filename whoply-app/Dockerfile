@@ -13,7 +13,8 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_OUTPUT=standalone NEXT_TELEMETRY_DISABLED=1
-RUN npm run build && mkdir -p public
+# next/font downloads the Google fonts during the build — retry a brief network blip.
+RUN n=0; until npm run build; do n=$((n+1)); [ $n -ge 3 ] && exit 1; echo "build failed, retrying ($n)…"; sleep 15; done && mkdir -p public
 
 FROM node:24-slim
 WORKDIR /app
