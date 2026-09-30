@@ -111,8 +111,7 @@ jobs:
           # The admin logs in from the admin site (CORS allows exactly that site).
           out=$(curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o body.json -H 'Origin: https://admin.localhost' -H 'Content-Type: application/json' \
             -d '{"mobile":"9876543210","password":"ci-admin-password-123"}' https://api.localhost/api/auth/password-login)
-          if grep -qi '^access-control-allow-origin: https://admin.localhost' <<<"$out" && grep -q '"role":"admin"' body.json; then echo '✅ admin login from the admin site'; else echo "::error title=admin login::$(tr '
-' ' ' <<<"$out" | head -c 600) $(head -c 300 body.json)"; fail=1; fi
+          if grep -qi '^access-control-allow-origin: https://admin.localhost' <<<"$out" && grep -q '"role":"admin"' body.json; then echo '✅ admin login from the admin site'; else echo "::error title=admin login::$(tr -d '\r' <<<"$out" | tr '\n' ' ' | head -c 600) $(head -c 300 body.json)"; fail=1; fi
           # Another website may not call the API.
           if curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null -H 'Origin: https://evil.example' https://api.localhost/api/health | grep -qi '^access-control-allow-origin'; then echo '::error title=CORS::another website was allowed'; fail=1; else echo '✅ other websites are refused (CORS)'; fi
           exit $fail
