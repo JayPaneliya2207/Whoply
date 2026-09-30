@@ -1,5 +1,7 @@
 # Whoply
 
+[![CI](https://github.com/JayPaneliya2207/Whoply/actions/workflows/ci.yml/badge.svg)](https://github.com/JayPaneliya2207/Whoply/actions/workflows/ci.yml)
+
 All-in-one business management for Indian **shopkeepers** and **wholesalers** — GST billing (POS),
 smart inventory, udhar (credit) with reminders, dealers, bulk orders, dispatch & delivery,
 sales-team tracking, expenses, and AI reorder insights.
@@ -86,6 +88,10 @@ cd whoply-api
 npm run test:all        # full feature + edge/staff/admin suites (resets the DB)
 npm run test:explain    # confirms hot queries are index-backed
 ```
+
+GitHub runs the same suites, plus a production build of all four, on every push and pull
+request ([.github/workflows/ci.yml](.github/workflows/ci.yml)). A red ❌ on a PR means
+something broke — open the check to see which test failed.
 
 ## Going live (production build)
 

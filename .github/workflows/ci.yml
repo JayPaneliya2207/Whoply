@@ -1,0 +1,88 @@
+# Runs on every push and pull request:
+#   api  — builds the API, starts it against a fresh MongoDB and runs every test suite
+#   web  — production build of the app, admin panel and landing site
+# A red ❌ on a PR means something broke; open the run to see which check failed.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API — build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mongo:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: whoply-api
+    env:
+      NODE_ENV: test # dev behaviour (test OTP 123456, open CORS) without dev-only error output
+      PORT: 7000
+      MONGODB_URI: mongodb://localhost:27017/whoply_ci
+      JWT_SECRET: ci-only-secret-never-used-on-a-real-server-0123
+      TRUST_PROXY: '1' # lets tests/login-limits.mjs check the per-address limit
+      API_URL: http://localhost:7000/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: whoply-api/package-lock.json
+      - run: npm ci
+      - name: Build (type check + compile; Linux catches file-name casing mistakes)
+        run: npm run build
+      - name: Start the API
+        run: |
+          npm run seed:reset
+          nohup node dist/server.js > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:7000/api/health > /dev/null && exit 0; sleep 1; done
+          cat api.log
+          exit 1
+      - name: Tests (all suites, fresh data before each)
+        run: npm run test:all
+      - name: Dates test with the server clock in India time
+        run: TZ=Asia/Kolkata npm run test:dates
+      - name: API log
+        if: failure()
+        run: tail -n 200 api.log
+
+  web:
+    name: ${{ matrix.app }} — production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [whoply-app, whoply-admin, whoply-front]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_PUBLIC_API_URL: http://localhost:7000/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - run: npm ci
+      - run: npm run build
