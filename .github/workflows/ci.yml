@@ -39,8 +39,8 @@ jobs:
       TRUST_PROXY: '1' # lets tests/login-limits.mjs check the per-address limit
       API_URL: http://localhost:7000/api
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -56,9 +56,18 @@ jobs:
           cat api.log
           exit 1
       - name: Tests (all suites, fresh data before each)
-        run: npm run test:all
+        run: npm run test:all 2>&1 | tee tests.log
       - name: Dates test with the server clock in India time
-        run: TZ=Asia/Kolkata npm run test:dates
+        run: TZ=Asia/Kolkata npm run test:dates 2>&1 | tee -a tests.log
+      - name: Test totals on the run page
+        if: always()
+        run: |
+          {
+            echo '### API tests'
+            echo '```'
+            grep -E '^(=+ .* =+|TOTAL:|  ❌)' tests.log || echo 'no results — open the Tests step'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: API log
         if: failure()
         run: tail -n 200 api.log
@@ -78,8 +87,8 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_PUBLIC_API_URL: http://localhost:7000/api
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
