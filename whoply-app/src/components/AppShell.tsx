@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                     <OfflineBadge />
-                    <div className="hidden sm:block"><LanguageSelector compact /></div>
+                    <LanguageSelector compact />
                     <NotificationBell />
                     <button
                         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -55,9 +55,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     >
                         {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
-                    <Link href="/settings" aria-label="Profile & settings" className="h-9 w-9 grid place-items-center rounded-full font-bold text-sm shrink-0" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}>
-                        {user?.name?.charAt(0) || 'W'}
-                    </Link>
                 </div>
             </header>
             <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">{allowed ? children : <NoAccess />}</main>

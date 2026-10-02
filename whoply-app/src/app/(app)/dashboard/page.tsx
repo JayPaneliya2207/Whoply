@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
     TrendingUp, ShoppingBag, Wallet, AlertTriangle,
-    Trophy, ReceiptText, Users, Truck, ArrowRight, Boxes,
+    Trophy, ReceiptText, Users, Truck, ArrowRight, Boxes, ShoppingCart, Plus,
 } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api } from '@/lib/api';
@@ -12,7 +12,6 @@ import { inr, inr2 } from '@/lib/cn';
 import { payModeLabel } from '@/lib/bill';
 import { useT } from '@/i18n';
 import { NavGrid } from '@/components/NavGrid';
-import { ShopStatusToggle } from '@/components/ShopStatusToggle';
 import { useCan } from '@/lib/permissions';
 
 const fetchDash = async (type: string) => {
@@ -36,6 +35,17 @@ function Kpi({ label, value, icon: Icon, tone, hint, href, alert }: any) {
     );
     const cls = 'wp-card wp-card-hover p-4 sm:p-5 block h-full';
     return href ? <Link href={href} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>;
+}
+
+/** The one big thing to do from the home screen — open the POS (shop) or start an order (wholesale). */
+function PrimaryAction({ href, label, icon: Icon }: { href: string; label: string; icon: any }) {
+    return (
+        <Link href={href} className="wp-btn wp-btn-primary !rounded-2xl !px-3.5 !py-2 sm:!px-5 sm:!py-2.5 gap-2 active:scale-95"
+            style={{ boxShadow: '0 10px 22px -10px var(--brand)' }}>
+            <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}><Icon size={16} strokeWidth={2.6} /></span>
+            <span className="font-bold text-sm sm:text-base whitespace-nowrap">{label}</span>
+        </Link>
+    );
 }
 
 export default function DashboardPage() {
@@ -88,7 +98,7 @@ export default function DashboardPage() {
                         <h1 className="text-2xl font-extrabold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>{t('hi')}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0 pb-1">
-                        <ShopStatusToggle />
+                        {can('orders.create') && <PrimaryAction href="/orders?new=1" label={t('newOrder')} icon={Plus} />}
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
                     </div>
                 </div>
@@ -201,7 +211,7 @@ export default function DashboardPage() {
                     <h1 className="text-2xl font-extrabold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>{t('hi')}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 shrink-0 pb-1">
-                    <ShopStatusToggle />
+                    {can('billing.sell') && <PrimaryAction href="/billing" label={t('posButton')} icon={ShoppingCart} />}
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
                 </div>
             </div>

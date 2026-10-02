@@ -4,10 +4,10 @@
  */
 export type Lang = 'en' | 'hi' | 'gu';
 
-export const LANGS: { code: Lang; label: string; native: string }[] = [
-    { code: 'en', label: 'English', native: 'English' },
-    { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
-    { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી' },
+export const LANGS: { code: Lang; label: string; native: string; short: string }[] = [
+    { code: 'en', label: 'English', native: 'English', short: 'EN' },
+    { code: 'hi', label: 'Hindi', native: 'हिन्दी', short: 'हिं' },
+    { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી', short: 'ગુ' },
 ];
 
 type Dict = Record<string, string>;
@@ -159,7 +159,7 @@ const en: Dict = {
     // notifications
     noNotifications: 'No notifications yet.', markAllRead: 'Mark all read',
     notifAll: 'All', notifUnread: 'Unread', notifRead: 'Read',
-    shopOpen: 'Open', shopClosed: 'Closed',
+    posButton: 'POS Billing',
     paymentReminders: 'Payment reminders', paymentRemindersHint: 'Automatically remind customers & dealers who have pending payments.', enableAutoReminders: 'Auto-remind on pending payments', remindEveryDays: 'Remind every (days)',
     gstinInvalid: 'Invalid GSTIN. Expected format like 22AAAAA0000A1Z5.', noProductForCode: 'No product for',
     // ── wholesaler ──
@@ -355,7 +355,7 @@ const hi: Dict = {
     // notifications
     noNotifications: 'अभी कोई सूचना नहीं।', markAllRead: 'सभी पढ़ा हुआ करें',
     notifAll: 'सभी', notifUnread: 'अपठित', notifRead: 'पढ़ी हुई',
-    shopOpen: 'खुली', shopClosed: 'बंद',
+    posButton: 'POS बिलिंग',
     paymentReminders: 'भुगतान रिमाइंडर', paymentRemindersHint: 'बकाया भुगतान वाले ग्राहकों व डीलरों को अपने आप याद दिलाएँ।', enableAutoReminders: 'बकाया पर ऑटो-रिमाइंडर', remindEveryDays: 'हर कितने दिन में याद दिलाएँ',
     gstinInvalid: 'अमान्य GSTIN। सही रूप जैसे 22AAAAA0000A1Z5।', noProductForCode: 'इस कोड के लिए कोई उत्पाद नहीं',
     // ── wholesaler ──
@@ -551,7 +551,7 @@ const gu: Dict = {
     // notifications
     noNotifications: 'હજી કોઈ સૂચના નથી.', markAllRead: 'બધું વાંચ્યું કરો',
     notifAll: 'બધી', notifUnread: 'વણવાંચેલી', notifRead: 'વાંચેલી',
-    shopOpen: 'ખુલ્લી', shopClosed: 'બંધ',
+    posButton: 'POS બિલિંગ',
     paymentReminders: 'ચુકવણી રિમાઇન્ડર', paymentRemindersHint: 'બાકી ચુકવણી ધરાવતા ગ્રાહકો અને ડીલરોને આપમેળે યાદ કરાવો.', enableAutoReminders: 'બાકી પર ઑટો-રિમાઇન્ડર', remindEveryDays: 'દર કેટલા દિવસે યાદ કરાવો',
     gstinInvalid: 'અમાન્ય GSTIN. યોગ્ય ફોર્મેટ જેમ કે 22AAAAA0000A1Z5.', noProductForCode: 'આ કોડ માટે કોઈ ઉત્પાદન નથી',
     // ── wholesaler ──
