@@ -210,3 +210,6 @@ body {
   .wp-fade-up { animation: none; }
   .wp-card-hover:hover { transform: none; }
 }
+
+/* Admin sidebar links: a quiet hover for the ones that aren't selected. */
+.adm-nav:not(.is-active):hover { background: var(--surface-2); color: var(--text-primary) !important; }
