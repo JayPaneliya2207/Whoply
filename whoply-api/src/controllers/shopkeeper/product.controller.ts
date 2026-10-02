@@ -11,6 +11,7 @@ import type { AuthRequest } from '../../interfaces/index.js';
 import { can } from '../../utils/permissions.js';
 import { containsText } from '../../utils/search.js';
 import { lineQty } from '../../utils/qty.js';
+import { cleanImage } from '../../utils/image.js';
 
 /** Cost price shows the margin, so only roles allowed to see it get it (not a cashier or sales rep). */
 function hideCost<T extends { costPrice?: number }>(req: AuthRequest, p: T): T {
@@ -69,6 +70,7 @@ function productFields(b: any, opts: { create: boolean }): Record<string, any> {
         out[k] = n;
     };
     for (const k of TEXT_FIELDS) if (b[k] !== undefined) out[k] = typeof b[k] === 'string' ? b[k].trim() : b[k];
+    if (out.image !== undefined) out.image = cleanImage(out.image, 400_000, 'Product picture');
     for (const k of MONEY_FIELDS) num(k, 0);
     num('discountPct', 0, 100);
     num('gstRate', 0, 100);

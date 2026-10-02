@@ -19,6 +19,7 @@ import { loginSchema, verifyOtpSchema, passwordLoginSchema, registerSchema, onbo
 import type { AuthRequest } from '../interfaces/index.js';
 import { BUSINESS_SUSPENDED } from '../middleware/auth.middleware.js';
 import { endSessions } from '../utils/staff.js';
+import { cleanImage, cleanText } from '../utils/image.js';
 
 /** A business the platform admin suspended: no sign-in for its owner or staff. */
 const assertBusinessOpen = async (user: { role: string; businessId?: unknown }) => {
@@ -197,10 +198,19 @@ export const me = asyncHandler(async (req: AuthRequest, res: Response) => {
 export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized('Not authenticated');
     const patch: any = {};
-    if (req.body.name) patch.name = String(req.body.name).trim();
-    if (req.body.email !== undefined) patch.email = req.body.email;
-    if (req.body.language) patch.language = req.body.language;
-    if (req.body.avatar !== undefined) patch.avatar = req.body.avatar;
+    if (req.body.name) {
+        patch.name = cleanText(req.body.name, 80, 'Name');
+        if (!patch.name) throw AppError.badRequest('Name is required');
+    }
+    if (req.body.email !== undefined) {
+        patch.email = cleanText(req.body.email, 120, 'Email').toLowerCase();
+        if (patch.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patch.email)) throw AppError.badRequest('Enter a valid email');
+    }
+    if (req.body.language) {
+        if (!['en', 'hi', 'gu'].includes(req.body.language)) throw AppError.badRequest('Language must be en, hi or gu');
+        patch.language = req.body.language;
+    }
+    if (req.body.avatar !== undefined) patch.avatar = cleanImage(req.body.avatar, 400_000, 'Profile picture');
     const user = await User.findByIdAndUpdate(req.user._id, patch, { new: true });
     if (!user) throw AppError.notFound('User not found');
     const business = user.businessId ? await Business.findById(user.businessId) : null;
