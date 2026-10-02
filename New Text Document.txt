@@ -1,0 +1,3 @@
+Shop owner	9000000001
+Wholesale owner	9000000010
+Admin (admin panel)	9000000099
