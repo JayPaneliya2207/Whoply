@@ -120,7 +120,7 @@ export default function OrdersPage() {
     const setQty = (id: string, d: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: stepQty(r.qty, d, r.unit) } : r));
     const setQtyTo = (id: string, n: number) => setCart((c) => c.map((r) => r.productId === id ? { ...r, qty: n } : r));
     // Real prices (dealer's price group + GST) come from the server once a dealer is picked.
-    const pricing = useDealerPricing(dealerId, cart);
+    const pricing = useDealerPricing(dealerId, cart, editingOrder?._id);
     const payable = pricing.data?.grandTotal;
     const inCart = useMemo(() => new Map(cart.map((r) => [r.productId, r.qty])), [cart]);
 
@@ -265,7 +265,7 @@ export default function OrdersPage() {
                 {detail && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
-                            <span style={{ color: 'var(--text-secondary)' }}>{detail.dealerName}</span>
+                            <span className="min-w-0" style={{ color: 'var(--text-secondary)' }}>{detail.dealerName}{detail.quoteNo && <span className="block text-xs" style={{ color: 'var(--text-muted)' }}>{t('fromEstimate')} {detail.quoteNo}</span>}</span>
                             <div className="flex items-center gap-1.5">
                                 {detail.status !== 'cancelled' && <span className="wp-chip" style={payTone[orderPayStatus(detail)]}>{t('pay' + orderPayStatus(detail))}</span>}
                                 <span className="wp-chip capitalize" style={statusTone[detail.status]}>{detail.source} · {stLabel(detail.status)}</span>
@@ -402,7 +402,7 @@ export default function OrdersPage() {
                                             {qty > 0 && <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 grid place-items-center rounded-full text-[10px] font-bold z-10" style={{ background: 'var(--brand)', color: '#fff' }}>{qty}</span>}
                                             <button onClick={() => add(p)} className="text-left w-full">
                                                 <p className="text-xs font-semibold line-clamp-1" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                                                <p className="text-xs" style={{ color: 'var(--brand-text)' }}>{inr2(p.wholesalePrice || p.sellPrice)}</p>
+                                                <p className="text-xs" style={{ color: 'var(--brand-text)' }}>{inr2(pricing.byProduct.get(p._id)?.quoted ? pricing.byProduct.get(p._id)!.unitPrice : p.wholesalePrice || p.sellPrice)}</p>
                                             </button>
                                             {qty > 0 && (
                                                 <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--card-border)' }}>
@@ -417,20 +417,29 @@ export default function OrdersPage() {
                             </div>
                             <div className="space-y-1.5 mb-3">
                                 {cart.map((r) => (
-                                    <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
-                                        <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
-                                        <button onClick={() => setQty(r.productId, -10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Minus size={12} /></button>
-                                        <QtyInput value={r.qty} unit={r.unit} onChange={(n) => setQtyTo(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-14" />
-                                        <button onClick={() => setQty(r.productId, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--card-bg)' }}><Plus size={12} /></button>
-                                        <span className="w-20 text-right text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{pricing.byProduct.has(r.productId) ? inr2(pricing.byProduct.get(r.productId)!.lineTotal) : '…'}</span>
-                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
+                                    <div key={r.productId} className="p-2.5 rounded-xl" style={{ background: 'var(--surface-2)' }}>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <span className="flex-1 min-w-0 text-sm" style={{ color: 'var(--text-primary)' }}>
+                                                <span className="block truncate font-medium">{r.name}</span>
+                                                {pricing.byProduct.get(r.productId)?.quoted && <span className="block text-[11px] font-semibold" style={{ color: 'var(--success)' }}>{t('estimatePrice')} · {inr2(pricing.byProduct.get(r.productId)!.unitPrice)}</span>}
+                                            </span>
+                                            <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))} aria-label="Remove" className="shrink-0"><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2 mt-2">
+                                            <div className="flex items-center gap-1.5">
+                                                <button onClick={() => setQty(r.productId, -10)} aria-label="−" className="h-8 w-8 grid place-items-center rounded-lg" style={{ background: 'var(--card-bg)' }}><Minus size={14} /></button>
+                                                <QtyInput value={r.qty} unit={r.unit} onChange={(n) => setQtyTo(r.productId, n)} label={`${t('qtyWord')} · ${r.name}`} className="w-16 !py-1.5" />
+                                                <button onClick={() => setQty(r.productId, 10)} aria-label="+" className="h-8 w-8 grid place-items-center rounded-lg" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={14} /></button>
+                                            </div>
+                                            <span className="text-sm font-semibold tabular" style={{ color: 'var(--text-primary)' }}>{pricing.byProduct.has(r.productId) ? inr2(pricing.byProduct.get(r.productId)!.lineTotal) : '…'}</span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                             <PriceSummary pricing={pricing} dealerChosen={!!dealerId} empty={!cart.length} />
                             {error && <p className="text-sm mb-2" style={{ color: 'var(--danger)' }}>{error}</p>}
                             <button className="wp-btn wp-btn-primary w-full" disabled={!dealerId || !cart.length || create.isPending || !!pricing.error} onClick={() => create.mutate()}><Check size={16} /> {editingOrder ? t('saveChanges') : t('createOrder')}{payable != null ? ` · ${inr2(payable)}` : ''}</button>
-                            <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{editingOrder ? t('editPricesNote') : t('pricesAutoApply')}</p>
+                            <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{editingOrder ? (pricing.data?.quoteNo ? `${t('estimatePricesNote')} (${pricing.data.quoteNo})` : t('editPricesNote')) : t('pricesAutoApply')}</p>
                         </motion.div>
                     </div>
                 )}

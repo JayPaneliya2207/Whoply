@@ -6,6 +6,7 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import PriceList from '../models/PriceList.js';
+import Quotation from '../models/Quotation.js';
 import Payment, { type PaymentMode } from '../models/Payment.js';
 import type { DealerTier } from '../models/Dealer.js';
 import { AppError } from './AppError.js';
@@ -34,11 +35,32 @@ export function tierUnitPrice(rows: { productId: any; tier: string; price: numbe
     return row ? row.price : defaultTierPrice(p, tier);
 }
 
+/** A product's price as an estimate quoted it: per unit before GST, per unit with GST, and the GST rate then. */
+export interface QuotedPrice { price: number; gross: number; gstRate: number }
+
+/**
+ * The prices of the estimate an order was made from, by product — empty when
+ * the order did not come from one. Orders converted before `quotationId`
+ * existed are found through the estimate's own link to the order.
+ */
+export async function quotedPricesFor(businessId: any, order: { _id: unknown; quotationId?: unknown }) {
+    const filter: Record<string, any> = order.quotationId ? { _id: order.quotationId, businessId } : { businessId, convertedInvoiceId: order._id, dealerId: { $exists: true, $ne: null } };
+    const quote = await Quotation.findOne(filter).select('quoteNo items.productId items.quantity items.price items.gstRate items.lineTotal').lean();
+    const prices = new Map<string, QuotedPrice>();
+    for (const it of quote?.items || []) {
+        if (!(it.quantity > 0)) continue;
+        prices.set(String(it.productId), { price: it.price, gross: it.lineTotal / it.quantity, gstRate: it.gstRate || 0 });
+    }
+    return { quote: quote ? { _id: quote._id, quoteNo: quote.quoteNo } : null, prices };
+}
+
 /**
  * Price a dealer's order/quote lines at their tier (no stock check). GST follows
  * each product's `priceIncludesGst` flag — wholesale products default to GST on top.
+ * Products in `quoted` keep that estimate's price and GST rate at any quantity
+ * (their lines come back with `quoted: true`); everything else is today's price.
  */
-export async function priceDealerItems(businessId: any, dealer: { tier: DealerTier }, items: any[]) {
+export async function priceDealerItems(businessId: any, dealer: { tier: DealerTier }, items: any[], quoted?: Map<string, QuotedPrice>) {
     const ids = items.map((i: any) => i.productId);
     const [products, priceRows] = await Promise.all([
         Product.find({ _id: { $in: ids }, businessId, isActive: true }),
@@ -49,13 +71,15 @@ export async function priceDealerItems(businessId: any, dealer: { tier: DealerTi
         const p = map.get(String(i.productId));
         if (!p) throw AppError.badRequest(`Product ${i.productId} not found`);
         const qty = lineQty(i.quantity, p);
-        return { p, qty, unitPrice: tierUnitPrice(priceRows, p, dealer.tier) };
+        const inclusive = p.priceIncludesGst === true;
+        const q = quoted?.get(String(p._id));
+        // A quoted price is re-used in the form the product is priced in, so the same quantity gives the same paisa.
+        if (q) return { p, qty, inclusive, quoted: true, gstRate: q.gstRate, unitPrice: inclusive ? q.gross : q.price };
+        return { p, qty, inclusive, quoted: false, gstRate: p.gstRate || 0, unitPrice: tierUnitPrice(priceRows, p, dealer.tier) };
     });
-    const priced = priceLines(
-        rows.map((r) => ({ unitPrice: r.unitPrice, quantity: r.qty, gstRate: r.p.gstRate || 0, inclusive: r.p.priceIncludesGst === true }))
-    );
+    const priced = priceLines(rows.map((r) => ({ unitPrice: r.unitPrice, quantity: r.qty, gstRate: r.gstRate, inclusive: r.inclusive })));
     const lineItems = rows.map((r, k) => ({
-        productId: r.p._id, name: r.p.name, hsn: r.p.hsn, unit: r.p.unit, quantity: r.qty, gstRate: r.p.gstRate || 0, ...priced.lines[k],
+        productId: r.p._id, name: r.p.name, hsn: r.p.hsn, unit: r.p.unit, quantity: r.qty, gstRate: r.gstRate, ...priced.lines[k], ...(r.quoted && { quoted: true }),
     }));
     return { lineItems, subtotal: priced.subtotal, totalGst: priced.totalGst, grandTotal: priced.grandTotal };
 }

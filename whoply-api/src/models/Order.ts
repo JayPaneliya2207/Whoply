@@ -18,6 +18,7 @@ export interface IOrderItem {
     gstAmount: number;
     taxableValue?: number; // after bill discount; absent on documents created before it existed
     lineTotal: number; // qty*price + gst
+    quoted?: boolean; // priced by the estimate this order came from, not by today's price list
 }
 
 export interface IOrder {
@@ -35,6 +36,8 @@ export interface IOrder {
     status: OrderStatus;
     source: OrderSource;
     salesRepId?: Types.ObjectId;
+    quotationId?: Types.ObjectId; // the estimate this order was made from — its prices stay when the order is edited
+    quoteNo?: string;
     dispatchedAt?: Date;
     returnsRev?: number; // bumped by every return — two returns at once can't both pass the "already returned" check
     returned?: Record<string, number>; // units returned so far per productId — saved in the same step as returnsRev
@@ -58,6 +61,7 @@ const orderItemSchema = new Schema<IOrderItem>(
         gstAmount: { type: Number, default: 0 },
         taxableValue: Number, // line value after its share of the bill discount (absent on old docs)
         lineTotal: { type: Number, required: true },
+        quoted: Boolean,
     },
     { _id: false }
 );
@@ -78,6 +82,8 @@ const orderSchema = new Schema<IOrderDocument>(
         status: { type: String, enum: ['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled'], default: 'pending', index: true },
         source: { type: String, enum: ['whatsapp', 'phone', 'manual', 'field'], default: 'manual' },
         salesRepId: { type: Schema.Types.ObjectId, ref: 'User' },
+        quotationId: { type: Schema.Types.ObjectId, ref: 'Quotation' },
+        quoteNo: String,
         dispatchedAt: Date,
         returnsRev: { type: Number, default: 0 },
         returned: { type: Schema.Types.Mixed },
