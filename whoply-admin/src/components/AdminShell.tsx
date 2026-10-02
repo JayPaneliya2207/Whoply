@@ -4,27 +4,34 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare, Inbox, KeyRound, Lock } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/stores/auth.store';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
-interface NavItem { href: string; label: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number }>; blurb: string }
+/** `perm` is the admin permission the page needs (API utils/adminAccess.ts); the link is hidden without it. */
+interface NavItem { href: string; label: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number }>; blurb: string; perm: string }
 
 /** Sidebar sections. The header shows the open page's label and blurb. */
 const NAV: { title: string; items: NavItem[] }[] = [
-    { title: 'Overview', items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, blurb: 'The whole platform at a glance' }] },
+    { title: 'Overview', items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, blurb: 'The whole platform at a glance', perm: 'stats.view' }] },
     {
         title: 'Manage', items: [
-            { href: '/businesses', label: 'Businesses', icon: Building2, blurb: 'Shops and wholesalers on Whoply' },
-            { href: '/users', label: 'Users', icon: Users, blurb: 'Every login, across all businesses' },
-            { href: '/plans', label: 'Subscriptions', icon: CreditCard, blurb: 'Plans, prices and who is on them' },
-            { href: '/billing', label: 'Billing', icon: Receipt, blurb: 'Subscription bills, reminders and payments' },
-            { href: '/support', label: 'Support', icon: MessagesSquare, blurb: 'Chat with business owners' },
+            { href: '/businesses', label: 'Businesses', icon: Building2, blurb: 'Shops and wholesalers on Whoply', perm: 'businesses.view' },
+            { href: '/users', label: 'Users', icon: Users, blurb: 'Every login, across all businesses', perm: 'users.view' },
+            { href: '/plans', label: 'Subscriptions', icon: CreditCard, blurb: 'Plans, prices and who is on them', perm: 'plans.view' },
+            { href: '/billing', label: 'Billing', icon: Receipt, blurb: 'Subscription bills, reminders and payments', perm: 'billing.view' },
+            { href: '/support', label: 'Support', icon: MessagesSquare, blurb: 'Chat with business owners', perm: 'support.chat' },
+            { href: '/inquiries', label: 'Inquiries', icon: Inbox, blurb: 'Messages from the website contact form', perm: 'inquiries.view' },
         ],
     },
-    { title: 'Platform', items: [{ href: '/settings', label: 'Settings', icon: Settings, blurb: 'Company, payment details, reminders, support' }] },
+    {
+        title: 'Platform', items: [
+            { href: '/settings', label: 'Settings', icon: Settings, blurb: 'Company, payment details, reminders, support', perm: 'settings.manage' },
+            { href: '/access', label: 'Access control', icon: KeyRound, blurb: 'Admin logins, roles and the activity log', perm: 'admins.manage' },
+        ],
+    },
 ];
 const PAGES = NAV.flatMap((g) => g.items);
 
@@ -45,9 +52,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     useEffect(() => setMounted(true), []);
     useEffect(() => { setMobileOpen(false); setMenu(false); }, [pathname]);
 
-    // Unread support messages, for the badge on the Support link.
-    const { data: support } = useQuery({ queryKey: ['support-summary'], queryFn: async () => (await api.get('/admin/support/summary')).data.data, refetchInterval: 20_000 });
-    const badges: Record<string, number> = { '/support': support?.unread || 0 };
+    // What this admin login may do — links it can't use are hidden (the API refuses them anyway).
+    const { data: access } = useQuery({ queryKey: ['admin-access'], queryFn: async () => (await api.get('/admin/access')).data.data, staleTime: 60_000 });
+    const perms: string[] | undefined = access?.me?.perms;
+    const has = (perm: string) => !perms || perms.includes(perm);
+    const roleLabel = access?.roles?.find((r: any) => r.key === access?.me?.adminRole)?.label || 'Platform admin';
+    // Unread support messages and new inquiries, for the badges.
+    const { data: support } = useQuery({ queryKey: ['support-summary'], queryFn: async () => (await api.get('/admin/support/summary')).data.data, refetchInterval: 20_000, enabled: !!perms && has('support.chat') });
+    const { data: inquiries } = useQuery({ queryKey: ['inquiry-summary'], queryFn: async () => (await api.get('/admin/inquiries/summary')).data.data, refetchInterval: 60_000, enabled: !!perms && has('inquiries.view') });
+    const badges: Record<string, number> = { '/support': support?.unread || 0, '/inquiries': inquiries?.new || 0 };
 
     const page = PAGES.find((p) => pathname === p.href || pathname.startsWith(p.href + '/')) || PAGES[0];
     const initial = user?.name?.charAt(0)?.toUpperCase() || 'A';
@@ -69,7 +82,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 </div>
             )}
             <nav className="flex-1 px-3 py-2 space-y-5 overflow-y-auto wp-scroll">
-                {NAV.map((group) => (
+                {NAV.map((g) => ({ ...g, items: g.items.filter((it) => has(it.perm)) })).filter((g) => g.items.length).map((group) => (
                     <div key={group.title}>
                         {!mini && <p className="px-3 mb-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{group.title}</p>}
                         <div className="space-y-1">
@@ -99,7 +112,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     {!mini && (
                         <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{user?.name || 'Admin'}</p>
-                            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>Platform admin</p>
+                            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{roleLabel}</p>
                         </div>
                     )}
                     <button onClick={doLogout} title="Sign out" aria-label="Sign out" className="h-9 w-9 grid place-items-center rounded-lg shrink-0" style={{ color: 'var(--danger)', background: 'var(--danger-tint)' }}><LogOut size={16} /></button>
@@ -151,7 +164,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                                     <div className="absolute right-0 mt-2 w-60 wp-card p-1.5 z-40" style={{ boxShadow: 'var(--shadow-lg)' }}>
                                         <div className="px-3 py-2">
                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{user?.name}</p>
-                                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{user?.mobile} · Platform admin</p>
+                                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{user?.mobile} · {roleLabel}</p>
                                         </div>
                                         <button onClick={doLogout} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium" style={{ color: 'var(--danger)' }}><LogOut size={16} /> Sign out</button>
                                     </div>
@@ -160,7 +173,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                         </div>
                     </div>
                 </header>
-                <main className="flex-1 p-4 sm:p-6 max-w-[1320px] w-full mx-auto">{children}</main>
+                <main className="flex-1 p-4 sm:p-6 max-w-[1320px] w-full mx-auto">
+                    {has(page.perm) ? children : (
+                        <div className="wp-card p-10 text-center max-w-md mx-auto mt-10">
+                            <div className="h-12 w-12 grid place-items-center rounded-full mx-auto mb-3" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}><Lock size={20} /></div>
+                            <p className="font-bold" style={{ color: 'var(--text-primary)' }}>You don’t have access to {page.label}</p>
+                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Your admin role is {roleLabel}. Ask a super admin if you need this page.</p>
+                        </div>
+                    )}
+                </main>
             </div>
         </div>
     );

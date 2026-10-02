@@ -46,6 +46,7 @@ const publicUser = (user: any, business: any) => ({
     mobile: user.mobile,
     email: user.email,
     role: user.role,
+    ...(user.role === 'admin' && { adminRole: user.adminRole || 'super' }),
     language: user.language,
     avatar: user.avatar,
     business: business

@@ -5,6 +5,7 @@ import Plan from '../../models/Plan.js';
 import Business from '../../models/Business.js';
 import Invoice from '../../models/Invoice.js';
 import Order from '../../models/Order.js';
+import { createInquiry } from '../../controllers/admin/inquiries.controller.js';
 
 const router = Router();
 
@@ -86,5 +87,8 @@ router.get(
         ]);
     })
 );
+
+/** POST /api/public/inquiries — the marketing site's "Contact us" form (see the controller for its guards). */
+router.post('/inquiries', createInquiry);
 
 export default router;

@@ -53,6 +53,7 @@ export interface AuthUser {
     email?: string;
     mobile: string;
     role: roles;
+    adminRole?: string; // platform admins: which admin role (utils/adminAccess.ts)
     businessId?: Types.ObjectId;
     businessType?: BusinessType;
     isActive: boolean;

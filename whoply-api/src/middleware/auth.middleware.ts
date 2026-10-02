@@ -78,6 +78,7 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
             email: user.email,
             mobile: user.mobile,
             role: user.role,
+            adminRole: user.adminRole,
             businessId: user.businessId,
             businessType,
             isActive: user.isActive,
