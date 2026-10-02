@@ -6,7 +6,7 @@ import { useLang, LANGS, type Lang } from '@/i18n';
 import { api } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
 
-/** Compact language switcher for the header. Persists locally + to the user profile. */
+/** Language switcher for the header: globe + the current language (short form when compact). Persists locally + to the user profile. */
 export function LanguageSelector({ compact = false }: { compact?: boolean }) {
     const { lang, setLang } = useLang();
     const { user, setUser } = useAuth();
@@ -25,7 +25,7 @@ export function LanguageSelector({ compact = false }: { compact?: boolean }) {
         <div className="relative">
             <button className="wp-btn wp-btn-ghost !px-2.5 !py-2 gap-1.5" onClick={() => setOpen((v) => !v)} aria-label="Language">
                 <Globe size={17} />
-                {!compact && <span className="text-sm">{current?.native}</span>}
+                <span className="text-sm font-semibold">{compact ? current?.short : current?.native}</span>
                 <ChevronDown size={14} />
             </button>
             <AnimatePresence>

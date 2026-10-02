@@ -242,7 +242,19 @@ export interface LandingCopy {
         proof: { devices: string; export: string; offline: string };
     };
     finalCta: { eyebrow: string; title: string; sub: string; button: string; foot: string };
-    contact: { whatsapp: string; whatsappMsg: string };
+    contact: {
+        whatsapp: string;
+        whatsappMsg: string;
+        eyebrow: string;
+        title: string;
+        sub: string;
+        points: string[];
+        form: {
+            name: string; mobile: string; email: string; type: string; typeRetail: string; typeWholesale: string; typeOther: string;
+            city: string; message: string; messagePh: string; optional: string; send: string; sending: string;
+            successTitle: string; success: string; again: string; error: string; privacy: string;
+        };
+    };
     footer: {
         tagline: string;
         columns: { head: string; links: [string, string][] }[];
@@ -763,6 +775,20 @@ const en: LandingCopy = {
     contact: {
         whatsapp: 'Chat on WhatsApp',
         whatsappMsg: 'Hi Whoply, I want to know more about the app for my business.',
+        eyebrow: 'Contact us',
+        title: 'Have a question? Ask us.',
+        sub: 'Tell us about your shop or wholesale business and what you need. Our team will call or WhatsApp you back.',
+        points: [
+            'Ask anything before you start — asking is free.',
+            'Help setting up your products, customers and udhar.',
+            'We reply in English, Hindi or Gujarati.',
+        ],
+        form: {
+            name: 'Your name', mobile: 'Mobile number', email: 'Email', type: 'Your business', typeRetail: 'Shop (retail)', typeWholesale: 'Wholesale / distributor', typeOther: 'Something else',
+            city: 'City', message: 'How can we help?', messagePh: 'e.g. I run a kirana shop and want to try GST billing…', optional: 'optional', send: 'Send message', sending: 'Sending…',
+            successTitle: 'Thank you!', success: 'We got your message and will contact you soon.', again: 'Send another message',
+            error: 'Could not send. Please check your connection and try again.', privacy: 'We use your number only to reply to you.',
+        },
     },
     footer: {
         tagline: 'Billing, stock, udhar and orders — for Bharat’s shops and wholesalers.',
@@ -787,7 +813,7 @@ const en: LandingCopy = {
             {
                 head: 'Company',
                 links: [
-                    ['Contact', '/privacy#contact'],
+                    ['Contact us', '#contact'],
                     ['Privacy Policy', '/privacy'],
                     ['Terms of Service', '/terms'],
                 ],
@@ -1310,6 +1336,20 @@ const hi: LandingCopy = {
     contact: {
         whatsapp: 'WhatsApp पर बात करें',
         whatsappMsg: 'नमस्ते Whoply, मुझे अपने व्यापार के लिए ऐप के बारे में जानना है।',
+        eyebrow: 'संपर्क करें',
+        title: 'कोई सवाल है? हमसे पूछें।',
+        sub: 'अपनी दुकान या थोक व्यापार के बारे में और अपनी ज़रूरत बताएँ। हमारी टीम आपको कॉल या WhatsApp करेगी।',
+        points: [
+            'शुरू करने से पहले कुछ भी पूछें — पूछना मुफ़्त है।',
+            'सामान, ग्राहक और उधार सेट करने में मदद।',
+            'हम हिंदी, गुजराती या अंग्रेज़ी में जवाब देते हैं।',
+        ],
+        form: {
+            name: 'आपका नाम', mobile: 'मोबाइल नंबर', email: 'ईमेल', type: 'आपका व्यापार', typeRetail: 'दुकान (रिटेल)', typeWholesale: 'थोक / डिस्ट्रीब्यूटर', typeOther: 'कुछ और',
+            city: 'शहर', message: 'हम कैसे मदद करें?', messagePh: 'जैसे: मेरी किराना दुकान है और GST बिलिंग आज़माना चाहता हूँ…', optional: 'वैकल्पिक', send: 'संदेश भेजें', sending: 'भेज रहे हैं…',
+            successTitle: 'धन्यवाद!', success: 'आपका संदेश मिल गया। हम जल्द संपर्क करेंगे।', again: 'एक और संदेश भेजें',
+            error: 'भेज नहीं पाए। इंटरनेट जाँचें और फिर कोशिश करें।', privacy: 'आपका नंबर सिर्फ़ आपको जवाब देने के लिए इस्तेमाल होगा।',
+        },
     },
     footer: {
         tagline: 'बिलिंग, स्टॉक, उधार और ऑर्डर — भारत की दुकानों और थोक विक्रेताओं के लिए।',
@@ -1334,7 +1374,7 @@ const hi: LandingCopy = {
             {
                 head: 'कंपनी',
                 links: [
-                    ['संपर्क (अंग्रेज़ी में)', '/privacy#contact'],
+                    ['संपर्क करें', '#contact'],
                     ['प्राइवेसी पॉलिसी (अंग्रेज़ी में)', '/privacy'],
                     ['नियम और शर्तें (अंग्रेज़ी में)', '/terms'],
                 ],
@@ -1857,6 +1897,20 @@ const gu: LandingCopy = {
     contact: {
         whatsapp: 'WhatsApp પર વાત કરો',
         whatsappMsg: 'નમસ્તે Whoply, મારે મારા ધંધા માટે એપ વિશે જાણવું છે.',
+        eyebrow: 'સંપર્ક કરો',
+        title: 'કોઈ પ્રશ્ન છે? અમને પૂછો.',
+        sub: 'તમારી દુકાન કે જથ્થાબંધ ધંધા વિશે અને તમારી જરૂરિયાત જણાવો. અમારી ટીમ તમને કૉલ કે WhatsApp કરશે.',
+        points: [
+            'શરૂ કરતા પહેલાં કંઈ પણ પૂછો — પૂછવું મફત છે.',
+            'સામાન, ગ્રાહક અને ઉધાર સેટ કરવામાં મદદ.',
+            'અમે ગુજરાતી, હિન્દી કે અંગ્રેજીમાં જવાબ આપીએ છીએ.',
+        ],
+        form: {
+            name: 'તમારું નામ', mobile: 'મોબાઇલ નંબર', email: 'ઈમેલ', type: 'તમારો ધંધો', typeRetail: 'દુકાન (રિટેલ)', typeWholesale: 'જથ્થાબંધ / ડિસ્ટ્રિબ્યુટર', typeOther: 'બીજું કંઈક',
+            city: 'શહેર', message: 'અમે કેવી રીતે મદદ કરીએ?', messagePh: 'દા.ત. મારી કરિયાણાની દુકાન છે અને GST બિલિંગ અજમાવવું છે…', optional: 'વૈકલ્પિક', send: 'સંદેશ મોકલો', sending: 'મોકલી રહ્યા છીએ…',
+            successTitle: 'આભાર!', success: 'તમારો સંદેશ મળી ગયો. અમે જલ્દી સંપર્ક કરીશું.', again: 'બીજો સંદેશ મોકલો',
+            error: 'મોકલી શકાયું નહીં. ઇન્ટરનેટ તપાસો અને ફરી પ્રયત્ન કરો.', privacy: 'તમારો નંબર ફક્ત તમને જવાબ આપવા માટે વપરાશે.',
+        },
     },
     footer: {
         tagline: 'બિલિંગ, સ્ટોક, ઉધાર અને ઓર્ડર — ભારતની દુકાનો અને જથ્થાબંધ વેપારીઓ માટે.',
@@ -1881,7 +1935,7 @@ const gu: LandingCopy = {
             {
                 head: 'કંપની',
                 links: [
-                    ['સંપર્ક (અંગ્રેજીમાં)', '/privacy#contact'],
+                    ['સંપર્ક કરો', '#contact'],
                     ['પ્રાઇવસી પોલિસી (અંગ્રેજીમાં)', '/privacy'],
                     ['નિયમો અને શરતો (અંગ્રેજીમાં)', '/terms'],
                 ],

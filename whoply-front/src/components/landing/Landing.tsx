@@ -19,6 +19,7 @@ import { FeatureTabs } from '@/components/landing/FeatureTabs';
 import { WholesalePipeline } from '@/components/landing/WholesalePipeline';
 import { Pricing, type Plan } from '@/components/landing/Pricing';
 import { GetStarted } from '@/components/landing/GetStarted';
+import { Contact } from '@/components/landing/Contact';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7000/api';
 
@@ -233,6 +234,12 @@ export async function Landing({ lang }: { lang: Lang }) {
                 <Section id="faq" bg="faq">
                     <SectionHead eyebrow={t.faq.eyebrow} title={t.faq.title} />
                     <Faq lang={lang} />
+                </Section>
+
+                {/* ── Contact ─────────────────────────────── */}
+                <Section id="contact" bg="tint">
+                    <SectionHead eyebrow={t.contact.eyebrow} title={t.contact.title} sub={t.contact.sub} />
+                    <Contact lang={lang} />
                 </Section>
 
                 {/* ── Final CTA ───────────────────────────── */}

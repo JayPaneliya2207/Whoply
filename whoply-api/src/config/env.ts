@@ -22,6 +22,13 @@ const envSchema = z.object({
     // Behind a reverse proxy (nginx, a load balancer…): how many proxies to trust for the
     // visitor's address — usually 1. Unset = use the direct connection's address.
     TRUST_PROXY: z.string().optional(),
+    // Most requests one network address may make in a minute (0 = no limit). Public and
+    // sign-in routes have their own, lower limits on top (server.ts).
+    RATE_LIMIT_PER_MIN: z.coerce.number().int().min(0).default(1500),
+
+    // Database: connections kept open to MongoDB, and the longest one query may run.
+    DB_POOL_SIZE: z.coerce.number().int().min(1).max(500).default(20),
+    DB_QUERY_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
 
     // Backups (utils/backup.ts): folder for the automatic daily backup, relative to the API
     // folder ("off" = no automatic backup), and how many to keep per database.

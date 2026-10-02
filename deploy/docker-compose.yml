@@ -32,6 +32,13 @@ services:
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
     volumes:
       - ./backups:/backups # daily backups land in deploy/backups on the server — copy them off it too
+    # "healthy" only while the API answers AND its database is connected (docker compose ps shows it)
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:7000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   app:
     build:

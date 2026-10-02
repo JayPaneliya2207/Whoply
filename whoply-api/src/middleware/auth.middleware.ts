@@ -42,13 +42,14 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
             throw AppError.unauthorized('Invalid token');
         }
 
-        const user = await User.findById(decoded._id);
+        // This runs on every request, so: both lookups at once, and only the few fields
+        // needed — a staff login's document can hold megabytes of ID photos (kyc.documents).
+        const [user, session] = await Promise.all([
+            User.findById(decoded._id).select('name email mobile role adminRole businessId isActive').lean(),
+            Session.findOne({ token, userId: decoded._id, isActive: true }).select('lastActivityAt').lean(),
+        ]);
         if (!user) throw AppError.unauthorized('User not found');
         if (!user.isActive) throw AppError.unauthorized('Account is deactivated');
-
-        const session = await Session.findOne({ token, userId: user._id, isActive: true })
-            .select('lastActivityAt')
-            .lean();
         if (!session) {
             throw AppError.unauthorized(
                 'Your session has expired or you were logged out from another device. Please login again.'
@@ -78,6 +79,7 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
             email: user.email,
             mobile: user.mobile,
             role: user.role,
+            adminRole: user.adminRole,
             businessId: user.businessId,
             businessType,
             isActive: user.isActive,

@@ -35,7 +35,7 @@ export const notFoundHandler = (req: Request, _res: Response, next: NextFunction
 
 export const errorHandler: ErrorRequestHandler = (
     err: Error | AppError,
-    _req: Request,
+    req: Request,
     res: Response,
     _next: NextFunction
 ): void => {
@@ -74,7 +74,23 @@ export const errorHandler: ErrorRequestHandler = (
         statusCode = 401;
         message = 'Token expired';
         code = 'TOKEN_EXPIRED';
+    } else if ((err as any).type === 'entity.too.large') {
+        statusCode = 413;
+        message = 'That is too large to send — use a smaller photo';
+        code = 'PAYLOAD_TOO_LARGE';
+    } else if ((err as any).type === 'entity.parse.failed' || (err as any).type === 'charset.unsupported' || (err as any).type === 'encoding.unsupported') {
+        statusCode = 400;
+        message = 'The request could not be read';
+        code = 'INVALID_JSON';
+    } else if ((err as any).code === 50 || (err as any).codeName === 'MaxTimeMSExpired') {
+        // A query hit DB_QUERY_TIMEOUT_MS (config/database.ts).
+        statusCode = 503;
+        message = 'The server is busy — please try again in a moment';
+        code = 'BUSY';
     }
+
+    // Server faults are always written to the log (never sent to the client).
+    if (statusCode >= 500) console.error(`[error] ${req.method} ${req.originalUrl.split('?')[0]} → ${statusCode}`, err);
 
     if (env.NODE_ENV === 'development') {
         console.error('Error:', { message: err.message, statusCode, code });

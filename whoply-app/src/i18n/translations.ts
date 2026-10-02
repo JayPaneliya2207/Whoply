@@ -4,10 +4,10 @@
  */
 export type Lang = 'en' | 'hi' | 'gu';
 
-export const LANGS: { code: Lang; label: string; native: string }[] = [
-    { code: 'en', label: 'English', native: 'English' },
-    { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
-    { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી' },
+export const LANGS: { code: Lang; label: string; native: string; short: string }[] = [
+    { code: 'en', label: 'English', native: 'English', short: 'EN' },
+    { code: 'hi', label: 'Hindi', native: 'हिन्दी', short: 'हिं' },
+    { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી', short: 'ગુ' },
 ];
 
 type Dict = Record<string, string>;
@@ -159,7 +159,9 @@ const en: Dict = {
     // notifications
     noNotifications: 'No notifications yet.', markAllRead: 'Mark all read',
     notifAll: 'All', notifUnread: 'Unread', notifRead: 'Read',
-    shopOpen: 'Open', shopClosed: 'Closed',
+    posButton: 'POS Billing',
+    helpSupport: 'Help & Support', chatWithUs: 'Chat with us', supportReplyTime: 'We usually reply within a few hours', supportIntro: 'Hi! Tell us your question or problem and the Whoply team will reply here.', typeMessage: 'Type a message…', sendWord: 'Send', supportSolved: 'Marked solved. Send a message to open it again.', supportQuick1: 'I have a billing question:', supportQuick2: 'Something is not working:', supportQuick3: 'How do I',
+    subscription: 'Subscription', subscriptionHint: 'Your Whoply plan and bills', yourPlan: 'Your plan', monthWord: 'month', yearWord: 'year', freePlanNote: 'Free plan — nothing to pay', paidUntil: 'paid until', billsToPay: 'Bills to pay', noBillsDue: 'Nothing to pay right now.', dueOn: 'Due on', overdueSince: 'Was due on', payWithUpi: 'Pay with UPI', iHavePaid: 'I have paid', upiRefPh: 'UPI reference no. (optional)', confirmWord: 'Confirm', payConfirming: 'We are confirming your payment', askSupportToPay: 'Please contact Whoply support to pay this bill.', bankTransfer: 'Pay by bank transfer', billHistory: 'Paid bills', paidWord: 'Paid', needHelp: 'Need help?', whoplySupport: 'Whoply support', subscriptionDue: 'Subscription bill to pay', subscriptionOverdue: 'Subscription payment overdue', payNow: 'Pay now',
     paymentReminders: 'Payment reminders', paymentRemindersHint: 'Automatically remind customers & dealers who have pending payments.', enableAutoReminders: 'Auto-remind on pending payments', remindEveryDays: 'Remind every (days)',
     gstinInvalid: 'Invalid GSTIN. Expected format like 22AAAAA0000A1Z5.', noProductForCode: 'No product for',
     // ── wholesaler ──
@@ -355,7 +357,9 @@ const hi: Dict = {
     // notifications
     noNotifications: 'अभी कोई सूचना नहीं।', markAllRead: 'सभी पढ़ा हुआ करें',
     notifAll: 'सभी', notifUnread: 'अपठित', notifRead: 'पढ़ी हुई',
-    shopOpen: 'खुली', shopClosed: 'बंद',
+    posButton: 'POS बिलिंग',
+    helpSupport: 'मदद और सपोर्ट', chatWithUs: 'हमसे चैट करें', supportReplyTime: 'हम आमतौर पर कुछ घंटों में जवाब देते हैं', supportIntro: 'नमस्ते! अपना सवाल या समस्या लिखें, Whoply टीम यहीं जवाब देगी।', typeMessage: 'संदेश लिखें…', sendWord: 'भेजें', supportSolved: 'हल हो गया। फिर से खोलने के लिए संदेश भेजें।', supportQuick1: 'बिलिंग के बारे में सवाल:', supportQuick2: 'कुछ काम नहीं कर रहा:', supportQuick3: 'मैं कैसे करूँ',
+    subscription: 'सब्सक्रिप्शन', subscriptionHint: 'आपका Whoply प्लान और बिल', yourPlan: 'आपका प्लान', monthWord: 'महीना', yearWord: 'साल', freePlanNote: 'फ्री प्लान — कुछ चुकाना नहीं', paidUntil: 'तक चुकाया', billsToPay: 'चुकाने वाले बिल', noBillsDue: 'अभी कुछ चुकाना नहीं है।', dueOn: 'देय तिथि', overdueSince: 'देय तिथि थी', payWithUpi: 'UPI से चुकाएँ', iHavePaid: 'मैंने चुका दिया', upiRefPh: 'UPI रेफरेंस नं. (वैकल्पिक)', confirmWord: 'पुष्टि करें', payConfirming: 'हम आपके भुगतान की पुष्टि कर रहे हैं', askSupportToPay: 'यह बिल चुकाने के लिए Whoply सपोर्ट से संपर्क करें।', bankTransfer: 'बैंक ट्रांसफर से चुकाएँ', billHistory: 'चुकाए गए बिल', paidWord: 'चुकाया', needHelp: 'मदद चाहिए?', whoplySupport: 'Whoply सपोर्ट', subscriptionDue: 'सब्सक्रिप्शन बिल चुकाना है', subscriptionOverdue: 'सब्सक्रिप्शन भुगतान बकाया', payNow: 'अभी चुकाएँ',
     paymentReminders: 'भुगतान रिमाइंडर', paymentRemindersHint: 'बकाया भुगतान वाले ग्राहकों व डीलरों को अपने आप याद दिलाएँ।', enableAutoReminders: 'बकाया पर ऑटो-रिमाइंडर', remindEveryDays: 'हर कितने दिन में याद दिलाएँ',
     gstinInvalid: 'अमान्य GSTIN। सही रूप जैसे 22AAAAA0000A1Z5।', noProductForCode: 'इस कोड के लिए कोई उत्पाद नहीं',
     // ── wholesaler ──
@@ -551,7 +555,9 @@ const gu: Dict = {
     // notifications
     noNotifications: 'હજી કોઈ સૂચના નથી.', markAllRead: 'બધું વાંચ્યું કરો',
     notifAll: 'બધી', notifUnread: 'વણવાંચેલી', notifRead: 'વાંચેલી',
-    shopOpen: 'ખુલ્લી', shopClosed: 'બંધ',
+    posButton: 'POS બિલિંગ',
+    helpSupport: 'મદદ અને સપોર્ટ', chatWithUs: 'અમારી સાથે ચેટ કરો', supportReplyTime: 'અમે સામાન્ય રીતે થોડા કલાકમાં જવાબ આપીએ છીએ', supportIntro: 'નમસ્તે! તમારો પ્રશ્ન કે સમસ્યા લખો, Whoply ટીમ અહીં જ જવાબ આપશે.', typeMessage: 'સંદેશ લખો…', sendWord: 'મોકલો', supportSolved: 'ઉકેલાઈ ગયું. ફરી ખોલવા સંદેશ મોકલો.', supportQuick1: 'બિલિંગ વિશે પ્રશ્ન:', supportQuick2: 'કંઈક કામ નથી કરતું:', supportQuick3: 'હું કેવી રીતે કરું',
+    subscription: 'સબ્સ્ક્રિપ્શન', subscriptionHint: 'તમારો Whoply પ્લાન અને બિલ', yourPlan: 'તમારો પ્લાન', monthWord: 'મહિનો', yearWord: 'વર્ષ', freePlanNote: 'ફ્રી પ્લાન — કંઈ ચૂકવવાનું નથી', paidUntil: 'સુધી ચૂકવેલ', billsToPay: 'ચૂકવવાના બિલ', noBillsDue: 'હાલ કંઈ ચૂકવવાનું નથી.', dueOn: 'છેલ્લી તારીખ', overdueSince: 'છેલ્લી તારીખ હતી', payWithUpi: 'UPI થી ચૂકવો', iHavePaid: 'મેં ચૂકવી દીધું', upiRefPh: 'UPI રેફરન્સ નં. (વૈકલ્પિક)', confirmWord: 'પુષ્ટિ કરો', payConfirming: 'અમે તમારી ચુકવણીની પુષ્ટિ કરી રહ્યા છીએ', askSupportToPay: 'આ બિલ ચૂકવવા Whoply સપોર્ટનો સંપર્ક કરો.', bankTransfer: 'બેંક ટ્રાન્સફરથી ચૂકવો', billHistory: 'ચૂકવેલા બિલ', paidWord: 'ચૂકવેલ', needHelp: 'મદદ જોઈએ?', whoplySupport: 'Whoply સપોર્ટ', subscriptionDue: 'સબ્સ્ક્રિપ્શન બિલ ચૂકવવાનું છે', subscriptionOverdue: 'સબ્સ્ક્રિપ્શન ચુકવણી બાકી', payNow: 'હમણાં ચૂકવો',
     paymentReminders: 'ચુકવણી રિમાઇન્ડર', paymentRemindersHint: 'બાકી ચુકવણી ધરાવતા ગ્રાહકો અને ડીલરોને આપમેળે યાદ કરાવો.', enableAutoReminders: 'બાકી પર ઑટો-રિમાઇન્ડર', remindEveryDays: 'દર કેટલા દિવસે યાદ કરાવો',
     gstinInvalid: 'અમાન્ય GSTIN. યોગ્ય ફોર્મેટ જેમ કે 22AAAAA0000A1Z5.', noProductForCode: 'આ કોડ માટે કોઈ ઉત્પાદન નથી',
     // ── wholesaler ──

@@ -24,55 +24,7 @@ async function assertPlan(key: unknown): Promise<string> {
     return plan;
 }
 
-/** GET /admin/stats — platform-wide KPIs + account tally (MRR from subscriptions) */
-export const platformStats = asyncHandler(async (_req: AuthRequest, res: Response) => {
-    const [businesses, retail, wholesale, active, users, invoices, orders, gmvAgg, orderGmvAgg, planAgg, plans] = await Promise.all([
-        Business.countDocuments({}),
-        Business.countDocuments({ type: 'retail' }),
-        Business.countDocuments({ type: 'wholesale' }),
-        Business.countDocuments({ isActive: true }),
-        User.countDocuments({ role: { $ne: 'admin' }, isActive: true }),
-        Invoice.countDocuments({}),
-        Order.countDocuments(LIVE_ORDERS),
-        Invoice.aggregate([{ $group: { _id: null, total: { $sum: '$grandTotal' } } }]),
-        Order.aggregate([{ $match: LIVE_ORDERS }, { $group: { _id: null, total: { $sum: '$total' } } }]),
-        Business.aggregate([{ $match: { isActive: true } }, { $group: { _id: '$plan', count: { $sum: 1 } } }]),
-        Plan.find({}).lean(),
-    ]);
-
-    // MRR = sum over plans of (monthly price × active subscribers)
-    const planCount = new Map(planAgg.map((p) => [p._id, p.count]));
-    const priceMap = new Map(plans.map((p) => [p.key, p.period === 'year' ? p.price / 12 : p.price]));
-    let mrr = 0;
-    const revenueByPlan = plans.map((p) => {
-        const subs = planCount.get(p.key) || 0;
-        const monthly = (priceMap.get(p.key) || 0) * subs;
-        mrr += monthly;
-        return { plan: p.name, key: p.key, subscribers: subs, price: p.price, monthlyRevenue: Math.round(monthly) };
-    });
-
-    const retailGmv = gmvAgg[0]?.total || 0;
-    const wholesaleGmv = orderGmvAgg[0]?.total || 0;
-    sendSuccess(res, {
-        businesses,
-        active,
-        suspended: businesses - active,
-        retail,
-        wholesale,
-        users,
-        invoices,
-        orders,
-        gmv: retailGmv + wholesaleGmv,
-        retailGmv,
-        wholesaleGmv,
-        mrr: Math.round(mrr),
-        arr: Math.round(mrr * 12),
-        revenueByPlan,
-        plans: planAgg.map((p) => ({ plan: p._id, count: p.count })),
-    });
-});
-
-/** GET /admin/businesses — all tenants */
+/** GET /admin/businesses?search=&type=&lite=1 — all tenants (lite: names only, for pickers) */
 export const listBusinesses = asyncHandler(async (req: AuthRequest, res: Response) => {
     const { skip, limit, meta } = paginate(req.query);
     const filter: any = {};
@@ -83,6 +35,7 @@ export const listBusinesses = asyncHandler(async (req: AuthRequest, res: Respons
         Business.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
         Business.countDocuments(filter),
     ]);
+    if (req.query.lite) { sendPaginated(res, items, meta(total)); return; }
 
     // enrich with counts — bills for a shop, orders for a wholesaler
     const enriched = await Promise.all(
@@ -96,30 +49,6 @@ export const listBusinesses = asyncHandler(async (req: AuthRequest, res: Respons
         })
     );
     sendPaginated(res, enriched, meta(total));
-});
-
-/**
- * GET /admin/users?search=&page=&limit= — people across tenants. Only what the
- * list shows: never KYC documents, ID numbers, salary or login secrets.
- */
-export const listUsers = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { skip, limit, meta } = paginate(req.query);
-    const filter: any = {};
-    if (req.query.search) {
-        const digits = String(req.query.search).replace(/\D/g, '');
-        filter.$or = [{ name: containsText(req.query.search) }, ...(digits.length >= 3 ? [{ mobile: containsText(digits) }] : [])];
-    }
-    const [items, total] = await Promise.all([
-        User.find(filter)
-            .select('name mobile countryCode role businessId isActive lastLogin createdAt')
-            .populate('businessId', 'name type')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean(),
-        User.countDocuments(filter),
-    ]);
-    sendPaginated(res, items, meta(total));
 });
 
 /** PATCH /admin/businesses/:id — suspend / resume, change plan, edit details */
@@ -197,19 +126,6 @@ export const deleteBusiness = asyncHandler(async (req: AuthRequest, res: Respons
     const business = await Business.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
     if (!business) throw AppError.notFound('Business not found');
     sendSuccess(res, { ok: true }, 'Business suspended');
-});
-
-/** PATCH /admin/users/:id — turn a login on/off, rename. Never an admin (yourself included) — that could lock everyone out. */
-export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const patch: any = {};
-    if (typeof req.body.isActive === 'boolean') patch.isActive = req.body.isActive;
-    if (typeof req.body.name === 'string' && req.body.name.trim()) patch.name = req.body.name.trim();
-    const target = await User.findById(req.params.id).select('role').lean();
-    if (!target) throw AppError.notFound('User not found');
-    if (target.role === 'admin' && patch.isActive === false) throw AppError.badRequest('An admin login can not be turned off here');
-    const user = await User.findByIdAndUpdate(req.params.id, patch, { new: true }).select('name mobile role isActive');
-    if (!user) throw AppError.notFound('User not found');
-    sendSuccess(res, user, 'User updated');
 });
 
 /* ---------------- Plans (subscriptions) ---------------- */

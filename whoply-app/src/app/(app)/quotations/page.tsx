@@ -6,7 +6,7 @@ import { Plus, Minus, Trash2, Check, X, Search, FileText, Printer, MessageCircle
 import { api, apiErr, withCreditCheck } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { priceLines, round2 } from '@/lib/tax';
-import { stepQty } from '@/lib/qty';
+import { stepQty, isLooseUnit } from '@/lib/qty';
 import { QtyInput } from '@/components/QtyInput';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/i18n';
@@ -28,6 +28,32 @@ const statusTone: Record<string, any> = {
     open: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
     converted: { background: 'var(--success-tint)', color: 'var(--success)' },
 };
+
+/** One line of the quote cart: name, price × quantity, and − / typed quantity / + (same as the POS cart). */
+function CartLine({ name, unit, qty, step = 1, price, total, label, onStep, onSet, onRemove }: {
+    name: string; unit?: string; qty: number; step?: number; price?: string; total: string; label: string;
+    onStep: (delta: number) => void; onSet: (qty: number) => void; onRemove: () => void;
+}) {
+    return (
+        <div className="rounded-xl p-2.5" style={{ background: 'var(--surface-2)' }}>
+            <div className="flex items-start justify-between gap-2">
+                <p className="flex-1 text-sm font-medium leading-tight line-clamp-2" style={{ color: 'var(--text-primary)' }}>{name}</p>
+                <button onClick={onRemove} aria-label="Remove" className="shrink-0" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+            </div>
+            <div className="flex items-center justify-between gap-2 mt-2">
+                <p className="text-xs tabular min-w-0 truncate" style={{ color: 'var(--text-muted)' }}>
+                    {price && <>{price}{isLooseUnit(unit) && ` / ${unit}`} · </>}
+                    <b style={{ color: 'var(--text-secondary)' }}>{total}</b>
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => onStep(-step)} aria-label="−" className="h-8 w-8 grid place-items-center rounded-lg" style={{ background: 'var(--card-bg)' }}><Minus size={14} /></button>
+                    <QtyInput value={qty} unit={unit} onChange={onSet} label={label} className="w-16 !py-1.5" />
+                    <button onClick={() => onStep(step)} aria-label="+" className="h-8 w-8 grid place-items-center rounded-lg" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={14} /></button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function QuotationsPage() {
     const { user } = useAuth();
@@ -196,9 +222,9 @@ function RetailQuotes() {
                                             </button>
                                             {qty > 0 && (
                                                 <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--card-border)' }}>
-                                                    <button onClick={() => setQty(p._id, -1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--surface-2)' }}><Minus size={12} /></button>
-                                                    <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-12 !text-xs" />
-                                                    <button onClick={() => setQty(p._id, 1)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={12} /></button>
+                                                    <button onClick={() => setQty(p._id, -1)} aria-label="−" className="h-8 w-8 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)' }}><Minus size={14} /></button>
+                                                    <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-14 !py-1.5" />
+                                                    <button onClick={() => setQty(p._id, 1)} aria-label="+" className="h-8 w-8 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={14} /></button>
                                                 </div>
                                             )}
                                         </div>
@@ -207,11 +233,9 @@ function RetailQuotes() {
                             </div>
                             <div className="space-y-1.5 mb-3">
                                 {cart.map((r) => (
-                                    <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
-                                        <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
-                                        <span className="text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{inr2(r.price * r.qty)}</span>
-                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
-                                    </div>
+                                    <CartLine key={r.productId} name={r.name} unit={r.unit} qty={r.qty} price={inr2(r.price)} total={inr2(r.price * r.qty)}
+                                        label={`${t('qtyWord')} · ${r.name}`} onStep={(d) => setQty(r.productId, d)} onSet={(n) => setQtyTo(r.productId, n)}
+                                        onRemove={() => setCart((c) => c.filter((x) => x.productId !== r.productId))} />
                                 ))}
                             </div>
                             <div className="flex items-center gap-2 mb-3">
@@ -371,9 +395,9 @@ function WholesaleQuotes() {
                                             </button>
                                             {qty > 0 && (
                                                 <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--card-border)' }}>
-                                                    <button onClick={() => setQty(p._id, -10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--surface-2)' }}><Minus size={12} /></button>
-                                                    <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-12 !text-xs" />
-                                                    <button onClick={() => setQty(p._id, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={12} /></button>
+                                                    <button onClick={() => setQty(p._id, -10)} aria-label="−" className="h-8 w-8 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)' }}><Minus size={14} /></button>
+                                                    <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-14 !py-1.5" />
+                                                    <button onClick={() => setQty(p._id, 10)} aria-label="+" className="h-8 w-8 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={14} /></button>
                                                 </div>
                                             )}
                                         </div>
@@ -382,11 +406,9 @@ function WholesaleQuotes() {
                             </div>
                             <div className="space-y-1.5 mb-3">
                                 {cart.map((r) => (
-                                    <div key={r.productId} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--surface-2)' }}>
-                                        <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{r.name}</span>
-                                        <span className="text-sm tabular" style={{ color: 'var(--text-secondary)' }}>{pricing.byProduct.has(r.productId) ? inr2(pricing.byProduct.get(r.productId)!.lineTotal) : '…'}</span>
-                                        <button onClick={() => setCart((c) => c.filter((x) => x.productId !== r.productId))}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
-                                    </div>
+                                    <CartLine key={r.productId} name={r.name} unit={r.unit} qty={r.qty} step={10} total={pricing.byProduct.has(r.productId) ? inr2(pricing.byProduct.get(r.productId)!.lineTotal) : '…'}
+                                        label={`${t('qtyWord')} · ${r.name}`} onStep={(d) => setQty(r.productId, d)} onSet={(n) => setQtyTo(r.productId, n)}
+                                        onRemove={() => setCart((c) => c.filter((x) => x.productId !== r.productId))} />
                                 ))}
                             </div>
                             <PriceSummary pricing={pricing} dealerChosen={!!dealerId} empty={!cart.length} />

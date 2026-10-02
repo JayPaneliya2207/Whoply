@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Trash2, Check, X, Search, Download, Printer, MessageCircle, QrCode, FileJson, Truck, RotateCcw, Pencil, Ban } from 'lucide-react';
@@ -45,6 +45,10 @@ export default function OrdersPage() {
     const initialStatus = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('status') || 'all' : 'all';
 
     const [creating, setCreating] = useState(false);
+    // "New order" on the dashboard links here with ?new=1 — open the sheet without another tap.
+    useEffect(() => {
+        if (new URLSearchParams(window.location.search).get('new') === '1') setCreating(true);
+    }, []);
     const [editingOrder, setEditingOrder] = useState<any>(null); // an order whose items are open in the sheet
     const [cancelFor, setCancelFor] = useState<any>(null);
     const [cancelErr, setCancelErr] = useState('');
@@ -402,9 +406,9 @@ export default function OrdersPage() {
                                             </button>
                                             {qty > 0 && (
                                                 <div className="flex items-center justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--card-border)' }}>
-                                                    <button onClick={() => setQty(p._id, -10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--surface-2)' }}><Minus size={12} /></button>
-                                                    <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-12 !text-xs" />
-                                                    <button onClick={() => setQty(p._id, 10)} className="h-6 w-6 grid place-items-center rounded" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={12} /></button>
+                                                    <button onClick={() => setQty(p._id, -10)} aria-label="−" className="h-8 w-8 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--surface-2)' }}><Minus size={14} /></button>
+                                                    <QtyInput value={qty} unit={p.unit} onChange={(n) => setQtyTo(p._id, n)} label={`${t('qtyWord')} · ${p.name}`} className="w-14 !py-1.5" />
+                                                    <button onClick={() => setQty(p._id, 10)} aria-label="+" className="h-8 w-8 grid place-items-center rounded-lg shrink-0" style={{ background: 'var(--brand)', color: '#fff' }}><Plus size={14} /></button>
                                                 </div>
                                             )}
                                         </div>

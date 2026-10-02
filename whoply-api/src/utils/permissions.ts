@@ -43,6 +43,7 @@ export const PERMS = [
     'priceList.view',
     'priceList.manage',
     'visits.record',
+    'support.chat', // chat with the Whoply team (owner, manager)
 ] as const;
 export type Perm = (typeof PERMS)[number];
 

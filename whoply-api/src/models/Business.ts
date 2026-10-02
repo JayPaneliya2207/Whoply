@@ -24,6 +24,7 @@ export interface IBusiness {
     bank?: { name?: string; holder?: string; account?: string; ifsc?: string }; // for bank-transfer collections
     currency: string;
     plan: string; // a Plan.key (admin Plans page)
+    planPaidUntil?: Date; // end of the last paid subscription bill's period (SubscriptionBill)
     settings: {
         lowStockThreshold: number;
         enableUdharReminders: boolean;
@@ -63,6 +64,7 @@ const businessSchema = new Schema<IBusinessDocument>(
         },
         currency: { type: String, default: 'INR' },
         plan: { type: String, default: 'free' }, // must match a Plan.key — checked by the admin API
+        planPaidUntil: Date,
         settings: {
             lowStockThreshold: { type: Number, default: 10 },
             enableUdharReminders: { type: Boolean, default: true },

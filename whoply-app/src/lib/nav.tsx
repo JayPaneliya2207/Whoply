@@ -1,6 +1,6 @@
 import {
     ShoppingCart, Package, Users, FileText, Truck, Wallet, BarChart3, Tags, Route, Sparkles,
-    Settings, UsersRound, ReceiptText, FileSpreadsheet, RotateCcw, Home,
+    Settings, UsersRound, ReceiptText, FileSpreadsheet, RotateCcw, Home, LifeBuoy,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ComponentType, CSSProperties } from 'react';
@@ -41,6 +41,7 @@ export const retailGroups: NavGroup[] = [
         title: 'moreGroup', items: [
             { href: '/staff', key: 'staff', icon: UsersRound },
             { href: '/insights', key: 'aiInsights', icon: Sparkles },
+            { href: '/support', key: 'helpSupport', icon: LifeBuoy },
             { href: '/settings', key: 'settings', icon: Settings },
         ],
     },
@@ -74,6 +75,7 @@ export const wholesaleGroups: NavGroup[] = [
             { href: '/products', key: 'warehouse', icon: Package },
             { href: '/purchases', key: 'suppliers', icon: Truck },
             { href: '/staff', key: 'staff', icon: UsersRound },
+            { href: '/support', key: 'helpSupport', icon: LifeBuoy },
             { href: '/settings', key: 'settings', icon: Settings },
         ],
     },
@@ -90,10 +92,10 @@ export const groupsFor = (type?: string, role?: string): NavGroup[] =>
 // who can't open a main screen get their own daily screen in its place.
 export const retailTabs: NavItem[] = [
     { href: '/dashboard', key: 'home', icon: Home },
-    { href: '/billing', key: 'billingShort', icon: ShoppingCart },
     { href: '/bills', key: 'bills', icon: ReceiptText },
     { href: '/customers', key: 'customersShort', icon: Users },
     { href: '/reports', key: 'reports', icon: BarChart3 },
+    { href: '/settings', key: 'settings', icon: Settings },
     { href: '/products', key: 'products', icon: Package },
 ];
 export const wholesaleTabs: NavItem[] = [
@@ -101,6 +103,7 @@ export const wholesaleTabs: NavItem[] = [
     { href: '/orders', key: 'orders', icon: FileText },
     { href: '/dealers', key: 'dealers', icon: Users },
     { href: '/payments', key: 'payments', icon: RupeeIcon },
+    { href: '/settings', key: 'settings', icon: Settings },
     { href: '/reports', key: 'reports', icon: BarChart3 },
     { href: '/dispatch', key: 'dispatch', icon: Truck },
     { href: '/products', key: 'warehouse', icon: Package },

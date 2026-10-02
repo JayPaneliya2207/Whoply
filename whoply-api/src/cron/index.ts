@@ -1,6 +1,6 @@
 /**
- * Scheduled jobs: nightly business summary, weekly supplier-payable reminder, and
- * daily udhar/dealer payment reminders.
+ * Scheduled jobs: nightly business summary, weekly supplier-payable reminder,
+ * daily udhar/dealer payment reminders, and daily subscription-bill reminders.
  *
  * These are written **set-based**: one grouped aggregate across all tenants rather
  * than a query per business, and one bulk write instead of a save() per row. The
@@ -28,6 +28,7 @@ import { IST_TZ } from '../utils/ist.js';
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
 import { backupDatabase, backupFolder, listBackups } from '../utils/backup.js';
+import { runSubscriptionReminders } from '../services/subscription.service.js';
 
 
 const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
@@ -244,6 +245,7 @@ export const TIMED_JOBS = [
     { key: 'daily-summaries', at: '0 21 * * *', ttlMs: 15 * 60_000, run: generateDailySummaries }, // 21:00 daily — business summary
     { key: 'payable-reminders', at: '0 9 * * 1', ttlMs: 15 * 60_000, run: generatePayableReminders }, // 09:00 Monday — supplier payables
     { key: 'udhar-reminders', at: '0 10 * * *', ttlMs: 30 * 60_000, run: generateUdharReminders }, // 10:00 daily — customer/dealer payment reminders
+    { key: 'subscription-reminders', at: '0 11 * * *', ttlMs: 15 * 60_000, run: runSubscriptionReminders }, // 11:00 daily — Whoply's own bills: auto-bill + remind owners
 ];
 export const CRON_TIMEZONE = IST_TZ;
 

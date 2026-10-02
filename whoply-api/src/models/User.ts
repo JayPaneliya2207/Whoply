@@ -13,6 +13,7 @@ export interface IUser {
     email?: string;
     password?: string;
     role: roles;
+    adminRole?: 'super' | 'support' | 'billing' | 'viewer'; // platform admins only (utils/adminAccess.ts); none = super
     businessId?: Types.ObjectId;
     language: string;
     otp?: string;
@@ -57,6 +58,7 @@ const userSchema = new Schema<IUserDocument>(
             required: true,
             index: true,
         },
+        adminRole: { type: String, enum: ['super', 'support', 'billing', 'viewer'] },
         businessId: { type: Schema.Types.ObjectId, ref: 'Business', index: true },
         language: { type: String, default: 'en' },
         otp: { type: String, select: false },

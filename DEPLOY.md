@@ -130,6 +130,7 @@ docker compose run --rm api node dist/seeds/restore.js whoply-2026-10-01_0215 --
 - [ ] Try the app on a phone: sign in, make a bill, print, and install it ("Add to Home screen").
 - [ ] An SMS provider for OTP sign-in and self sign-up. Until then, owners sign in with the password you set.
 - [ ] Copy one backup off the server and check that it restores (for example into a test database with `--into`).
+- [ ] Go through the checklist in `SECURITY.md` (secrets, admin logins, database access, uptime monitor).
 
 ## If something goes wrong
 
