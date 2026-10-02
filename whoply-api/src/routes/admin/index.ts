@@ -14,6 +14,7 @@ import {
 } from '../../controllers/admin/admin.controller.js';
 import { platformStats } from '../../controllers/admin/stats.controller.js';
 import { listUsers, createUser, updateUser, deleteUser } from '../../controllers/admin/users.controller.js';
+import { supportSummary, listThreads, getThread, reply, startThread, setThreadStatus } from '../../controllers/admin/support.controller.js';
 import { getSettings, updateSettings, listBills, getBill, createBillFor, runBills, remind, updateBill } from '../../controllers/admin/billing.controller.js';
 
 const router = Router();
@@ -49,5 +50,13 @@ router.post('/bills/run', runBills);
 router.get('/bills/:id', getBill);
 router.post('/bills/:id/remind', remind);
 router.patch('/bills/:id', updateBill);
+
+// Support chat with businesses
+router.get('/support/summary', supportSummary);
+router.get('/support/threads', listThreads);
+router.post('/support/threads', startThread);
+router.get('/support/threads/:id', getThread);
+router.post('/support/threads/:id/messages', reply);
+router.patch('/support/threads/:id', setThreadStatus);
 
 export default router;

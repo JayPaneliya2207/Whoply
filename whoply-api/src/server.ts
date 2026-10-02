@@ -39,6 +39,7 @@ import wholesalerRoutes from './routes/wholesaler/index.js';
 import adminRoutes from './routes/admin/index.js';
 import staffRoutes from './routes/staff.routes.js';
 import subscriptionRoutes from './routes/subscription.routes.js';
+import supportRoutes from './routes/support.routes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
@@ -47,6 +48,7 @@ app.use('/api/wholesaler', wholesalerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/support', supportRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

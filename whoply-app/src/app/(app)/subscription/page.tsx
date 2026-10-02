@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BadgeCheck, QrCode, Landmark, MessageCircle, ReceiptText, Check, Clock, AlertTriangle, Crown } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
@@ -128,6 +129,7 @@ export default function SubscriptionPage() {
                         <p className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('needHelp')}</p>
                         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{[support.email, support.hours].filter(Boolean).join(' · ') || t('whoplySupport')}</p>
                     </div>
+                    <Link href="/support" className="wp-btn wp-btn-ghost"><MessageCircle size={15} /> {t('chatWithUs')}</Link>
                     {support.whatsapp && <a className="wp-btn wp-btn-collect" target="_blank" rel="noreferrer" href={whatsappLink(support.whatsapp.slice(-10), 'Hello Whoply support,', support.whatsapp.length > 10 ? `+${support.whatsapp.slice(0, -10)}` : '+91')}><MessageCircle size={15} /> WhatsApp</a>}
                 </div>
             )}

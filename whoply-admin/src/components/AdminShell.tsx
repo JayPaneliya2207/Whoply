@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/stores/auth.store';
 import { api } from '@/lib/api';
@@ -20,6 +21,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
             { href: '/users', label: 'Users', icon: Users, blurb: 'Every login, across all businesses' },
             { href: '/plans', label: 'Subscriptions', icon: CreditCard, blurb: 'Plans, prices and who is on them' },
             { href: '/billing', label: 'Billing', icon: Receipt, blurb: 'Subscription bills, reminders and payments' },
+            { href: '/support', label: 'Support', icon: MessagesSquare, blurb: 'Chat with business owners' },
         ],
     },
     { title: 'Platform', items: [{ href: '/settings', label: 'Settings', icon: Settings, blurb: 'Company, payment details, reminders, support' }] },
@@ -42,6 +44,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     const [mounted, setMounted] = useState(false); // the theme icon is only right after mount
     useEffect(() => setMounted(true), []);
     useEffect(() => { setMobileOpen(false); setMenu(false); }, [pathname]);
+
+    // Unread support messages, for the badge on the Support link.
+    const { data: support } = useQuery({ queryKey: ['support-summary'], queryFn: async () => (await api.get('/admin/support/summary')).data.data, refetchInterval: 20_000 });
+    const badges: Record<string, number> = { '/support': support?.unread || 0 };
 
     const page = PAGES.find((p) => pathname === p.href || pathname.startsWith(p.href + '/')) || PAGES[0];
     const initial = user?.name?.charAt(0)?.toUpperCase() || 'A';
@@ -74,7 +80,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                                     <Link key={item.href} href={item.href} title={item.label}
                                         className={cn('adm-nav flex items-center gap-3 rounded-xl text-sm font-semibold transition-colors', mini ? 'justify-center h-11 w-11 mx-auto' : 'px-3 py-2.5', active && 'is-active')}
                                         style={active ? { background: 'var(--brand)', color: '#fff', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
-                                        <Icon size={18} strokeWidth={active ? 2.4 : 2} /> {!mini && item.label}
+                                        <span className="relative shrink-0">
+                                            <Icon size={18} strokeWidth={active ? 2.4 : 2} />
+                                            {mini && badges[item.href] > 0 && <span className="absolute -top-1.5 -right-1.5 h-2.5 w-2.5 rounded-full" style={{ background: 'var(--accent)' }} />}
+                                        </span>
+                                        {!mini && <span className="flex-1">{item.label}</span>}
+                                        {!mini && badges[item.href] > 0 && <span className="h-5 min-w-5 px-1.5 grid place-items-center rounded-full text-[11px] font-bold" style={{ background: 'var(--accent)', color: '#fff' }}>{badges[item.href]}</span>}
                                     </Link>
                                 );
                             })}

@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import { useT } from '@/i18n';
 import { useAuth } from '@/stores/auth.store';
 
-const typeIcon: Record<string, string> = { summary: '📊', low_stock: '📦', udhar: '💰', expiry: '⏰', order: '🚚', payable: '💸', subscription: '🧾', general: '🔔' };
+const typeIcon: Record<string, string> = { summary: '📊', low_stock: '📦', udhar: '💰', expiry: '⏰', order: '🚚', payable: '💸', subscription: '🧾', support: '💬', general: '🔔' };
 type Filter = 'all' | 'unread' | 'read';
 
 export default function NotificationsPage() {
@@ -34,6 +34,7 @@ export default function NotificationsPage() {
             case 'order': return isWholesale ? '/orders' : '/bills';
             case 'payable': return '/purchases';
             case 'subscription': return '/subscription';
+            case 'support': return '/support';
             default: return null;
         }
     };

@@ -1,6 +1,6 @@
 import {
     ShoppingCart, Package, Users, FileText, Truck, Wallet, BarChart3, Tags, Route, Sparkles,
-    Settings, UsersRound, ReceiptText, FileSpreadsheet, RotateCcw, Home,
+    Settings, UsersRound, ReceiptText, FileSpreadsheet, RotateCcw, Home, LifeBuoy,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ComponentType, CSSProperties } from 'react';
@@ -41,6 +41,7 @@ export const retailGroups: NavGroup[] = [
         title: 'moreGroup', items: [
             { href: '/staff', key: 'staff', icon: UsersRound },
             { href: '/insights', key: 'aiInsights', icon: Sparkles },
+            { href: '/support', key: 'helpSupport', icon: LifeBuoy },
             { href: '/settings', key: 'settings', icon: Settings },
         ],
     },
@@ -74,6 +75,7 @@ export const wholesaleGroups: NavGroup[] = [
             { href: '/products', key: 'warehouse', icon: Package },
             { href: '/purchases', key: 'suppliers', icon: Truck },
             { href: '/staff', key: 'staff', icon: UsersRound },
+            { href: '/support', key: 'helpSupport', icon: LifeBuoy },
             { href: '/settings', key: 'settings', icon: Settings },
         ],
     },

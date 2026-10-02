@@ -43,6 +43,7 @@ export const PERMS = [
     'priceList.view',
     'priceList.manage',
     'visits.record',
+    'support.chat', // chat with the Whoply team (owner, manager)
 ] as const;
 export type Perm = (typeof PERMS)[number];
 
@@ -98,6 +99,7 @@ export const PAGE_PERMS: Record<string, Perm[]> = {
     '/reports': ['reports.view', 'reports.dayClose'],
     '/gst': ['gst.view'],
     '/subscription': ['business.edit'], // what the shop pays Whoply — the owner only
+    '/support': ['support.chat'],
     '/insights': ['insights'],
     '/staff': ['staff.manage'],
     '/orders': ['orders.view'],
