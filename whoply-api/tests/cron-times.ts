@@ -30,7 +30,11 @@ check('…not on Sunday', !payables.match(ist('2026-10-04T09:00:00')));
 // Monday 9:00 AM UTC is still Monday in India but 2:30 PM — must not fire.
 check('…not Monday 9:00 AM UTC', !payables.match(new Date('2026-10-05T09:00:00Z')));
 
-check('every timed job has the India time zone', CRON_TIMEZONE === 'Asia/Kolkata' && TIMED_JOBS.length === 3);
+const subs = job('subscription-reminders');
+check('subscription reminders fire at 11:00 AM India time', subs.match(ist('2026-10-01T11:00:00')));
+check('…not at 11:00 AM UTC (4:30 PM in India)', !subs.match(new Date('2026-10-01T11:00:00Z')));
+
+check('every timed job has the India time zone', CRON_TIMEZONE === 'Asia/Kolkata' && TIMED_JOBS.length === 4);
 
 const fails = results.filter((r) => !r.pass);
 console.log(`(server clock: ${process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone})`);

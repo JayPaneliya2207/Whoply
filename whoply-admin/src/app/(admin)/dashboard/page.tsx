@@ -169,6 +169,11 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2 text-sm" style={{ opacity: 0.9 }}><Wallet size={16} /> Subscription revenue</div>
                         <p className="text-3xl font-extrabold tabular mt-2 flex items-baseline gap-0.5"><IndianRupee size={24} strokeWidth={2.6} className="self-center" />{inr(data.mrr).slice(1)} <span className="text-sm font-semibold ml-1" style={{ opacity: 0.8 }}>/ month</span></p>
                         <p className="text-sm mt-1.5" style={{ opacity: 0.85 }}>≈ {inr(data.arr)} a year · {totalSubs} {totalSubs === 1 ? 'business' : 'businesses'} on a plan</p>
+                        {/* Real money from subscription bills, next to the expected figure above */}
+                        <Link href="/billing" className="relative mt-4 grid grid-cols-2 gap-3 rounded-xl p-3 text-sm" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                            <span><span className="block text-xs" style={{ opacity: 0.8 }}>Collected this month</span><b className="tabular text-base">{inr(data.billing?.collectedThisMonth || 0)}</b></span>
+                            <span><span className="block text-xs" style={{ opacity: 0.8 }}>To collect{data.billing?.overdueCount ? ` · ${data.billing.overdueCount} overdue` : ''}</span><b className="tabular text-base">{inr(data.billing?.dueTotal || 0)}</b></span>
+                        </Link>
                     </div>
                     <Card title="By plan" icon={Crown}>
                         <div className="space-y-3.5">

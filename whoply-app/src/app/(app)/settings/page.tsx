@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { User, Lock, Globe, Building2, Check, Store, ReceiptText, QrCode, Upload, Landmark, LayoutTemplate, Eye, LogOut, BellRing } from 'lucide-react';
+import { User, Lock, Globe, Building2, Check, Store, ReceiptText, QrCode, Upload, Landmark, LayoutTemplate, Eye, LogOut, BellRing, Crown, ChevronRight } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { useAuth } from '@/stores/auth.store';
 import { useLang, LANGS, type Lang } from '@/i18n';
@@ -259,6 +260,18 @@ export default function SettingsPage() {
                     {savedProfile ? <><Check size={16} /> Saved</> : t('save')}
                 </button>
             </div>
+
+            {/* Whoply plan and bills — the owner only */}
+            {canEditShop && (
+                <Link href="/subscription" className="wp-card wp-card-hover p-5 flex items-center gap-3">
+                    <div className="h-10 w-10 grid place-items-center rounded-xl shrink-0" style={{ background: 'var(--brand-tint)', color: 'var(--brand-text)' }}><Crown size={18} /></div>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-bold" style={{ color: 'var(--text-primary)' }}>{t('subscription')}</p>
+                        <p className="text-sm truncate" style={{ color: 'var(--text-secondary)' }}>{t('subscriptionHint')}</p>
+                    </div>
+                    <ChevronRight size={18} style={{ color: 'var(--text-muted)' }} />
+                </Link>
+            )}
 
             {/* Language */}
             <div className="wp-card p-5">

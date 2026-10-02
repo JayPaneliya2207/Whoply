@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/stores/auth.store';
 import { api } from '@/lib/api';
@@ -19,8 +19,10 @@ const NAV: { title: string; items: NavItem[] }[] = [
             { href: '/businesses', label: 'Businesses', icon: Building2, blurb: 'Shops and wholesalers on Whoply' },
             { href: '/users', label: 'Users', icon: Users, blurb: 'Every login, across all businesses' },
             { href: '/plans', label: 'Subscriptions', icon: CreditCard, blurb: 'Plans, prices and who is on them' },
+            { href: '/billing', label: 'Billing', icon: Receipt, blurb: 'Subscription bills, reminders and payments' },
         ],
     },
+    { title: 'Platform', items: [{ href: '/settings', label: 'Settings', icon: Settings, blurb: 'Company, payment details, reminders, support' }] },
 ];
 const PAGES = NAV.flatMap((g) => g.items);
 

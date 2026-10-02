@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
     TrendingUp, ShoppingBag, Wallet, AlertTriangle,
-    Trophy, ReceiptText, Users, Truck, ArrowRight, Boxes, ShoppingCart, Plus,
+    Trophy, ReceiptText, Users, Truck, ArrowRight, Boxes, ShoppingCart, Plus, Crown,
 } from 'lucide-react';
 import { RupeeIcon } from '@/components/RupeeIcon';
 import { api } from '@/lib/api';
@@ -44,6 +44,22 @@ function PrimaryAction({ href, label, icon: Icon }: { href: string; label: strin
             style={{ boxShadow: '0 10px 22px -10px var(--brand)' }}>
             <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}><Icon size={16} strokeWidth={2.6} /></span>
             <span className="font-bold text-sm sm:text-base whitespace-nowrap">{label}</span>
+        </Link>
+    );
+}
+
+/** Owner only: a Whoply subscription bill waiting to be paid. Nothing when there is none. */
+function SubscriptionBanner() {
+    const t = useT();
+    const can = useCan();
+    const { data } = useQuery({ queryKey: ['subscription'], queryFn: async () => (await api.get('/subscription')).data.data, enabled: can('business.edit'), staleTime: 5 * 60_000 });
+    if (!data?.due?.count) return null;
+    const tone = data.due.overdue ? { bg: 'var(--danger-tint)', fg: 'var(--danger)' } : { bg: 'var(--warning-tint)', fg: 'var(--warning)' };
+    return (
+        <Link href="/subscription" className="flex items-center gap-3 rounded-2xl p-3.5" style={{ background: tone.bg, color: tone.fg }}>
+            <Crown size={18} className="shrink-0" />
+            <p className="flex-1 min-w-0 text-sm font-semibold">{data.due.overdue ? t('subscriptionOverdue') : t('subscriptionDue')} · {inr2(data.due.total)}</p>
+            <span className="text-sm font-bold flex items-center gap-1 shrink-0">{t('payNow')} <ArrowRight size={14} /></span>
         </Link>
     );
 }
@@ -102,6 +118,8 @@ export default function DashboardPage() {
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
                     </div>
                 </div>
+
+                <SubscriptionBanner />
 
                 {/* KPI grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -215,6 +233,8 @@ export default function DashboardPage() {
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
                 </div>
             </div>
+
+            <SubscriptionBanner />
 
             {/* KPI grid */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">

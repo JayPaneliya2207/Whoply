@@ -6,8 +6,9 @@ import User from '../../models/User.js';
 import Invoice from '../../models/Invoice.js';
 import Order from '../../models/Order.js';
 import Plan from '../../models/Plan.js';
+import SubscriptionBill from '../../models/SubscriptionBill.js';
 import type { AuthRequest } from '../../interfaces/index.js';
-import { IST_TZ, istParts, istMidnight } from '../../utils/ist.js';
+import { IST_TZ, istParts, istMidnight, istDayRange } from '../../utils/ist.js';
 
 /** Money sold: retail bills (Invoice.grandTotal) and wholesale orders that weren't cancelled (Order.total). */
 const LIVE_ORDERS = { status: { $ne: 'cancelled' as const } };
@@ -29,7 +30,8 @@ const byBusiness = (Model: any, match: object, amount: string, since: Date) =>
 /**
  * GET /admin/stats — platform-wide KPIs: counts, lifetime GMV, subscription
  * revenue (MRR from the plans), the last 6 India-time months of sales and
- * sign-ups, this month's top businesses and the newest sign-ups.
+ * sign-ups, this month's top businesses, the newest sign-ups, and subscription
+ * money: collected this month and still to collect.
  */
 export const platformStats = asyncHandler(async (_req: AuthRequest, res: Response) => {
     const { y, m } = istParts(new Date());
@@ -42,7 +44,7 @@ export const platformStats = asyncHandler(async (_req: AuthRequest, res: Respons
     });
 
     const [businesses, retail, wholesale, active, users, invoices, orders, gmvAgg, orderGmvAgg, planAgg, plans,
-        invMonthly, ordMonthly, bizMonthly, userMonthly, topInv, topOrd, recentBusinesses] = await Promise.all([
+        invMonthly, ordMonthly, bizMonthly, userMonthly, topInv, topOrd, recentBusinesses, billsDue, billsPaid] = await Promise.all([
         Business.countDocuments({}),
         Business.countDocuments({ type: 'retail' }),
         Business.countDocuments({ type: 'wholesale' }),
@@ -61,6 +63,11 @@ export const platformStats = asyncHandler(async (_req: AuthRequest, res: Respons
         byBusiness(Invoice, {}, 'grandTotal', monthStart),
         byBusiness(Order, LIVE_ORDERS, 'total', monthStart),
         Business.find({}).sort({ createdAt: -1 }).limit(5).select('name type plan city ownerName isActive createdAt').lean(),
+        SubscriptionBill.aggregate([
+            { $match: { status: 'due' } },
+            { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 }, overdue: { $sum: { $cond: [{ $lt: ['$dueDate', istDayRange().start] }, 1, 0] } } } },
+        ]),
+        SubscriptionBill.aggregate([{ $match: { status: 'paid', paidAt: { $gte: monthStart } } }, { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }]),
     ]);
 
     // MRR = sum over plans of (monthly price × active subscribers)
@@ -126,5 +133,10 @@ export const platformStats = asyncHandler(async (_req: AuthRequest, res: Respons
         lastMonthGmv: lastMonth.gmv,
         topBusinesses,
         recentBusinesses,
+        // Real subscription money (bills), next to the expected figure above (mrr).
+        billing: {
+            collectedThisMonth: Math.round(billsPaid[0]?.total || 0), paidCount: billsPaid[0]?.count || 0,
+            dueTotal: Math.round(billsDue[0]?.total || 0), dueCount: billsDue[0]?.count || 0, overdueCount: billsDue[0]?.overdue || 0,
+        },
     });
 });

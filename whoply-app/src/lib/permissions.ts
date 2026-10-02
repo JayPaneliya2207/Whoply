@@ -97,6 +97,7 @@ export const PAGE_PERMS: Record<string, Perm[]> = {
     '/expenses': ['expenses.view'],
     '/reports': ['reports.view', 'reports.dayClose'],
     '/gst': ['gst.view'],
+    '/subscription': ['business.edit'], // what the shop pays Whoply — the owner only
     '/insights': ['insights'],
     '/staff': ['staff.manage'],
     '/orders': ['orders.view'],
