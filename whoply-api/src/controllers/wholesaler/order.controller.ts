@@ -7,7 +7,7 @@ import Dealer from '../../models/Dealer.js';
 import Order from '../../models/Order.js';
 import Business from '../../models/Business.js';
 import { applyStockChanges, takeStock } from '../../utils/stock.js';
-import { priceDealerItems, recordAdvancePayment, orderRepId, checkCreditLimit } from '../../utils/wholesaler.js';
+import { priceDealerItems, quotedPricesFor, recordAdvancePayment, orderRepId, checkCreditLimit } from '../../utils/wholesaler.js';
 import Payment from '../../models/Payment.js';
 import { netLineValue, round2 } from '../../utils/tax.js';
 import { lineQty } from '../../utils/qty.js';
@@ -24,7 +24,8 @@ import { purchaseCredit } from '../../utils/purchaseGst.js';
 /**
  * POST /price-preview — what an order or quotation for this dealer would cost,
  * priced exactly as saving it would (the dealer's price group, each product's
- * GST). Saves nothing. body: { dealerId, items: [{ productId, quantity }] }
+ * GST). Saves nothing. body: { dealerId, items: [{ productId, quantity }], orderId? }
+ * With `orderId` (editing that order) products from its estimate keep the quoted price.
  */
 export const previewDealerPrices = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
@@ -35,8 +36,13 @@ export const previewDealerPrices = asyncHandler(async (req: AuthRequest, res: Re
     }
     const dealer = await Dealer.findOne({ _id: dealerId, businessId, isActive: true });
     if (!dealer) throw AppError.badRequest('Pick a dealer to see their prices');
-    const { lineItems, subtotal, totalGst, grandTotal } = await priceDealerItems(businessId, dealer, items);
-    sendSuccess(res, { tier: dealer.tier, lines: lineItems, subtotal, totalGst, grandTotal });
+    let from: Awaited<ReturnType<typeof quotedPricesFor>> | null = null;
+    if (req.body.orderId && Types.ObjectId.isValid(String(req.body.orderId))) {
+        const order = await Order.findOne({ _id: req.body.orderId, businessId, dealerId: dealer._id }).select('quotationId').lean();
+        if (order) from = await quotedPricesFor(businessId, order);
+    }
+    const { lineItems, subtotal, totalGst, grandTotal } = await priceDealerItems(businessId, dealer, items, from?.prices);
+    sendSuccess(res, { tier: dealer.tier, lines: lineItems, subtotal, totalGst, grandTotal, quoteNo: from?.quote?.quoteNo });
 });
 
 /**
@@ -113,8 +119,10 @@ export const listOrders = asyncHandler(async (req: AuthRequest, res: Response) =
 /**
  * PATCH /orders/:id — change what's on an order before it ships (pending or
  * confirmed; no stock has left yet). body: { items: [{ productId, quantity }] }
- * Priced like a new order — today's price list for the dealer's price group.
- * Money already received stays; the total can't drop below it.
+ * Priced like a new order — today's price list for the dealer's price group —
+ * except products from the estimate the order was made from: those keep the
+ * quoted price, whatever the quantity. Money already received stays; the total
+ * can't drop below it.
  */
 export const updateOrderItems = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
@@ -133,7 +141,8 @@ export const updateOrderItems = asyncHandler(async (req: AuthRequest, res: Respo
     const dealer = await Dealer.findOne({ _id: order.dealerId, businessId, isActive: true });
     if (!dealer) throw AppError.badRequest('Dealer not found');
 
-    const { lineItems, subtotal, totalGst, grandTotal: total } = await priceDealerItems(businessId, dealer, items);
+    const from = await quotedPricesFor(businessId, order);
+    const { lineItems, subtotal, totalGst, grandTotal: total } = await priceDealerItems(businessId, dealer, items, from.prices);
     if (total < order.paidAmount - 0.005) {
         throw AppError.badRequest(`₹${order.paidAmount.toFixed(2)} is already paid on this order — the new total (₹${total.toFixed(2)}) can't be less`);
     }
@@ -142,7 +151,7 @@ export const updateOrderItems = asyncHandler(async (req: AuthRequest, res: Respo
     // collection at the same moment is never overwritten by a due worked out from old numbers.
     const updated = await Order.findOneAndUpdate(
         { _id: order._id, businessId, status: order.status, paidAmount: order.paidAmount },
-        { $set: { items: lineItems, subtotal, totalGst, total, dueAmount: round2(total - order.paidAmount), dealerGstin: dealer.gstin } },
+        { $set: { items: lineItems, subtotal, totalGst, total, dueAmount: round2(total - order.paidAmount), dealerGstin: dealer.gstin, ...(from.quote && { quotationId: from.quote._id, quoteNo: from.quote.quoteNo }) } },
         { new: true }
     );
     if (!updated) throw AppError.conflict('The order changed while you were editing it — open it again');

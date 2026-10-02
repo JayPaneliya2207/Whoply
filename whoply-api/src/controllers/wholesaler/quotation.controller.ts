@@ -93,7 +93,8 @@ export const convertWsQuote = asyncHandler(async (req: AuthRequest, res: Respons
         const paidAmount = round2(Math.min(quote.grandTotal, Math.max(0, Number(req.body.paidAmount) || 0)));
         order = await Order.create({
             businessId, orderNo, dealerId: dealer._id, dealerName: dealer.name, dealerGstin: dealer.gstin,
-            items: quote.items, subtotal: quote.subtotal, totalGst: quote.totalGst, total: quote.grandTotal,
+            items: quote.items.map((it: any) => ({ ...(it.toObject?.() ?? it), quoted: true })), subtotal: quote.subtotal, totalGst: quote.totalGst, total: quote.grandTotal,
+            quotationId: quote._id, quoteNo: quote.quoteNo,
             paidAmount, dueAmount: round2(quote.grandTotal - paidAmount), status: 'pending', source: 'manual',
             salesRepId: maker?._id ?? orderRepId(req.user, dealer),
         });

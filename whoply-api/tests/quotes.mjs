@@ -2,8 +2,9 @@
  * Estimates (quotations) and bills: converting is safe when tapped twice,
  * stock never goes below zero (POS or convert), convert records how it was
  * paid, estimates expire after 15 days, another shop's customer can't be used,
- * loyalty points on every bill, converted estimates can't be deleted, and the
- * rep who made a dealer estimate gets the order.
+ * loyalty points on every bill, converted estimates can't be deleted, the
+ * rep who made a dealer estimate gets the order, and an order made from an
+ * estimate keeps the estimate's prices when it is edited.
  * Needs MONGODB_URI (the API's database) to age one estimate past its expiry.
  *
  *   npm run seed:reset && npm run test:quotes
@@ -132,6 +133,48 @@ const W = '/wholesaler';
     check('the dealer is removed once nothing is owed', r.status === 200, `${r.status} ${msg(r)}`);
     r = await api('POST', `${W}/quotations`, ws, { dealerId: dealer._id, items: [{ productId: wprod._id, quantity: 1 }] });
     check('no estimate for a removed dealer', r.status === 400, `${r.status} ${msg(r)}`);
+
+    suite('estimate prices stay on the order');
+    const d2 = d(await api('POST', `${W}/dealers`, ws, { name: 'Price Dealer', mobile: '9811188003' }));
+    const mkProd = async (name, price, extra = {}) => d(await api('POST', `${W}/products`, ws, { name, sku: name.replace(/\W/g, '') + Date.now(), sellPrice: price + 50, wholesalePrice: price, costPrice: price / 2, gstRate: 18, unit: 'pcs', currentStock: 500, ...extra }));
+    const ghee = await mkProd('P Ghee', 100); // GST on top
+    const tea = await mkProd('P Tea', 99.99, { priceIncludesGst: true }); // price includes GST
+    const pRice = await mkProd('P Rice', 40);
+    r = await api('POST', `${W}/quotations`, ws, { dealerId: d2._id, items: [{ productId: ghee._id, quantity: 10 }, { productId: tea._id, quantity: 3 }] });
+    const pq = d(r);
+    check('(setup) estimate: ghee 10 × ₹100 + 18%, tea 3 × ₹99.99 incl.', r.status === 201 && near(pq?.grandTotal, 1180 + 299.97), `${r.status} ${msg(r)} ${pq?.grandTotal}`);
+    r = await api('POST', `${W}/quotations/${pq._id}/convert`, ws, {});
+    const po = d(r);
+    check('the order remembers its estimate', r.status === 201 && po?.quoteNo === pq.quoteNo && po.items.every((i) => i.quoted === true) && near(po.total, pq.grandTotal), `${r.status} ${msg(r)} ${po?.quoteNo}`);
+    // Prices go up after the estimate.
+    await api('PATCH', `${W}/products/${ghee._id}`, ws, { wholesalePrice: 150 });
+    await api('PATCH', `${W}/products/${tea._id}`, ws, { wholesalePrice: 120 });
+    r = await api('POST', `${W}/price-preview`, ws, { dealerId: d2._id, items: [{ productId: ghee._id, quantity: 10 }] });
+    check('(setup) a new order would now cost ₹150', near(d(r)?.lines?.[0]?.price, 150), JSON.stringify(d(r)?.lines?.[0]));
+    r = await api('POST', `${W}/price-preview`, ws, { dealerId: d2._id, orderId: po._id, items: [{ productId: ghee._id, quantity: 20 }, { productId: pRice._id, quantity: 5 }] });
+    const pv = d(r);
+    check('the edit preview keeps ₹100 for the estimate product, today’s price for a new one', near(pv?.lines?.[0]?.price, 100) && pv.lines[0].quoted === true && near(pv.lines[1].price, 40) && !pv.lines[1].quoted && pv.quoteNo === pq.quoteNo, JSON.stringify(pv?.lines?.map((l) => [l.price, l.quoted])));
+    r = await api('PATCH', `${W}/orders/${po._id}`, ws, { items: [{ productId: ghee._id, quantity: 20 }, { productId: tea._id, quantity: 3 }, { productId: pRice._id, quantity: 5 }] });
+    const pe = d(r);
+    const line = (o, id) => o?.items?.find((i) => String(i.productId) === String(id));
+    check('editing the order: more ghee still at the estimate price', r.status === 200 && near(line(pe, ghee._id)?.price, 100) && near(line(pe, ghee._id)?.lineTotal, 2360) && line(pe, ghee._id)?.quoted === true, `${r.status} ${msg(r)} ${JSON.stringify(line(pe, ghee._id))}`);
+    check('…the GST-included product keeps its exact amount (no paisa drift)', near(line(pe, tea._id)?.lineTotal, 299.97) && line(pe, tea._id)?.quoted === true, JSON.stringify(line(pe, tea._id)));
+    check('…the added product is at today’s price and not marked quoted', near(line(pe, pRice._id)?.price, 40) && !line(pe, pRice._id)?.quoted, JSON.stringify(line(pe, pRice._id)));
+    check('…and the total adds up', near(pe?.total, 2360 + 299.97 + 236) && near(pe?.dueAmount, pe?.total), `${pe?.total}`);
+    r = await api('PATCH', `${W}/orders/${po._id}`, ws, { items: [{ productId: pRice._id, quantity: 5 }] });
+    check('(setup) the estimate products are taken off the order', r.status === 200 && d(r)?.items?.length === 1, `${r.status} ${msg(r)}`);
+    r = await api('PATCH', `${W}/orders/${po._id}`, ws, { items: [{ productId: pRice._id, quantity: 5 }, { productId: ghee._id, quantity: 4 }] });
+    check('put back later, they still get the estimate price', r.status === 200 && near(line(d(r), ghee._id)?.price, 100) && d(r)?.quoteNo === pq.quoteNo, `${r.status} ${JSON.stringify(line(d(r), ghee._id))}`);
+    // An order that never had an estimate is priced at today's list, as before.
+    r = await api('POST', `${W}/orders`, ws, { dealerId: d2._id, items: [{ productId: ghee._id, quantity: 1 }] });
+    const plain = d(r);
+    check('a normal order uses today’s price', r.status === 201 && near(plain?.items?.[0]?.price, 150) && !plain.quoteNo && !plain.items[0].quoted, `${r.status} ${plain?.items?.[0]?.price}`);
+    r = await api('PATCH', `${W}/orders/${plain._id}`, ws, { items: [{ productId: ghee._id, quantity: 2 }] });
+    check('…also when it is edited', r.status === 200 && near(d(r)?.items?.[0]?.price, 150) && !d(r).items[0].quoted, `${r.status} ${d(r)?.items?.[0]?.price}`);
+    r = await api('POST', `${W}/price-preview`, ws, { dealerId: d2._id, orderId: plain._id, items: [{ productId: ghee._id, quantity: 2 }] });
+    check('…and in its preview', near(d(r)?.lines?.[0]?.price, 150) && !d(r).quoteNo, JSON.stringify(d(r)?.lines?.[0]));
+    r = await api('POST', `${W}/price-preview`, ws, { dealerId: d2._id, orderId: 'not-an-id', items: [{ productId: ghee._id, quantity: 2 }] });
+    check('a bad order id in the preview is ignored, not an error', r.status === 200 && near(d(r)?.lines?.[0]?.price, 150), `${r.status} ${msg(r)}`);
 
     const fails = results.filter((x) => !x.pass);
     const bySuite = {};
