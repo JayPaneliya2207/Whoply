@@ -14,18 +14,9 @@ import { kycPlaceholder, formatKyc } from '@/lib/forms';
 const last4 = (v?: string) => String(v ?? '').replace(/[^0-9]/g, '').slice(-4);
 import { useT } from '@/i18n';
 import { staffRolesFor } from '@/lib/permissions';
+import { roleInfo } from '@/lib/roles';
 
-const ROLE_LABELS: Record<string, string> = {
-    cashier: 'Cashier', manager: 'Manager', warehouse: 'Warehouse', salesStaff: 'Sales Staff', accountant: 'Accountant',
-};
 const DOC_LABELS: Record<string, string> = { aadhaar: 'Aadhaar', pan: 'PAN', voterid: 'Voter ID', driving: 'Driving Licence', other: 'Other' };
-const roleTone: Record<string, any> = {
-    cashier: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
-    manager: { background: 'var(--warning-tint)', color: 'var(--warning)' },
-    warehouse: { background: 'var(--success-tint)', color: 'var(--success)' },
-    salesStaff: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
-    accountant: { background: 'var(--surface-2)', color: 'var(--text-secondary)' },
-};
 
 const empty = { name: '', mobile: '', country: '+91', role: 'cashier', salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false, kycDocs: [] as string[] };
 const MAX_DOCS = 5;
@@ -120,7 +111,7 @@ export default function StaffPage() {
                                 <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.name}</p>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.mobile}</p>
                             </div>
-                            <span className="wp-chip" style={roleTone[s.role]}>{ROLE_LABELS[s.role]}</span>
+                            <span className="wp-chip" style={roleInfo(s.role).tone}>{t(roleInfo(s.role).label)}</span>
                         </div>
                         <div className="mt-3 flex items-center justify-between">
                             <div>
@@ -150,7 +141,7 @@ export default function StaffPage() {
                 footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !form.name || (!editing && !form.mobile)} onClick={() => save.mutate()}>{editing ? t('save') : t('addStaffTitle')}</button>}>
                 <Field label={t('fullName')}><input className="wp-input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Anita Desai" autoFocus /></Field>
                 <Field label="Mobile"><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} disabled={!!editing} /></Field>
-                <Field label={t('roleLabel')}><select className="wp-input" value={form.role} onChange={(e) => set('role', e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></Field>
+                <Field label={t('roleLabel')}><select className="wp-input" value={form.role} onChange={(e) => set('role', e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{t(roleInfo(r).label)}</option>)}</select></Field>
                 <Field label={t('salaryMonthRs')}><input className="wp-input tabular" type="number" value={form.salary} onChange={(e) => set('salary', e.target.value)} placeholder="0" /></Field>
                 {!editing && <Field label={t('loginPasswordOptional')}><input className="wp-input" type="password" value={form.password} onChange={(e) => set('password', e.target.value)} placeholder="They can also login via OTP" /></Field>}
 

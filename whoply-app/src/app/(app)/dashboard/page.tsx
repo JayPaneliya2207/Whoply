@@ -13,6 +13,7 @@ import { payModeLabel } from '@/lib/bill';
 import { useT } from '@/i18n';
 import { NavGrid } from '@/components/NavGrid';
 import { useCan } from '@/lib/permissions';
+import { roleInfo, greetingKey } from '@/lib/roles';
 
 const fetchDash = async (type: string) => {
     const base = type === 'wholesale' ? '/wholesaler/dashboard' : '/shopkeeper/dashboard';
@@ -45,6 +46,39 @@ function PrimaryAction({ href, label, icon: Icon }: { href: string; label: strin
             <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}><Icon size={16} strokeWidth={2.6} /></span>
             <span className="font-bold text-sm sm:text-base whitespace-nowrap">{label}</span>
         </Link>
+    );
+}
+
+/**
+ * Top of the home screen: who is signed in and as what. A chip names the role
+ * (Owner, Cashier, Manager…) beside the shop's name, the greeting follows the
+ * time of day and addresses the person respectfully ("Good morning, Rakesh ji"),
+ * and a staff login also gets one line saying what it is for.
+ */
+function DashHeader({ action }: { action?: React.ReactNode }) {
+    const { user } = useAuth();
+    const t = useT();
+    const role = roleInfo(user?.role);
+    const first = user?.name?.trim().split(/\s+/)[0];
+    return (
+        <div>
+            <div className="flex items-center justify-between gap-3">
+                <p className="flex items-center gap-2 min-w-0">
+                    <span className="wp-chip shrink-0" style={role.tone}><role.icon size={12} /> {t(role.label)}</span>
+                    {user?.business?.name && <span className="text-xs font-semibold truncate" style={{ color: 'var(--text-muted)' }}>{user.business.name}</span>}
+                </p>
+                <p className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+            </div>
+            <div className="flex items-center justify-between gap-3 mt-2">
+                {/* On a phone the greeting takes two lines beside the button, so the name is never cut off. */}
+                <h1 className="min-w-0 text-2xl font-extrabold tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
+                    <span className="block sm:inline">{t(greetingKey())}{first ? ',' : ''}</span>{' '}
+                    <span className="inline-block max-w-full truncate align-bottom">{first ? `${t('nameJi').replace('{name}', first)} ` : ''}<span aria-hidden="true">🙏</span></span>
+                </h1>
+                {action && <div className="shrink-0">{action}</div>}
+            </div>
+            {role.blurb && <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>{t(role.blurb)}</p>}
+        </div>
     );
 }
 
@@ -107,17 +141,7 @@ export default function DashboardPage() {
         const pipeTotal = (data.statusBreakdown || []).reduce((s: number, x: any) => s + x.count, 0) || 1;
         return (
             <div className="space-y-5">
-                {/* Header */}
-                <div className="flex items-end justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('wholesalerDashboard')}</p>
-                        <h1 className="text-2xl font-extrabold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>{t('hi')}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5 shrink-0 pb-1">
-                        {can('orders.create') && <PrimaryAction href="/orders?new=1" label={t('newOrder')} icon={Plus} />}
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
-                    </div>
-                </div>
+                <DashHeader action={can('orders.create') && <PrimaryAction href="/orders?new=1" label={t('newOrder')} icon={Plus} />} />
 
                 <SubscriptionBanner />
 
@@ -222,17 +246,7 @@ export default function DashboardPage() {
     const settleTotal = receivable + payable || 1;
     return (
         <div className="space-y-5">
-            {/* Header */}
-            <div className="flex items-end justify-between gap-3">
-                <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('shopkeeperDashboard')}</p>
-                    <h1 className="text-2xl font-extrabold tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>{t('hi')}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0 pb-1">
-                    {can('billing.sell') && <PrimaryAction href="/billing" label={t('posButton')} icon={ShoppingCart} />}
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
-                </div>
-            </div>
+            <DashHeader action={can('billing.sell') && <PrimaryAction href="/billing" label={t('posButton')} icon={ShoppingCart} />} />
 
             <SubscriptionBanner />
 

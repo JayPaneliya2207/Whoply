@@ -10,16 +10,16 @@ import { cn } from '@/lib/cn';
 import { SpotDot, SpotProgress, spotVars, useSpotCycle, type Spot } from './Hotspots';
 
 /**
- * Positions on `app-dashboard.png` (the app's real home screen), in the order
+ * Positions on `app-home.png` (the app's real home screen), in the order
  * of `tour.items`. Dots sit in the empty corner of each card so they never
  * cover a number; the spotlight centres on the card itself.
  */
 const SPOTS: Spot[] = [
-    { x: 28.5, y: 22.6, fx: 19.6, fy: 26.6, w: 21, h: 12.5 }, // today's sales
-    { x: 26, y: 76.3, fx: 50, fy: 81.7, w: 60, h: 13.5 }, // top products
-    { x: 22.5, y: 40.4, fx: 19.6, fy: 44.4, w: 21, h: 12.5 }, // pending udhar
-    { x: 52.8, y: 40.4, fx: 50, fy: 44.4, w: 21, h: 12.5 }, // low stock
-    { x: 19.5, y: 60.2, fx: 50, fy: 62.8, w: 60, h: 13 }, // net position
+    { x: 28.4, y: 23, fx: 19.6, fy: 27.1, w: 21, h: 12.5 }, // today's sales
+    { x: 26, y: 76.7, fx: 50, fy: 82.2, w: 60, h: 13.5 }, // top products
+    { x: 22.5, y: 40.7, fx: 19.6, fy: 44.9, w: 21, h: 12.5 }, // pending udhar
+    { x: 52.9, y: 40.7, fx: 50, fy: 44.9, w: 21, h: 12.5 }, // low stock
+    { x: 19.5, y: 60.7, fx: 50, fy: 63.3, w: 60, h: 13 }, // net position
 ];
 
 /**
