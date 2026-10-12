@@ -20,6 +20,18 @@ See [WHOPLY-MASTER-PLAN.md](WHOPLY-MASTER-PLAN.md) for the full plan.
 | `whoply-app` | Main **PWA** — shopkeeper / wholesaler / sales staff | 7200 | `npm run dev` |
 | `whoply-admin` | Platform super-admin console | 7300 | `npm run dev` |
 
+## Branches
+
+| Branch | What it is | Who uses it |
+|---|---|---|
+| `dev` | **Development.** New work lands here first. | Developers: `git checkout dev` |
+| `main` | **Production.** What the live server runs. | The live server only |
+
+- New work: make a branch from `dev`, then open a pull request **into `dev`**.
+- A release: when `dev` is tested and ready, open a pull request **from `dev` into `main`**, merge
+  it, then update the live server ([DEPLOY.md](DEPLOY.md), "Updating to a new version").
+- Nothing goes into `main` directly. The checks (tests, builds) run on both branches.
+
 ## Getting started (fresh clone / fork)
 
 > **`.env` files are not in git** (they hold secrets). A fresh clone has none, and the

@@ -72,7 +72,7 @@ fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /
 ## Step 5 — Get Whoply and fill in the settings
 
 ```bash
-git clone https://github.com/JayPaneliya2207/Whoply.git
+git clone -b main https://github.com/JayPaneliya2207/Whoply.git   # main = production
 cd Whoply/deploy
 cp .env.example .env
 openssl rand -hex 48        # copy the output — it is your JWT_SECRET
@@ -124,8 +124,11 @@ Make the keys **once**. If they change, every device has to turn notifications o
 
 ## Updating to a new version
 
+The live server runs the `main` branch. New work is merged into `dev` first; when it is ready,
+`dev` is merged into `main` on GitHub. Then, on the server:
+
 ```bash
-cd ~/Whoply && git pull && cd deploy && ./deploy.sh
+cd ~/Whoply && git checkout main && git pull origin main && cd deploy && ./deploy.sh
 ```
 
 Shop data is never touched by an update. The database update step (`migrate`) is safe to repeat.
