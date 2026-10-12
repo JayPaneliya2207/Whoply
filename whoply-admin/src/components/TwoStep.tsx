@@ -108,11 +108,12 @@ export function TwoStepDialog({ open, onClose }: { open: boolean; onClose: () =>
                         <li>Type the code the app shows, and save your recovery codes.</li>
                     </ol>
                     <div className="mt-4">
-                        <Field label="Your password, to start">
+                        <Field label="The password you log in with">
                             <div className="relative">
                                 <KeyRound size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
                                 <input className="wp-input pl-10" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && password && start()} autoComplete="current-password" />
                             </div>
+                            <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>The same password you typed on the admin login page — not a new one. It is asked again to be sure it is you.</p>
                         </Field>
                     </div>
                 </>
@@ -175,7 +176,7 @@ export function TwoStepDialog({ open, onClose }: { open: boolean; onClose: () =>
             {stage === 'off' && (
                 <>
                     <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>After this, your password alone signs you in. You can turn it on again at any time.</p>
-                    <Field label="Your password">
+                    <Field label="The password you log in with">
                         <input className="wp-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus />
                     </Field>
                     <Field label="Code from your authenticator app (or a recovery code)">
