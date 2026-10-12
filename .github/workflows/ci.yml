@@ -157,7 +157,9 @@ jobs:
         run: |
           fail=0
           for p in whoply-api whoply-app whoply-admin whoply-front; do
-            summary=$(cd "$p" && npm audit --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=JSON.parse(s).metadata?.vulnerabilities||{};console.log(['critical','high','moderate','low'].map(k=>k+' '+(m[k]||0)).join(', '))})")
+            # "npm audit" exits 1 when it finds anything at all, build-only tools included; this line
+            # only reports the totals, so that must not end the step (the real test is two lines down).
+            summary=$(cd "$p" && (npm audit --json 2>/dev/null || true) | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=JSON.parse(s).metadata?.vulnerabilities||{};console.log(['critical','high','moderate','low'].map(k=>k+' '+(m[k]||0)).join(', '))})")
             echo "::notice title=$p (all packages)::$summary"
             if ! (cd "$p" && npm audit --omit=dev --audit-level=high > audit.txt 2>&1); then
               echo "::error title=$p::$(grep -E '^[a-z@].*|Severity|fix available' "$p/audit.txt" | head -12 | awk '{printf "%s%%0A", $0}')"
