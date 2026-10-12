@@ -1,9 +1,18 @@
 /**
- * Stops password and OTP guessing.
+ * Stops password and OTP guessing — without letting a stranger lock a real
+ * person out.
  *
- * - Per account: 5 wrong tries (password or OTP, counted together; a try more
- *   than 15 minutes old no longer counts) lock sign-in for 15 minutes. Kept on
- *   the user in the database, so it holds across restarts and several servers.
+ * - Per account AND network address: 5 wrong tries (password or OTP, counted
+ *   together; a try more than 15 minutes old no longer counts) lock sign-in
+ *   for 15 minutes FROM THAT ADDRESS. The owner, on their own network, still
+ *   signs in — an owner's mobile number is printed on every bill, so anyone
+ *   could otherwise keep the login locked for ever. In memory, per server process.
+ * - Per account, all addresses together: 50 wrong tries in 15 minutes lock it
+ *   for everyone (someone is guessing from many addresses). Kept on the user
+ *   in the database, so it holds across restarts and several servers.
+ * - When the visitor's address is not known (requests from this machine, or a
+ *   proxy without TRUST_PROXY) nobody can be told apart, so the account itself
+ *   locks after 5 wrong tries.
  * - Per network address: 30 failed sign-ins in 15 minutes (wrong password or
  *   OTP, or a number with no account) → wait. Stops one password being tried on
  *   many numbers. In memory, per server process. Loopback is never limited, so
@@ -14,6 +23,8 @@ import { AppError } from './AppError.js';
 import User from '../models/User.js';
 
 export const MAX_WRONG = 5;
+/** Wrong tries on one account from every address together before it locks for everyone. */
+export const ACCOUNT_MAX_WRONG = 50;
 export const LOCK_MS = 15 * 60_000;
 const IP_MAX_FAILS = 30;
 const OTP_GAP_MS = 30_000;
@@ -49,19 +60,27 @@ export function failedFromIp(ip?: string): void {
     if (ipFails.size > 10_000) for (const [k, v] of ipFails) if (v.resetAt <= now) ipFails.delete(k);
 }
 
-// ── Per account ────────────────────────────────────────────────────────────
+// ── Per account (and per address on that account) ──────────────────────────
 type Guarded = { _id: any; lockedUntil?: Date | null };
 
-/** Refuses while the account is locked. */
-export function assertNotLocked(user: Guarded, now = new Date()): void {
-    if (user.lockedUntil && user.lockedUntil > now) {
-        throw AppError.tooManyRequests(`Too many wrong tries. Sign-in is locked — try again in ${minutes(+user.lockedUntil - +now)} minute(s).`);
+/** Wrong tries on one account from one address, and until when that address is locked out of it. */
+const pairFails = new Map<string, { count: number; lastAt: number; lockedUntil: number }>();
+const pairKey = (userId: unknown, ip: string) => `${String(userId)}|${ip}`;
+const LOCKED_NOW = () => AppError.tooManyRequests(`Too many wrong tries. Sign-in is locked for ${minutes(LOCK_MS)} minutes.`);
+
+/** Refuses while the account is locked for everyone, or for this address. */
+export function assertNotLocked(user: Guarded, ip?: string, now = new Date()): void {
+    const until = Math.max(user.lockedUntil ? +user.lockedUntil : 0, isLoopback(ip) ? 0 : pairFails.get(pairKey(user._id, ip!))?.lockedUntil || 0);
+    if (until > +now) {
+        throw AppError.tooManyRequests(`Too many wrong tries. Sign-in is locked — try again in ${minutes(until - +now)} minute(s).`);
     }
 }
 
 /**
  * Counts a wrong password / OTP and always throws: "… — N tries left", or, on
- * the 5th, locks the account (and drops its OTP) for 15 minutes.
+ * the 5th from one address, locks that address out of the account (and drops
+ * its OTP) for 15 minutes. The account itself locks at 50 from all addresses —
+ * or at 5 when the address is not known.
  */
 export async function wrongTry(user: Guarded, ip: string | undefined, message: string): Promise<never> {
     failedFromIp(ip);
@@ -72,27 +91,45 @@ export async function wrongTry(user: Guarded, ip: string | undefined, message: s
         [{ $set: { loginFails: { $cond: [{ $gt: ['$loginFailAt', new Date(+now - LOCK_MS)] }, { $add: [{ $ifNull: ['$loginFails', 0] }, 1] }, 1] }, loginFailAt: now } }],
         { returnDocument: 'after', projection: { loginFails: 1 } }
     );
-    const fails = Number(after?.loginFails) || 1;
-    if (fails >= MAX_WRONG) {
+    const total = Number(after?.loginFails) || 1;
+    const known = !isLoopback(ip);
+    if (total >= (known ? ACCOUNT_MAX_WRONG : MAX_WRONG)) {
         await User.updateOne({ _id: user._id }, { $set: { lockedUntil: new Date(+now + LOCK_MS), loginFails: 0 }, $unset: { otp: 1, otpExpiry: 1 } });
-        throw AppError.tooManyRequests(`Too many wrong tries. Sign-in is locked for ${minutes(LOCK_MS)} minutes.`);
+        throw LOCKED_NOW();
     }
-    throw AppError.badRequest(`${message} — ${tries(MAX_WRONG - fails)} left`);
+    if (!known) throw AppError.badRequest(`${message} — ${tries(MAX_WRONG - total)} left`);
+
+    const key = pairKey(user._id, ip!);
+    let pair = pairFails.get(key);
+    if (!pair || +now - pair.lastAt > LOCK_MS) pair = { count: 0, lastAt: +now, lockedUntil: 0 };
+    pair.count++;
+    pair.lastAt = +now;
+    pairFails.set(key, pair);
+    if (pairFails.size > 20_000) for (const [k, v] of pairFails) if (+now - v.lastAt > LOCK_MS && v.lockedUntil <= +now) pairFails.delete(k);
+    if (pair.count >= MAX_WRONG) {
+        pair.count = 0;
+        pair.lockedUntil = +now + LOCK_MS;
+        // The code being guessed is dropped, so a move to another address starts from a new one.
+        await User.updateOne({ _id: user._id }, { $unset: { otp: 1, otpExpiry: 1 } });
+        throw LOCKED_NOW();
+    }
+    throw AppError.badRequest(`${message} — ${tries(MAX_WRONG - pair.count)} left`);
 }
 
 /** After a good sign-in: forget the wrong tries. The caller saves the user. */
-export function clearWrongTries(user: any): void {
+export function clearWrongTries(user: any, ip?: string): void {
     user.loginFails = 0;
     user.loginFailAt = undefined;
     user.lockedUntil = undefined;
+    if (!isLoopback(ip)) pairFails.delete(pairKey(user._id, ip!));
 }
 
 /**
  * Before sending an OTP: refuses while locked, within 30 s of the last one, or
  * past 5 in an hour; otherwise records this send on `user` (the caller saves it).
  */
-export function allowOtpSend(user: any, now = new Date()): void {
-    assertNotLocked(user, now);
+export function allowOtpSend(user: any, ip?: string, now = new Date()): void {
+    assertNotLocked(user, ip, now);
     if (user.otpSentAt && +now - +user.otpSentAt < OTP_GAP_MS) {
         throw AppError.tooManyRequests(`Please wait ${Math.ceil((OTP_GAP_MS - (+now - +user.otpSentAt)) / 1000)} seconds before asking for a new OTP.`);
     }

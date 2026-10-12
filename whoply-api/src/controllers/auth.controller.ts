@@ -105,7 +105,7 @@ export const requestOtp = asyncHandler(async (req, res) => {
     if (!user) throw AppError.notFound(NO_ACCOUNT);
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
     await assertBusinessOpen(user);
-    allowOtpSend(user);
+    allowOtpSend(user, req.ip);
 
     const otp = generateOtp();
     user.otp = otp;
@@ -127,7 +127,7 @@ export const verifyOtp = asyncHandler(async (req, res) => {
         failedFromIp(req.ip);
         throw AppError.notFound('No account found for this mobile');
     }
-    assertNotLocked(user);
+    assertNotLocked(user, req.ip);
     if (!user.otp || !user.otpExpiry) throw AppError.badRequest('Please request an OTP first');
     if (user.otpExpiry < new Date()) throw AppError.badRequest('OTP has expired. Please request a new one.');
     if (!sameOtp(String(body.otp), user.otp)) await wrongTry(user, req.ip, 'Incorrect OTP');
@@ -135,7 +135,7 @@ export const verifyOtp = asyncHandler(async (req, res) => {
 
     user.otp = undefined;
     user.otpExpiry = undefined;
-    clearWrongTries(user);
+    clearWrongTries(user, req.ip);
     if (body.language) user.language = body.language;
     user.lastLogin = new Date();
     await user.save();
@@ -163,14 +163,14 @@ export const passwordLogin = asyncHandler(async (req, res) => {
         throw AppError.notFound('No account found for this mobile');
     }
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
-    assertNotLocked(user);
+    assertNotLocked(user, req.ip);
     if (!user.password) throw AppError.badRequest('Password not set. Please login with OTP.');
 
     const ok = await user.comparePassword(body.password);
     if (!ok) await wrongTry(user, req.ip, 'Incorrect password');
     await assertBusinessOpen(user);
 
-    clearWrongTries(user);
+    clearWrongTries(user, req.ip);
     if (body.language) user.language = body.language;
     user.lastLogin = new Date();
     await user.save();
