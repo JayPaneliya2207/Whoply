@@ -7,14 +7,15 @@
  * - adds the default subscription plans if there are none (the pricing cards
  *   on the landing site read them)
  * - creates the platform admin login with your mobile and password, or — if
- *   that mobile is already the admin — sets the new password
+ *   that mobile is already an admin — sets the new password. Admin logins are
+ *   their own collection (`adminusers`), apart from the shop users.
  * Creates no demo shops or demo logins (those are `seed` / `seed:reset`, for testing).
  */
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
 import Plan from '../models/Plan.js';
-import User from '../models/User.js';
+import AdminUser, { moveAdminsToOwnCollection } from '../models/AdminUser.js';
 import { DEFAULT_PLANS } from './plans.js';
 import { normalizePhone } from '../utils/phone.js';
 
@@ -33,15 +34,15 @@ async function main() {
         console.log(`✅ Added ${DEFAULT_PLANS.length} plans (${DEFAULT_PLANS.map((p) => p.name).join(', ')}) — edit them on the admin Plans page`);
     } else console.log('   Plans already set up — left as they are');
 
-    const existing = await User.findOne({ mobile }).select('+password');
-    if (existing && existing.role !== 'admin') throw new Error(`${mobile} is already a ${existing.role} login of a shop — use another mobile for the admin`);
+    await moveAdminsToOwnCollection(); // a database from before admins had their own collection
+    const existing = await AdminUser.findOne({ mobile }).select('+password');
     if (existing) {
         existing.password = password;
         existing.isActive = true;
         await existing.save();
         console.log(`✅ Admin ${mobile}: password updated`);
     } else {
-        await User.create({ name: 'Whoply Admin', mobile, countryCode: '+91', role: 'admin', password });
+        await AdminUser.create({ name: 'Whoply Admin', mobile, countryCode: '+91', adminRole: 'super', password });
         console.log(`✅ Admin login created: ${mobile} — sign in at the admin site`);
     }
     await mongoose.disconnect();

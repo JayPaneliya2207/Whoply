@@ -4,7 +4,7 @@
  * their own login; until then the password alone signs them in.
  */
 import { findStep, plainRecovery, recoveryHash, unseal } from '../utils/totp.js';
-import User from '../models/User.js';
+import AdminUser from '../models/AdminUser.js';
 
 /** Add to a `select()` so `spendCode` can read what it needs (hidden by default). */
 export const TWO_STEP_FIELDS = '+twoFactor.secret';
@@ -32,7 +32,7 @@ export async function spendCode(user: WithTwoStep, raw: unknown): Promise<'ok' |
         const step = findStep(secret, digits);
         if (step === null) return 'wrong';
         // One atomic step: of two sign-ins sent with the same code at the same moment, one gets in.
-        const took = await User.updateOne(
+        const took = await AdminUser.updateOne(
             { _id: user._id as any, $or: [{ 'twoFactor.lastStep': { $lt: step } }, { 'twoFactor.lastStep': null }] },
             { $set: { 'twoFactor.lastStep': step } }
         );
@@ -40,6 +40,6 @@ export async function spendCode(user: WithTwoStep, raw: unknown): Promise<'ok' |
     }
     if (!plainRecovery(typed)) return 'wrong';
     const hash = recoveryHash(typed);
-    const took = await User.updateOne({ _id: user._id as any, 'twoFactor.recovery': hash }, { $pull: { 'twoFactor.recovery': hash } });
+    const took = await AdminUser.updateOne({ _id: user._id as any, 'twoFactor.recovery': hash }, { $pull: { 'twoFactor.recovery': hash } });
     return took.modifiedCount === 1 ? 'ok' : 'wrong';
 }

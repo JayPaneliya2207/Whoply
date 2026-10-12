@@ -68,7 +68,7 @@ function authenticator(secret) {
 
 const ADMIN = '9811100061';
 const PASSWORD = 'Str0ng#Pass26';
-const signIn = (code, headers) => api('POST', '/auth/password-login', null, { mobile: ADMIN, password: PASSWORD, ...(code !== undefined && { code }) }, headers);
+const signIn = (code, headers) => api('POST', '/auth/admin-login', null, { mobile: ADMIN, password: PASSWORD, ...(code !== undefined && { code }) }, headers);
 
 (async () => {
     suite('the code maths');
@@ -77,7 +77,7 @@ const signIn = (code, headers) => api('POST', '/auth/password-login', null, { mo
     check('this file makes the codes of the standard (RFC 4226)', want.every((code, i) => hotp(rfc, i) === code), want.map((_, i) => hotp(rfc, i)).join(' '));
     check('base32 reads back', unbase32('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ').toString() === '12345678901234567890');
 
-    const superTok = d(await api('POST', '/auth/password-login', null, { mobile: '9000000099', password: 'whoply123' }))?.token;
+    const superTok = d(await api('POST', '/auth/admin-login', null, { mobile: '9000000099', password: 'whoply123' }))?.token;
     const owner = d(await api('POST', '/auth/password-login', null, { mobile: '9000000001', password: 'whoply123', code: '123456' }))?.token;
     let r = await api('POST', '/admin/admins', superTok, { name: 'Two Step Admin', mobile: ADMIN, adminRole: 'support', password: PASSWORD });
     if (r.status !== 201) throw new Error(`could not create the test admin: ${r.status} ${msg(r)}`);
@@ -128,7 +128,7 @@ const signIn = (code, headers) => api('POST', '/auth/password-login', null, { mo
     check('password + the next code signs in', r.status === 200 && !!a3 && d(r)?.user?.twoStep === true, `${r.status} ${msg(r)}`);
     r = await signIn(code);
     check('that code does not work again', r.status === 400 && /already used/i.test(msg(r)), `${r.status} ${msg(r)}`);
-    r = await api('POST', '/auth/password-login', null, { mobile: ADMIN, password: 'not-my-password', code: recovery[7] });
+    r = await api('POST', '/auth/admin-login', null, { mobile: ADMIN, password: 'not-my-password', code: recovery[7] });
     check('a wrong password is refused whatever the code', r.status === 400 && /incorrect password/i.test(msg(r)), `${r.status} ${msg(r)}`);
     r = await signIn(recovery[0]);
     check('a recovery code signs in', r.status === 200 && !!d(r)?.token, `${r.status} ${msg(r)}`);
@@ -138,15 +138,11 @@ const signIn = (code, headers) => api('POST', '/auth/password-login', null, { mo
     check('a recovery code typed in capitals, with a space for the dash, still works', r.status === 200, `${r.status} ${msg(r)}`);
     r = await api('GET', '/auth/two-step', a3);
     check('6 recovery codes are left (the one sent with a wrong password was not used up)', d(r)?.recoveryLeft === 6, JSON.stringify(d(r)));
-    r = await api('POST', '/auth/login', null, { mobile: ADMIN });
-    if (r.status !== 200 || !d(r)?.devOtp) check('OTP sign-in (skipped: OTP sign-in is off on this server)', true);
-    else {
-        const otp = d(r).devOtp;
-        r = await api('POST', '/auth/verify-otp', null, { mobile: ADMIN, otp });
-        const first = `${r.status} ${errCode(r)}`;
-        r = await api('POST', '/auth/verify-otp', null, { mobile: ADMIN, otp, code: recovery[2] });
-        check('an OTP sign-in needs the code as well', first === '401 CODE_NEEDED' && r.status === 200 && !!d(r)?.token, `${first} → ${r.status} ${msg(r)}`);
-    }
+    // An admin is not a user of the shop app: its doors (OTP, password) do not know the admin at all,
+    // so there is no way round the code through them.
+    const byOtp = await api('POST', '/auth/login', null, { mobile: ADMIN });
+    const byPassword = await api('POST', '/auth/password-login', null, { mobile: ADMIN, password: PASSWORD, code: recovery[2] });
+    check('the shop app’s sign-in (OTP or password) does not know the admin', byOtp.status === 404 && byPassword.status === 404 && !d(byPassword)?.token, `${byOtp.status} ${byPassword.status}`);
 
     suite('the key stays on the server');
     const admins = await api('GET', '/admin/admins', superTok);

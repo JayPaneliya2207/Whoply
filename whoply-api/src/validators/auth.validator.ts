@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import { mobileSchema, otpSchema, passwordSchema, languageSchema, businessTypeSchema, gstinSchema } from './common.validator.js';
 
-/** The second step of an admin sign-in: an authenticator code or a recovery code (services/twoStep.service.ts). */
-const secondStepCode = z.string().trim().max(40).optional();
-
 /** Step 1 — request OTP for login */
 export const loginSchema = z.object({
     mobile: mobileSchema,
@@ -14,7 +11,6 @@ export const verifyOtpSchema = z.object({
     mobile: mobileSchema,
     otp: otpSchema,
     language: languageSchema.optional(),
-    code: secondStepCode,
 });
 
 /**
@@ -26,7 +22,6 @@ export const passwordLoginSchema = z.object({
     mobile: mobileSchema,
     password: z.string().min(1, 'Enter your password'),
     language: languageSchema.optional(),
-    code: secondStepCode,
 });
 
 /** Self-registration of a business owner */

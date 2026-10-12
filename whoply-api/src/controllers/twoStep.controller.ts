@@ -6,7 +6,7 @@
  *   POST /auth/two-step/confirm    { code }     → on; returns the recovery codes, once
  *   POST /auth/two-step/off        { password, code }
  *
- * The sign-in side is in auth.controller.ts (`secondStep`). A lost phone: a
+ * The sign-in side is in adminAuth.controller.ts (`secondStep`). A lost phone: a
  * recovery code, or a super admin (DELETE /admin/admins/:id/two-step), or on
  * the server `npm run admin:2fa-off -- <mobile>`.
  */
@@ -14,11 +14,11 @@ import type { Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { sendSuccess } from '../utils/response.js';
-import { GUARD_FIELDS, assertNotLocked, wrongTry, clearWrongTries } from '../utils/loginGuard.js';
+import { assertNotLocked, wrongTry, clearWrongTries } from '../utils/loginGuard.js';
 import { findStep, newRecoveryCodes, newSecret, otpauthUrl, recoveryHash, seal, unseal } from '../utils/totp.js';
 import { TWO_STEP_FIELDS, spendCode } from '../services/twoStep.service.js';
 import { endSessions } from '../utils/staff.js';
-import User from '../models/User.js';
+import AdminUser from '../models/AdminUser.js';
 import AdminAudit from '../models/AdminAudit.js';
 import type { AuthRequest } from '../interfaces/index.js';
 
@@ -28,8 +28,8 @@ const ALREADY_ON = 'Two-step sign-in is already on for this login';
 async function adminLogin(req: AuthRequest) {
     if (!req.user) throw AppError.unauthorized('Not authenticated');
     if (req.user.role !== 'admin') throw AppError.forbidden('Two-step sign-in is for admin logins');
-    const user = await User.findById(req.user._id).select(`+password ${GUARD_FIELDS} ${TWO_STEP_FIELDS} +twoFactor.pending +twoFactor.recovery`);
-    if (!user) throw AppError.notFound('User not found');
+    const user = await AdminUser.findById(req.user._id).select(`+password +lockedUntil ${TWO_STEP_FIELDS} +twoFactor.pending +twoFactor.recovery`);
+    if (!user) throw AppError.notFound('Admin login not found');
     return user;
 }
 
@@ -37,7 +37,7 @@ async function adminLogin(req: AuthRequest) {
 async function checkPassword(user: Awaited<ReturnType<typeof adminLogin>>, password: unknown, ip?: string) {
     assertNotLocked(user, ip);
     if (typeof password !== 'string' || !password) throw AppError.badRequest('Enter your password');
-    if (!(await user.comparePassword(password))) await wrongTry(user, ip, 'Incorrect password');
+    if (!(await user.comparePassword(password))) await wrongTry(user, ip, 'Incorrect password', AdminUser);
 }
 
 const record = (req: AuthRequest, action: string) =>
@@ -97,9 +97,9 @@ export const turnOffTwoStep = asyncHandler(async (req: AuthRequest, res: Respons
     const result = await spendCode(user, req.body?.code);
     if (result === 'unreadable') throw AppError.internal('The code can not be checked on this server. Ask the server owner to switch two-step sign-in off (npm run admin:2fa-off).');
     if (result === 'used') throw AppError.badRequest('That code was already used. Wait for the next code and try again.');
-    if (result === 'wrong') await wrongTry(user, req.ip, 'Incorrect code');
+    if (result === 'wrong') await wrongTry(user, req.ip, 'Incorrect code', AdminUser);
 
-    await User.updateOne({ _id: user._id }, { $unset: { twoFactor: 1, loginFails: 1, loginFailAt: 1, lockedUntil: 1 } });
+    await AdminUser.updateOne({ _id: user._id }, { $unset: { twoFactor: 1, loginFails: 1, loginFailAt: 1, lockedUntil: 1 } });
     record(req, 'Turned off two-step sign-in');
     sendSuccess(res, { on: false }, 'Two-step sign-in is off');
 });

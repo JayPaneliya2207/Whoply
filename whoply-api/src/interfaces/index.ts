@@ -12,12 +12,14 @@ export type roles =
     | 'warehouse' // wholesale pick/pack
     | 'salesStaff' // wholesale field sales rep
     | 'accountant' // finance/reports
-    | 'admin'; // platform super-admin
+    | 'admin'; // a platform admin — a login of the admin panel, kept in its own collection (models/AdminUser.ts)
 
-export const VALID_ROLES: roles[] = ['owner', 'manager', 'cashier', 'warehouse', 'salesStaff', 'accountant', 'admin'];
+/** The roles a shop's own logins can have (the `users` collection). */
+export type ShopRole = Exclude<roles, 'admin'>;
+export const VALID_ROLES: ShopRole[] = ['owner', 'manager', 'cashier', 'warehouse', 'salesStaff', 'accountant'];
 
 // Roles that count as "staff" (managed by the owner)
-export const STAFF_ROLES: roles[] = ['manager', 'cashier', 'warehouse', 'salesStaff', 'accountant'];
+export const STAFF_ROLES: ShopRole[] = ['manager', 'cashier', 'warehouse', 'salesStaff', 'accountant'];
 
 // Business type
 export type BusinessType = 'retail' | 'wholesale';

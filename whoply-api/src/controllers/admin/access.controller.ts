@@ -1,5 +1,7 @@
 /**
  * Access control — admin logins and what each may do, plus the activity log.
+ * Admin logins are their own collection (models/AdminUser.ts), apart from the
+ * shop users: the same mobile number may be a shop's login as well.
  *
  * Safety rules: you can't change your own role, switch yourself off or delete
  * yourself; and there is always at least one active super admin, so the panel
@@ -12,16 +14,16 @@ import { sendSuccess, sendCreated, sendPaginated } from '../../utils/response.js
 import { paginate } from '../../utils/http.js';
 import { normalizePhone } from '../../utils/phone.js';
 import { endSessions } from '../../utils/staff.js';
-import { ADMIN_ROLES, ADMIN_ROLE_KEYS, adminRoleOf, type AdminRole } from '../../utils/adminAccess.js';
-import User from '../../models/User.js';
+import { ADMIN_ROLES, ADMIN_ROLE_KEYS, adminRoleOf, adminRoleFrom, type AdminRole } from '../../utils/adminAccess.js';
+import AdminUser from '../../models/AdminUser.js';
 import Session from '../../models/Session.js';
 import AdminAudit from '../../models/AdminAudit.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
-const FIELDS = 'name mobile countryCode role adminRole isActive lastLogin createdAt twoFactor.on';
-const shape = (u: any) => ({ _id: u._id, name: u.name, mobile: u.mobile, adminRole: adminRoleOf(u), isActive: u.isActive, twoStep: !!u.twoFactor?.on, lastLogin: u.lastLogin, createdAt: u.createdAt });
+const FIELDS = 'name mobile countryCode adminRole isActive lastLogin createdAt twoFactor.on';
+const shape = (u: any) => ({ _id: u._id, name: u.name, mobile: u.mobile, adminRole: adminRoleFrom(u.adminRole), isActive: u.isActive, twoStep: !!u.twoFactor?.on, lastLogin: u.lastLogin, createdAt: u.createdAt });
 /** An active super admin (a login made before roles existed has no adminRole and counts as one). */
-const SUPER: Record<string, any> = { role: 'admin', isActive: true, $or: [{ adminRole: 'super' }, { adminRole: { $exists: false } }, { adminRole: null }] };
+const SUPER: Record<string, any> = { isActive: true, $or: [{ adminRole: 'super' }, { adminRole: { $exists: false } }, { adminRole: null }] };
 
 /** An admin password: 8+ characters, and not the demo one. */
 function adminPassword(raw: unknown): string {
@@ -52,7 +54,7 @@ export const accessInfo = asyncHandler(async (req: AuthRequest, res: Response) =
 
 /** GET /admin/admins */
 export const listAdmins = asyncHandler(async (_req: AuthRequest, res: Response) => {
-    const admins = await User.find({ role: 'admin' }).select(FIELDS).sort({ createdAt: 1 }).lean();
+    const admins = await AdminUser.find({}).select(FIELDS).sort({ createdAt: 1 }).lean();
     sendSuccess(res, admins.map(shape));
 });
 
@@ -63,21 +65,21 @@ export const createAdmin = asyncHandler(async (req: AuthRequest, res: Response) 
     const password = adminPassword(req.body.password);
     const mobile = normalizePhone(String(req.body.mobile ?? ''));
     if (!/^[6-9]\d{9}$/.test(mobile)) throw AppError.badRequest('Enter a valid 10-digit mobile number');
-    if (await User.exists({ mobile })) throw AppError.conflict('A user with this mobile already exists');
-    const admin = await User.create({ name, mobile, role: 'admin', adminRole, password });
+    if (await AdminUser.exists({ mobile })) throw AppError.conflict('An admin login with this mobile already exists');
+    const admin = await AdminUser.create({ name, mobile, adminRole, password });
     sendCreated(res, shape(admin), 'Admin login created');
 });
 
 /** PATCH /admin/admins/:id { name, adminRole, isActive, password } */
 export const updateAdmin = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const admin = await User.findOne({ _id: req.params.id, role: 'admin' }).select(FIELDS);
+    const admin = await AdminUser.findById(req.params.id).select(FIELDS);
     if (!admin) throw AppError.notFound('Admin login not found');
     const self = String(admin._id) === String(req.user!._id);
     const body = req.body;
 
     if (body.name !== undefined) admin.name = adminName(body.name);
-    const wasSuper = adminRoleOf(admin) === 'super' && admin.isActive;
-    if (body.adminRole !== undefined && body.adminRole !== adminRoleOf(admin)) {
+    const wasSuper = adminRoleFrom(admin.adminRole) === 'super' && admin.isActive;
+    if (body.adminRole !== undefined && body.adminRole !== adminRoleFrom(admin.adminRole)) {
         if (self) throw AppError.badRequest('You can not change your own role');
         admin.adminRole = roleKey(body.adminRole);
     }
@@ -85,8 +87,8 @@ export const updateAdmin = asyncHandler(async (req: AuthRequest, res: Response) 
         if (self) throw AppError.badRequest('You can not turn off your own login');
         admin.isActive = body.isActive;
     }
-    const stillSuper = adminRoleOf(admin) === 'super' && admin.isActive;
-    if (wasSuper && !stillSuper && (await User.countDocuments({ ...SUPER, _id: { $ne: admin._id } })) === 0) {
+    const stillSuper = adminRoleFrom(admin.adminRole) === 'super' && admin.isActive;
+    if (wasSuper && !stillSuper && (await AdminUser.countDocuments({ ...SUPER, _id: { $ne: admin._id } })) === 0) {
         throw AppError.badRequest('There must be at least one active super admin');
     }
     let signOut = admin.isModified('isActive') && !admin.isActive;
@@ -102,23 +104,23 @@ export const updateAdmin = asyncHandler(async (req: AuthRequest, res: Response) 
 
 /** DELETE /admin/admins/:id */
 export const deleteAdmin = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const admin = await User.findOne({ _id: req.params.id, role: 'admin' }).select(FIELDS);
+    const admin = await AdminUser.findById(req.params.id).select(FIELDS);
     if (!admin) throw AppError.notFound('Admin login not found');
     if (String(admin._id) === String(req.user!._id)) throw AppError.badRequest('You can not delete your own login');
-    if (adminRoleOf(admin) === 'super' && admin.isActive && (await User.countDocuments({ ...SUPER, _id: { $ne: admin._id } })) === 0) {
+    if (adminRoleFrom(admin.adminRole) === 'super' && admin.isActive && (await AdminUser.countDocuments({ ...SUPER, _id: { $ne: admin._id } })) === 0) {
         throw AppError.badRequest('There must be at least one active super admin');
     }
-    await Promise.all([User.deleteOne({ _id: admin._id }), Session.deleteMany({ userId: admin._id })]);
+    await Promise.all([AdminUser.deleteOne({ _id: admin._id }), Session.deleteMany({ userId: admin._id })]);
     sendSuccess(res, { ok: true }, 'Admin login deleted');
 });
 
 /** DELETE /admin/admins/:id/two-step — switch off another admin's two-step sign-in (their phone is lost). They are signed out and use the password alone until they turn it on again. */
 export const resetAdminTwoStep = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const admin = await User.findOne({ _id: req.params.id, role: 'admin' }).select(FIELDS);
+    const admin = await AdminUser.findById(req.params.id).select(FIELDS);
     if (!admin) throw AppError.notFound('Admin login not found');
     if (String(admin._id) === String(req.user!._id)) throw AppError.badRequest('Turn off your own two-step sign-in from the account menu — it asks for your password and a code');
     if (!admin.twoFactor?.on) throw AppError.badRequest('Two-step sign-in is not on for this admin');
-    await User.updateOne({ _id: admin._id }, { $unset: { twoFactor: 1 } });
+    await AdminUser.updateOne({ _id: admin._id }, { $unset: { twoFactor: 1 } });
     await endSessions(admin._id);
     sendSuccess(res, { ...shape(admin), twoStep: false }, 'Two-step sign-in is off for this admin');
 });

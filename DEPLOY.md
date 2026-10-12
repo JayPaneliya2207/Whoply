@@ -151,6 +151,10 @@ cd ~/Whoply && git checkout main && git pull origin main && cd deploy && ./deplo
 
 Shop data is never touched by an update. The database update step (`migrate`) is safe to repeat.
 
+Admin logins are kept in their own collection, `adminusers`, apart from the shop logins in
+`users`. A database from before that change is brought up to date by itself: when the API starts
+it moves each admin across, with the same password and two-step setup. Nobody has to sign up again.
+
 ## Backups
 
 - The API saves a full backup every day into `deploy/backups/whoply/` on the server (the

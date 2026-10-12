@@ -180,6 +180,10 @@ OTP is always **123456** in dev; password is **whoply123**.
 | **Wholesaler** (wholesale owner) | `9000000010` | app (7200) |
 | **Platform admin** | `9000000099` | admin (7300) |
 
+The admin is a different kind of login from the other two: admin logins are kept in their own
+collection (`adminusers`, not `users`), sign in only on the admin panel, and only with a
+password (plus the two-step code once it is turned on) — never with an OTP.
+
 `npm run seed:reset` creates exactly these three on an empty database — start here.
 `npm run seed` instead loads a full demo dataset (products, bills, dealers, orders)
 and adds extra staff accounts you can view under **Staff** in the app.

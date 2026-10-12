@@ -25,13 +25,15 @@ const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const near = (a, b) => Math.abs((a || 0) - (b || 0)) < 0.011;
 const login = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/password-login', null, { mobile, password }))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 const K = '/shopkeeper';
 const W = '/wholesaler';
 
 (async () => {
     const st = await login('9000000001');
     const ws = await login('9000000010');
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     const stockOf = async (id) => d(await api('GET', `${K}/products/${id}`, st))?.currentStock;
     const product = async (name, stock, price = 100) => d(await api('POST', `${K}/products`, st, { name, sku: name.replace(/\W/g, '') + Date.now(), sellPrice: price, costPrice: price / 2, gstRate: 0, unit: 'pcs', currentStock: stock }));
     const quote = (body) => api('POST', `${K}/quotations`, st, body);

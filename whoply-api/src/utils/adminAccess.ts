@@ -1,8 +1,8 @@
 /**
  * What each kind of platform-admin login may do in the admin panel.
  *
- * An admin without an `adminRole` (the first admin, made by setup) is a super
- * admin. The admin panel reads this map from GET /admin/access to hide what a
+ * Admin logins are in their own collection (models/AdminUser.ts). An admin
+ * without an `adminRole` (the first admin, made by setup) is a super admin. The admin panel reads this map from GET /admin/access to hide what a
  * login can't use — the check that counts is `requireAdminPerm` on the routes.
  */
 import type { Response, NextFunction } from 'express';
@@ -40,8 +40,13 @@ export const ADMIN_ROLES: Record<AdminRole, { label: string; description: string
     viewer: { label: 'Viewer', description: 'Can look at everything except admin logins and settings. Can not change anything.', perms: VIEW },
 };
 
+/** The role stored on an admin login. An admin without one (the first admin, made by setup) is a super admin. */
+export const adminRoleFrom = (adminRole?: string | null): AdminRole =>
+    (ADMIN_ROLE_KEYS as readonly string[]).includes(adminRole || '') ? (adminRole as AdminRole) : 'super';
+
+/** The admin role of whoever made the request — null for a shop login. */
 export const adminRoleOf = (user?: { role?: string; adminRole?: string }): AdminRole | null =>
-    user?.role !== 'admin' ? null : (ADMIN_ROLE_KEYS as readonly string[]).includes(user.adminRole || '') ? (user.adminRole as AdminRole) : 'super';
+    user?.role !== 'admin' ? null : adminRoleFrom(user.adminRole);
 
 export const adminCan = (user: { role?: string; adminRole?: string } | undefined, perm: AdminPerm): boolean => {
     const role = adminRoleOf(user);

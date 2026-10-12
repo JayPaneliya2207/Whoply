@@ -22,6 +22,8 @@ const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const code = (r) => r.json?.error?.code || '';
 const login = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/password-login', null, { mobile, password }))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 (async () => {
@@ -124,7 +126,7 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
     check('public stats give nothing away while there are only a few businesses', r.status === 200 && d(r)?.gstInvoices === 0 && d(r)?.shopkeepers === 0 && d(r)?.wholesalers === 0, JSON.stringify(d(r)));
 
     suite('staff see only their own notifications');
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     await api('POST', '/staff', st, { name: 'Counter Cashier', mobile: '9811100031', role: 'cashier', salary: 9000, password: 'Cashier@2026' });
     const cashier = await login('9811100031', 'Cashier@2026');
     await api('POST', '/support/messages', st, { text: 'Please call me about my printer.' });

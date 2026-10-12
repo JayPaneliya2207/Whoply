@@ -5,7 +5,8 @@
 import type { Response, NextFunction } from 'express';
 import { AppError } from '../utils/AppError.js';
 import { verifyToken, type ITokenPayload } from '../utils/jwt.js';
-import User from '../models/User.js';
+import User, { SHOP_LOGIN } from '../models/User.js';
+import AdminUser from '../models/AdminUser.js';
 import Business from '../models/Business.js';
 import Session from '../models/Session.js';
 import type { AuthRequest, AuthUser } from '../interfaces/index.js';
@@ -44,11 +45,20 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
 
         // This runs on every request, so: both lookups at once, and only the few fields
         // needed — a staff login's document can hold megabytes of ID photos (kyc.documents).
-        const [user, session] = await Promise.all([
-            User.findById(decoded._id).select('name email mobile role adminRole businessId isActive').lean(),
+        // The token says which kind of login it is (it is signed, so it can be believed):
+        // an admin is looked up among the admin logins, everyone else among the shop users.
+        // A token can therefore never turn a shop login into an admin, or the other way round.
+        const isAdmin = decoded.role === 'admin';
+        const [found, session] = await Promise.all([
+            isAdmin
+                ? AdminUser.findById(decoded._id).select('name email mobile adminRole isActive').lean()
+                : User.findOne({ _id: decoded._id, ...SHOP_LOGIN }).select('name email mobile role businessId isActive').lean(),
             Session.findOne({ token, userId: decoded._id, isActive: true }).select('lastActivityAt').lean(),
         ]);
-        if (!user) throw AppError.unauthorized('User not found');
+        if (!found) throw AppError.unauthorized('User not found');
+        const user: { _id: any; name: string; email?: string; mobile: string; role: AuthUser['role']; adminRole?: AuthUser['adminRole']; businessId?: any; isActive: boolean } = isAdmin
+            ? { ...(found as any), role: 'admin' as const, businessId: undefined }
+            : (found as any);
         if (!user.isActive) throw AppError.unauthorized('Account is deactivated');
         if (!session) {
             throw AppError.unauthorized(
@@ -69,7 +79,7 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
         if (user.businessId) {
             const business = await Business.findById(user.businessId).select('type isActive').lean();
             // A business the platform admin suspended: its owner and staff are signed out.
-            if (business?.isActive === false && user.role !== 'admin') throw AppError.unauthorized(BUSINESS_SUSPENDED);
+            if (business?.isActive === false) throw AppError.unauthorized(BUSINESS_SUSPENDED);
             businessType = business?.type;
         }
 

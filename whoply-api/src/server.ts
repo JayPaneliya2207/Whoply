@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
 import { initializeCronJobs } from './cron/index.js';
 import { jsonBody, ensureBody, rejectOperators, rateLimit } from './middleware/security.middleware.js';
 import { isLocalDb } from './utils/devMode.js';
+import { moveAdminsToOwnCollection } from './models/AdminUser.js';
 
 export const app: Express = express();
 
@@ -89,6 +90,10 @@ process.on('uncaughtException', (err) => { console.error('[uncaughtException]', 
 const startServer = async (): Promise<void> => {
     try {
         await connectDB();
+        // Admin logins have their own collection now. A database from before that still has
+        // them among the shop users: move them, so no admin is locked out by the upgrade.
+        const movedAdmins = await moveAdminsToOwnCollection();
+        if (movedAdmins) console.log(`[upgrade] ${movedAdmins} admin login(s) moved from "users" to their own collection "adminusers".`);
         initializeCronJobs();
         if (env.NODE_ENV !== 'production' && !isLocalDb(env.MONGODB_URI)) console.warn('[security] NODE_ENV is not "production" but the database is not on this machine. If this is the live server, set NODE_ENV=production. (Test OTP and demo logins stay off either way.)');
         if (env.NODE_ENV === 'production' && !env.TRUST_PROXY) console.warn('[security] TRUST_PROXY is not set: behind a proxy every visitor shares one address for the request limits. Set TRUST_PROXY=1.');
