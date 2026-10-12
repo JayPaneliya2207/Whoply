@@ -16,11 +16,13 @@
  * unevenly, so it must sit on navy, which that fade dissolves into.
  *
  * The product itself is shown with real screens, never mock-ups:
- * `shopkeeper-tablet.png` is the shopkeeper cutout with the app's home screen
+ * `shopkeeper-app.png` is the shopkeeper cutout with the app's home screen
  * placed on his tablet (perspective-fitted to the four screen corners), and
- * `app-dashboard.png` is the same home screen at desktop width. Both were taken
+ * `app-home.png` is the same home screen at desktop width. Both were taken
  * from the app running on seed demo data. The earlier mock-up versions
  * (`shopkeeper.png`, `dashboard.png`) moved to `public/img/unused/`.
+ * When the home screen changes, retake both and give the files NEW names:
+ * browsers and the image optimiser keep the old picture for an old address.
  */
 
 export interface Media {
@@ -33,7 +35,7 @@ export interface Media {
 
 export const MEDIA = {
     heroCutout: {
-        src: '/img/assets/shopkeeper-tablet.png',
+        src: '/img/assets/shopkeeper-app.png',
         width: 1143,
         height: 1376,
         alt: {
@@ -43,7 +45,7 @@ export const MEDIA = {
         },
     },
     dashboard: {
-        src: '/img/app-dashboard.png',
+        src: '/img/app-home.png',
         width: 3000,
         height: 2000,
         alt: {
