@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, Plus, Pencil, Trash2, Power, Check, X, History, KeyRound, Users } from 'lucide-react';
+import { ShieldCheck, ShieldOff, Plus, Pencil, Trash2, Power, Check, X, History, KeyRound, Users } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { Modal, Field } from '@/components/Modal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -42,6 +42,7 @@ export default function AccessPage() {
     const [form, setForm] = useState<any>(empty);
     const [err, setErr] = useState('');
     const [del, setDel] = useState<any>(null);
+    const [twoStepOff, setTwoStepOff] = useState<any>(null); // the admin whose two-step sign-in is being switched off
     const [flash, setFlash] = useState('');
     const say = (m: string) => { setFlash(m); setTimeout(() => setFlash(''), 5000); };
     const refresh = () => qc.invalidateQueries({ queryKey: ['admin-admins'] });
@@ -69,6 +70,11 @@ export default function AccessPage() {
         onSuccess: (r) => { setDel(null); refresh(); say(r.message || 'Deleted'); },
         onError: (e) => { setDel(null); alert(apiErr(e)); },
     });
+    const resetTwoStep = useMutation({
+        mutationFn: async () => (await api.delete(`/admin/admins/${twoStepOff._id}/two-step`)).data,
+        onSuccess: (r) => { setTwoStepOff(null); refresh(); say(r.message || 'Two-step sign-in is off'); },
+        onError: (e) => { setTwoStepOff(null); alert(apiErr(e)); },
+    });
 
     const tabs: [typeof tab, string, any][] = [['admins', 'Admin logins', Users], ['roles', 'Roles', ShieldCheck], ['activity', 'Activity log', History]];
     return (
@@ -92,9 +98,9 @@ export default function AccessPage() {
             {tab === 'admins' && (
                 <div className="wp-card overflow-hidden">
                     <div className="overflow-x-auto wp-scroll">
-                        <table className="w-full text-sm" style={{ minWidth: 640 }}>
+                        <table className="w-full text-sm" style={{ minWidth: 720 }}>
                             <thead><tr style={{ color: 'var(--text-muted)', background: 'var(--surface-2)' }} className="text-left whitespace-nowrap">
-                                <th className="p-3 font-medium">Admin</th><th className="p-3 font-medium">Role</th><th className="p-3 font-medium">Last sign-in</th><th className="p-3 font-medium">Status</th><th className="p-3 font-medium text-right">Actions</th>
+                                <th className="p-3 font-medium">Admin</th><th className="p-3 font-medium">Role</th><th className="p-3 font-medium">Two-step</th><th className="p-3 font-medium">Last sign-in</th><th className="p-3 font-medium">Status</th><th className="p-3 font-medium text-right">Actions</th>
                             </tr></thead>
                             <tbody>
                                 {(admins || []).map((a) => {
@@ -111,10 +117,12 @@ export default function AccessPage() {
                                                 </div>
                                             </td>
                                             <td className="p-3"><span className="wp-chip whitespace-nowrap" style={ROLE_TONE[a.adminRole] || ROLE_TONE.viewer}><ShieldCheck size={11} /> {label(a.adminRole)}</span></td>
+                                            <td className="p-3"><span className="wp-chip whitespace-nowrap" style={a.twoStep ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--warning-tint)', color: 'var(--warning)' }}>{a.twoStep ? <ShieldCheck size={11} /> : <ShieldOff size={11} />} {a.twoStep ? 'On' : 'Off'}</span></td>
                                             <td className="p-3 whitespace-nowrap tabular" style={{ color: 'var(--text-secondary)' }}>{when(a.lastLogin)}</td>
                                             <td className="p-3"><span className="wp-chip whitespace-nowrap" style={a.isActive ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--danger-tint)', color: 'var(--danger)' }}><Power size={11} /> {a.isActive ? 'Active' : 'Off'}</span></td>
                                             <td className="p-3">
                                                 <div className="flex items-center justify-end gap-1">
+                                                    {a.twoStep && !self && <button className="wp-btn wp-btn-ghost !p-2" title="Switch off two-step sign-in (lost phone)" aria-label={`Switch off two-step sign-in for ${a.name}`} onClick={() => setTwoStepOff(a)}><ShieldOff size={14} /></button>}
                                                     <button className="wp-btn wp-btn-ghost !p-2" title="Edit" aria-label={`Edit ${a.name}`} onClick={() => { setEditing(a); setForm({ name: a.name, mobile: a.mobile, adminRole: a.adminRole, password: '', isActive: a.isActive }); setErr(''); setModal(true); }}><Pencil size={14} /></button>
                                                     <button className="wp-btn wp-btn-ghost !p-2" title={self ? 'You can not delete your own login' : 'Delete'} aria-label={`Delete ${a.name}`} disabled={self} style={{ color: 'var(--danger)' }} onClick={() => setDel(a)}><Trash2 size={14} /></button>
                                                 </div>
@@ -231,6 +239,8 @@ export default function AccessPage() {
 
             <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => remove.mutate()} loading={remove.isPending} title={`Delete ${del?.name}?`} confirmLabel="Delete admin login"
                 message="This admin can no longer sign in to the console. What they changed stays in the activity log." />
+            <ConfirmDialog open={!!twoStepOff} onClose={() => setTwoStepOff(null)} onConfirm={() => resetTwoStep.mutate()} loading={resetTwoStep.isPending} title={`Switch off two-step sign-in for ${twoStepOff?.name}?`} confirmLabel="Switch it off"
+                message="Do this only when they have lost their phone and their recovery codes — check that it is really them asking. They are signed out, sign in with the password alone, and should turn it on again right away." />
         </div>
     );
 }

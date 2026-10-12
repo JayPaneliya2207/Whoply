@@ -18,7 +18,7 @@ import type { AuthRequest } from '../../interfaces/index.js';
 export const getPriceList = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const [products, rows] = await Promise.all([
-        Product.find({ businessId, isActive: true }).sort({ name: 1 }).lean(),
+        Product.find({ businessId, isActive: true }).select('-image').sort({ name: 1 }).lean(),
         PriceList.find({ businessId }).lean(),
     ]);
     const saved = new Map<string, Record<string, number>>();

@@ -23,6 +23,7 @@ import { endSessions } from '../utils/staff.js';
 import { cleanImage, cleanText } from '../utils/image.js';
 import { env } from '../config/env.js';
 import { isDevMode, DEMO_PASSWORD } from '../utils/devMode.js';
+import { TWO_STEP_FIELDS, CODE_NEEDED, spendCode } from '../services/twoStep.service.js';
 
 /** OTP sign-in works only where the code can reach the phone: off outside dev mode until OTP_LOGIN=on (an SMS provider is wired). */
 const otpLoginOn = () => (env.OTP_LOGIN ? env.OTP_LOGIN === 'on' : isDevMode());
@@ -33,6 +34,21 @@ const assertBusinessOpen = async (user: { role: string; businessId?: unknown }) 
     if (!user.businessId || user.role === 'admin') return;
     const b = await Business.findById(user.businessId).select('isActive').lean();
     if (b?.isActive === false) throw AppError.forbidden(BUSINESS_SUSPENDED);
+};
+
+/**
+ * An admin login with two-step sign-in on: the password (or OTP) alone is not
+ * enough. Called only after that first step was right. Without a code it
+ * answers 401 CODE_NEEDED and the sign-in screen asks for one; a wrong code
+ * counts towards the lock like a wrong password.
+ */
+const secondStep = async (user: any, code: string | undefined, ip?: string) => {
+    if (user.role !== 'admin' || !user.twoFactor?.on) return;
+    if (!code) throw new AppError('Enter the 6-digit code from your authenticator app.', 401, CODE_NEEDED);
+    const result = await spendCode(user, code);
+    if (result === 'unreadable') throw AppError.internal('The code can not be checked on this server. Ask the server owner to switch two-step sign-in off (npm run admin:2fa-off).');
+    if (result === 'used') throw AppError.badRequest('That code was already used. Wait for the next code and try again.');
+    if (result === 'wrong') await wrongTry(user, ip, 'Incorrect code');
 };
 
 const createSession = async (userId: any, mobile: string, role: any, businessId: any, req: AuthRequest) => {
@@ -54,7 +70,7 @@ const publicUser = (user: any, business: any) => ({
     mobile: user.mobile,
     email: user.email,
     role: user.role,
-    ...(user.role === 'admin' && { adminRole: user.adminRole || 'super' }),
+    ...(user.role === 'admin' && { adminRole: user.adminRole || 'super', twoStep: !!user.twoFactor?.on }),
     language: user.language,
     avatar: user.avatar,
     business: business
@@ -105,7 +121,7 @@ export const requestOtp = asyncHandler(async (req, res) => {
     if (!user) throw AppError.notFound(NO_ACCOUNT);
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
     await assertBusinessOpen(user);
-    allowOtpSend(user);
+    allowOtpSend(user, req.ip);
 
     const otp = generateOtp();
     user.otp = otp;
@@ -122,20 +138,21 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     const mobile = normalizePhone(body.mobile);
     assertIpAllowed(req.ip);
 
-    const user = await User.findOne({ mobile }).select(`+otp +otpExpiry ${GUARD_FIELDS}`);
+    const user = await User.findOne({ mobile }).select(`+otp +otpExpiry ${GUARD_FIELDS} ${TWO_STEP_FIELDS}`);
     if (!user) {
         failedFromIp(req.ip);
         throw AppError.notFound('No account found for this mobile');
     }
-    assertNotLocked(user);
+    assertNotLocked(user, req.ip);
     if (!user.otp || !user.otpExpiry) throw AppError.badRequest('Please request an OTP first');
     if (user.otpExpiry < new Date()) throw AppError.badRequest('OTP has expired. Please request a new one.');
     if (!sameOtp(String(body.otp), user.otp)) await wrongTry(user, req.ip, 'Incorrect OTP');
     await assertBusinessOpen(user);
+    await secondStep(user, body.code, req.ip);
 
     user.otp = undefined;
     user.otpExpiry = undefined;
-    clearWrongTries(user);
+    clearWrongTries(user, req.ip);
     if (body.language) user.language = body.language;
     user.lastLogin = new Date();
     await user.save();
@@ -157,20 +174,21 @@ export const passwordLogin = asyncHandler(async (req, res) => {
         throw AppError.unauthorized('This password is not allowed here. Ask the Whoply team to set a new one.');
     }
 
-    const user = await User.findOne({ mobile }).select(`+password ${GUARD_FIELDS}`);
+    const user = await User.findOne({ mobile }).select(`+password ${GUARD_FIELDS} ${TWO_STEP_FIELDS}`);
     if (!user) {
         failedFromIp(req.ip);
         throw AppError.notFound('No account found for this mobile');
     }
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
-    assertNotLocked(user);
+    assertNotLocked(user, req.ip);
     if (!user.password) throw AppError.badRequest('Password not set. Please login with OTP.');
 
     const ok = await user.comparePassword(body.password);
     if (!ok) await wrongTry(user, req.ip, 'Incorrect password');
     await assertBusinessOpen(user);
+    await secondStep(user, body.code, req.ip);
 
-    clearWrongTries(user);
+    clearWrongTries(user, req.ip);
     if (body.language) user.language = body.language;
     user.lastLogin = new Date();
     await user.save();

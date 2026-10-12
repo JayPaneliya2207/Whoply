@@ -38,7 +38,7 @@ export async function reorderSuggestions(
     ]);
     const soldMap = new Map(sold.map((s) => [String(s._id), s.qty]));
 
-    const products = await Product.find({ businessId: bId, isActive: true }).lean();
+    const products = await Product.find({ businessId: bId, isActive: true }).select('-image').lean();
 
     const suggestions = products.map((p) => {
         const unitsSold = soldMap.get(String(p._id)) || 0;

@@ -18,7 +18,7 @@ import { platformStats } from '../../controllers/admin/stats.controller.js';
 import { listUsers, createUser, updateUser, deleteUser } from '../../controllers/admin/users.controller.js';
 import { supportSummary, listThreads, getThread, reply, startThread, setThreadStatus } from '../../controllers/admin/support.controller.js';
 import { getSettings, updateSettings, listBills, getBill, createBillFor, runBills, remind, updateBill } from '../../controllers/admin/billing.controller.js';
-import { accessInfo, listAdmins, createAdmin, updateAdmin, deleteAdmin, listAudit } from '../../controllers/admin/access.controller.js';
+import { accessInfo, listAdmins, createAdmin, updateAdmin, deleteAdmin, resetAdminTwoStep, listAudit } from '../../controllers/admin/access.controller.js';
 import { listInquiries, inquirySummary, updateInquiry, deleteInquiry } from '../../controllers/admin/inquiries.controller.js';
 import { listAnnouncements, getAnnouncement, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../../controllers/admin/announcements.controller.js';
 
@@ -90,6 +90,7 @@ router.get('/admins', ap('admins.manage'), listAdmins);
 router.post('/admins', ap('admins.manage'), createAdmin);
 router.patch('/admins/:id', ap('admins.manage'), updateAdmin);
 router.delete('/admins/:id', ap('admins.manage'), deleteAdmin);
+router.delete('/admins/:id/two-step', ap('admins.manage'), resetAdminTwoStep);
 router.get('/audit', ap('admins.manage'), listAudit);
 
 export default router;

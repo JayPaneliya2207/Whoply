@@ -18,7 +18,7 @@ import { roleInfo } from '@/lib/roles';
 
 const DOC_LABELS: Record<string, string> = { aadhaar: 'Aadhaar', pan: 'PAN', voterid: 'Voter ID', driving: 'Driving Licence', other: 'Other' };
 
-const empty = { name: '', mobile: '', country: '+91', role: 'cashier', salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false, kycDocs: [] as string[] };
+const empty = { name: '', mobile: '', country: '+91', role: 'cashier', salary: '', password: '', kycDoc: 'aadhaar', kycNumber: '', kycVerified: false, kycDocs: [] as string[], docsLoaded: true };
 const MAX_DOCS = 5;
 
 export default function StaffPage() {
@@ -36,10 +36,18 @@ export default function StaffPage() {
     const { data } = useQuery({ queryKey: ['staff'], queryFn: async () => (await api.get('/staff')).data.data });
 
     const openNew = () => { setEditing(null); setForm({ ...empty, role: roleOptions[0] }); setErr(''); setModal(true); };
+    // The staff list comes without ID photos (they are heavy); the form fetches this person's when it
+    // opens. Until they arrive, `docsLoaded` is false and a save leaves the photos on file untouched.
     const openEdit = (s: any) => {
+        const has = (s.kyc?.documentCount || 0) > 0;
         setEditing(s);
-        setForm({ name: s.name, mobile: s.mobile, country: s.countryCode || '+91', role: s.role, salary: s.salary || '', password: '', kycDoc: s.kyc?.docType || 'aadhaar', kycNumber: s.kyc?.docType === 'aadhaar' ? last4(s.kyc?.docNumber) : s.kyc?.docNumber || '', kycVerified: s.kyc?.verified || false, kycDocs: s.kyc?.documents || [] });
+        setForm({ name: s.name, mobile: s.mobile, country: s.countryCode || '+91', role: s.role, salary: s.salary || '', password: '', kycDoc: s.kyc?.docType || 'aadhaar', kycNumber: s.kyc?.docType === 'aadhaar' ? last4(s.kyc?.docNumber) : s.kyc?.docNumber || '', kycVerified: s.kyc?.verified || false, kycDocs: [], docsLoaded: !has, forId: s._id });
         setErr(''); setModal(true);
+        if (has) {
+            api.get(`/staff/${s._id}/detail`)
+                .then(({ data }) => setForm((f: any) => (f.forId !== s._id || f.docsLoaded ? f : { ...f, docsLoaded: true, kycDocs: [...(data.data.staff?.kyc?.documents || []), ...f.kycDocs].slice(0, MAX_DOCS) })))
+                .catch(() => setForm((f: any) => (f.forId === s._id ? { ...f, docsFailed: true } : f))); // the photos stay as they are on a save
+        }
     };
 
     // Downscale each uploaded doc image to a small data URL; cap at MAX_DOCS.
@@ -70,7 +78,7 @@ export default function StaffPage() {
         mutationFn: async () => {
             // Aadhaar: only the last 4 digits and no photo leave this screen (the server enforces it too).
             const aadhaar = form.kycDoc === 'aadhaar';
-            const kyc = { docType: form.kycDoc, docNumber: aadhaar ? last4(form.kycNumber) : form.kycNumber, verified: form.kycVerified, documents: aadhaar ? [] : form.kycDocs };
+            const kyc = { docType: form.kycDoc, docNumber: aadhaar ? last4(form.kycNumber) : form.kycNumber, verified: form.kycVerified, documents: aadhaar ? [] : form.docsLoaded ? form.kycDocs : undefined };
             if (editing) return (await api.patch(`/staff/${editing._id}`, { name: form.name, role: form.role, salary: Number(form.salary) || 0, kyc })).data.data;
             return (await api.post('/staff', { name: form.name, mobile: form.mobile, countryCode: form.country, role: form.role, salary: Number(form.salary) || 0, kyc, password: form.password || undefined })).data.data;
         },
@@ -119,7 +127,7 @@ export default function StaffPage() {
                                 <p className="font-bold tabular" style={{ color: 'var(--text-primary)' }}>{inr2(s.salary || 0)}</p>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                {(s.kyc?.docNumber || s.kyc?.documents?.length) ? (
+                                {(s.kyc?.docNumber || s.kyc?.documentCount) ? (
                                     <span className="wp-chip" style={s.kyc.verified ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--warning-tint)', color: 'var(--warning)' }}>
                                         {s.kyc.verified ? <BadgeCheck size={12} /> : <ShieldAlert size={12} />} KYC
                                     </span>
@@ -128,9 +136,9 @@ export default function StaffPage() {
                                 <button className="wp-btn wp-btn-ghost !p-2" onClick={() => setDel(s)}><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
                             </div>
                         </div>
-                        {(s.kyc?.docNumber || s.kyc?.documents?.length > 0) && (
+                        {(s.kyc?.docNumber || s.kyc?.documentCount > 0) && (
                             <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                                <IdCard size={12} /> {DOC_LABELS[s.kyc.docType] || 'Doc'}{s.kyc?.docNumber ? `: ${s.kyc.docNumber}` : ''}{s.kyc?.documents?.length > 0 ? ` · ${s.kyc.documents.length} file${s.kyc.documents.length > 1 ? 's' : ''}` : ''}
+                                <IdCard size={12} /> {DOC_LABELS[s.kyc.docType] || 'Doc'}{s.kyc?.docNumber ? `: ${s.kyc.docNumber}` : ''}{s.kyc?.documentCount > 0 ? ` · ${s.kyc.documentCount} file${s.kyc.documentCount > 1 ? 's' : ''}` : ''}
                             </p>
                         )}
                     </div>
@@ -138,7 +146,7 @@ export default function StaffPage() {
             </div>
 
             <Modal open={modal} onClose={() => setModal(false)} title={editing ? t('editStaffTitle') : t('addStaffTitle')}
-                footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !form.name || (!editing && !form.mobile)} onClick={() => save.mutate()}>{editing ? t('save') : t('addStaffTitle')}</button>}>
+                footer={<button className="wp-btn wp-btn-primary w-full" disabled={save.isPending || !form.name || (!editing && !form.mobile) || !(form.docsLoaded || form.docsFailed)} onClick={() => save.mutate()}>{editing ? t('save') : t('addStaffTitle')}</button>}>
                 <Field label={t('fullName')}><input className="wp-input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Anita Desai" autoFocus /></Field>
                 <Field label="Mobile"><PhoneInput value={form.mobile} onChange={(v) => set('mobile', v)} country={form.country} onCountryChange={(c) => set('country', c)} disabled={!!editing} /></Field>
                 <Field label={t('roleLabel')}><select className="wp-input" value={form.role} onChange={(e) => set('role', e.target.value)}>{roleOptions.map((r) => <option key={r} value={r}>{t(roleInfo(r).label)}</option>)}</select></Field>
@@ -159,7 +167,7 @@ export default function StaffPage() {
 
                     {/* Document upload — up to 5 (not for Aadhaar) */}
                     {form.kycDoc !== 'aadhaar' && <div className="mb-2">
-                        <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>{t('uploadDocuments')} ({form.kycDocs.length}/{MAX_DOCS})</p>
+                        <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>{t('uploadDocuments')} ({form.docsLoaded ? `${form.kycDocs.length}/${MAX_DOCS}` : t('loading')})</p>
                         <div className="flex flex-wrap gap-2">
                             {form.kycDocs.map((d: string, i: number) => (
                                 <div key={i} className="relative h-14 w-14 rounded-lg overflow-hidden" style={{ border: '1px solid var(--card-border)' }}>

@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare, Inbox, KeyRound, Lock, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare, Inbox, KeyRound, Lock, Megaphone, ShieldAlert } from 'lucide-react';
 import { Logo } from '@/components/Logo';
+import { TwoStepDialog, useTwoStep } from '@/components/TwoStep';
 import { useAuth } from '@/stores/auth.store';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -52,6 +53,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     const [mounted, setMounted] = useState(false); // the theme icon is only right after mount
     useEffect(() => setMounted(true), []);
     useEffect(() => { setMobileOpen(false); setMenu(false); }, [pathname]);
+    // Two-step sign-in: its window, and a reminder while it is off ("Later" hides it until the browser is closed).
+    const { data: twoStep } = useTwoStep();
+    const [twoStepOpen, setTwoStepOpen] = useState(false);
+    const [later, setLater] = useState(true);
+    useEffect(() => { try { setLater(sessionStorage.getItem('whoply_admin_two_step_later') === '1'); } catch { setLater(false); } }, []);
+    const remindLater = () => { setLater(true); try { sessionStorage.setItem('whoply_admin_two_step_later', '1'); } catch { /* private window: hidden until reload */ } };
 
     // What this admin login may do — links it can't use are hidden (the API refuses them anyway).
     const { data: access } = useQuery({ queryKey: ['admin-access'], queryFn: async () => (await api.get('/admin/access')).data.data, staleTime: 60_000 });
@@ -167,6 +174,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                                             <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{user?.name}</p>
                                             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{user?.mobile} · {roleLabel}</p>
                                         </div>
+                                        <button onClick={() => { setMenu(false); setTwoStepOpen(true); }} className="adm-nav flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                                            <ShieldCheck size={16} /> <span className="flex-1 text-left">Two-step sign-in</span>
+                                            {twoStep && <span className="wp-chip" style={twoStep.on ? { background: 'var(--success-tint)', color: 'var(--success)' } : { background: 'var(--warning-tint)', color: 'var(--warning)' }}>{twoStep.on ? 'On' : 'Off'}</span>}
+                                        </button>
                                         <button onClick={doLogout} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium" style={{ color: 'var(--danger)' }}><LogOut size={16} /> Sign out</button>
                                     </div>
                                 </>
@@ -175,6 +186,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     </div>
                 </header>
                 <main className="flex-1 p-4 sm:p-6 max-w-[1320px] w-full mx-auto">
+                    {twoStep && !twoStep.on && !later && (
+                        <div className="rounded-2xl p-3.5 mb-4 flex flex-wrap items-center gap-3" style={{ background: 'var(--warning-tint)', border: '1px solid var(--card-border)' }}>
+                            <ShieldAlert size={20} className="shrink-0" style={{ color: 'var(--warning)' }} />
+                            <div className="flex-1 min-w-[220px]">
+                                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Only a password protects your admin login</p>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Turn on two-step sign-in, so that signing in also needs a code from your phone. It takes two minutes.</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button className="wp-btn wp-btn-primary text-sm !py-2" onClick={() => setTwoStepOpen(true)}>Turn on</button>
+                                <button className="wp-btn wp-btn-ghost text-sm !py-2" onClick={remindLater}>Later</button>
+                            </div>
+                        </div>
+                    )}
                     {has(page.perm) ? children : (
                         <div className="wp-card p-10 text-center max-w-md mx-auto mt-10">
                             <div className="h-12 w-12 grid place-items-center rounded-full mx-auto mb-3" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}><Lock size={20} /></div>
@@ -184,6 +208,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     )}
                 </main>
             </div>
+            <TwoStepDialog open={twoStepOpen} onClose={() => setTwoStepOpen(false)} />
         </div>
     );
 }

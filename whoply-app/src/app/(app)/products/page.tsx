@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Plus, Pencil, Trash2, FolderPlus, Boxes, ChevronDown } from 'lucide-react';
+import { AlertTriangle, Plus, Pencil, Trash2, FolderPlus, Boxes, ChevronDown, Upload } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { inr2 } from '@/lib/cn';
 import { useAuth } from '@/stores/auth.store';
@@ -12,6 +12,7 @@ import { CatIcon, catEmoji } from '@/lib/icons';
 import { SearchInput } from '@/components/SearchInput';
 import { ScanButton } from '@/components/BarcodeScanner';
 import { StockSheet } from '@/components/StockSheet';
+import { ProductImport } from '@/components/ProductImport';
 import { useT } from '@/i18n';
 
 // New products: shop prices are MRP (GST included), wholesale prices have GST added on top.
@@ -42,6 +43,7 @@ export default function ProductsPage() {
     const [catPicker, setCatPicker] = useState(false);
 
     const [del, setDel] = useState<any>(null);
+    const [importOpen, setImportOpen] = useState(false);
 
     const { data: cats } = useQuery({ queryKey: ['categories', base], queryFn: async () => (await api.get(`${base}/categories`)).data.data });
     // The API returns at most 100 per page — page through instead of silently stopping there.
@@ -100,7 +102,8 @@ export default function ProductsPage() {
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{isWholesale ? t('warehouseStock') : t('productsInventory')}</h1>
-                {manage && <div className="flex gap-2">
+                {manage && <div className="flex gap-2 flex-wrap">
+                    <button className="wp-btn wp-btn-ghost text-sm" onClick={() => setImportOpen(true)}><Upload size={15} /> {t('importItems')}</button>
                     <button className="wp-btn wp-btn-ghost text-sm" onClick={() => { setEditingCat(null); setCatName(''); setCatModal(true); }}><FolderPlus size={15} /> {t('category')}</button>
                     <button className="wp-btn wp-btn-primary text-sm" onClick={openNew}><Plus size={16} /> {t('addProduct')}</button>
                 </div>}
@@ -229,6 +232,9 @@ export default function ProductsPage() {
                     ))}
                 </div>
             </Modal>
+
+            <ProductImport open={importOpen} onClose={() => setImportOpen(false)} base={base}
+                onDone={() => { qc.invalidateQueries({ queryKey: ['products-page'] }); qc.invalidateQueries({ queryKey: ['categories'] }); }} />
 
             <ConfirmDialog open={!!del} onClose={() => setDel(null)} onConfirm={() => doDelete.mutate()} loading={doDelete.isPending} title={t('deleteProductTitle')} message={`Remove “${del?.name}” from your catalog?`} />
         </div>

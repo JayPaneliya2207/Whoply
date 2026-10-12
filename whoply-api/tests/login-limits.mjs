@@ -1,7 +1,9 @@
 /**
  * Sign-in guessing limits (utils/loginGuard.ts): 5 wrong tries lock an account
  * for 15 minutes, a good sign-in resets the count, OTP resend waits 30 s, and
- * 30 failed sign-ins from one address pause that address.
+ * 30 failed sign-ins from one address pause that address. When the visitor's
+ * address is known, the 5-tries lock is for that address only — a stranger
+ * can not keep an owner locked out — and the account locks for everyone at 50.
  *
  * The per-address check needs the API started with TRUST_PROXY=1 (so the
  * X-Forwarded-For address counts); without it that part is skipped.
@@ -88,12 +90,37 @@ const tokenOf = async (mobile, password = 'whoply123') => d(await pwLogin(mobile
     let last;
     for (let i = 0; i < 30; i++) last = await pwLogin(`95555${String(10000 + i)}`, 'whatever', from);
     r = await pwLogin('9000000001', 'whoply123', from);
+    const proxied = r.status !== 200; // the API believes X-Forwarded-For (TRUST_PROXY=1)
     if (r.status === 200) {
         check('address limit (skipped: start the API with TRUST_PROXY=1 to test it)', true);
     } else {
         check('30 failed sign-ins from one address → that address waits', last.status === 404 && r.status === 429 && /this network/i.test(msg(r)), `${last.status} → ${r.status} ${msg(r)}`);
         r = await pwLogin('9000000001', 'whoply123', { 'X-Forwarded-For': '198.51.100.7' });
         check('another address still signs in', r.status === 200, `${r.status} ${msg(r)}`);
+    }
+
+    suite('a stranger can not lock a real person out');
+    if (!proxied) {
+        check('skipped: start the API with TRUST_PROXY=1 to test it', true);
+    } else {
+        await hire('9844400006', 'Lock Test Six');
+        const stranger = { 'X-Forwarded-For': '203.0.113.66' };
+        const person = { 'X-Forwarded-For': '203.0.113.77' };
+        for (let i = 0; i < 5; i++) r = await pwLogin('9844400006', 'wrong-pass', stranger);
+        check('5 wrong tries from one address lock that address', r.status === 429 && /locked/i.test(msg(r)), `${r.status} ${msg(r)}`);
+        r = await pwLogin('9844400006', 'Staff@123', stranger);
+        check('…even the right password is refused from there', r.status === 429 && /try again in \d+ minute/i.test(msg(r)), `${r.status} ${msg(r)}`);
+        r = await pwLogin('9844400006', 'Staff@123', person);
+        check('the real person, on their own network, still signs in', r.status === 200 && d(r)?.token, `${r.status} ${msg(r)}`);
+        r = await pwLogin('9844400006', 'Staff@123', stranger);
+        check('…and the stranger’s address stays locked', r.status === 429, `${r.status} ${msg(r)}`);
+        r = await pwLogin('9844400006', 'wrong-pass', person);
+        check('the real person’s own count is separate (4 tries left)', r.status === 400 && /4 tries left/.test(msg(r)), `${r.status} ${msg(r)}`);
+
+        await hire('9844400007', 'Lock Test Seven');
+        for (let a = 1; a <= 10; a++) for (let i = 0; i < 5; i++) r = await pwLogin('9844400007', 'wrong-pass', { 'X-Forwarded-For': `203.0.114.${a}` });
+        r = await pwLogin('9844400007', 'Staff@123', { 'X-Forwarded-For': '203.0.115.1' });
+        check('50 wrong tries from many addresses lock the login for everyone', r.status === 429 && /locked/i.test(msg(r)), `${r.status} ${msg(r)}`);
     }
 
     const fails = results.filter((x) => !x.pass);

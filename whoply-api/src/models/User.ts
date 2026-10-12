@@ -25,6 +25,15 @@ export interface IUser {
     otpSentAt?: Date;
     otpSends?: number;
     otpWindowAt?: Date;
+    // two-step sign-in, admin logins only (services/twoStep.service.ts)
+    twoFactor?: {
+        on?: boolean;
+        secret?: string; // sealed (utils/totp.ts)
+        pending?: string; // a setup that was started and not confirmed yet, sealed
+        lastStep?: number; // the time step of the last code used — a code works once
+        recovery?: string[]; // hashes of the one-time recovery codes not used yet
+        since?: Date;
+    };
     avatar?: string;
     isActive: boolean;
     lastLogin?: Date;
@@ -69,6 +78,14 @@ const userSchema = new Schema<IUserDocument>(
         otpSentAt: { type: Date, select: false },
         otpSends: { type: Number, select: false },
         otpWindowAt: { type: Date, select: false },
+        twoFactor: {
+            on: Boolean,
+            secret: { type: String, select: false },
+            pending: { type: String, select: false },
+            lastStep: { type: Number, select: false },
+            recovery: { type: [String], select: false, default: undefined },
+            since: Date,
+        },
         avatar: String,
         isActive: { type: Boolean, default: true, index: true },
         lastLogin: Date,

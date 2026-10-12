@@ -18,8 +18,8 @@ import Session from '../../models/Session.js';
 import AdminAudit from '../../models/AdminAudit.js';
 import type { AuthRequest } from '../../interfaces/index.js';
 
-const FIELDS = 'name mobile countryCode role adminRole isActive lastLogin createdAt';
-const shape = (u: any) => ({ _id: u._id, name: u.name, mobile: u.mobile, adminRole: adminRoleOf(u), isActive: u.isActive, lastLogin: u.lastLogin, createdAt: u.createdAt });
+const FIELDS = 'name mobile countryCode role adminRole isActive lastLogin createdAt twoFactor.on';
+const shape = (u: any) => ({ _id: u._id, name: u.name, mobile: u.mobile, adminRole: adminRoleOf(u), isActive: u.isActive, twoStep: !!u.twoFactor?.on, lastLogin: u.lastLogin, createdAt: u.createdAt });
 /** An active super admin (a login made before roles existed has no adminRole and counts as one). */
 const SUPER: Record<string, any> = { role: 'admin', isActive: true, $or: [{ adminRole: 'super' }, { adminRole: { $exists: false } }, { adminRole: null }] };
 
@@ -110,6 +110,17 @@ export const deleteAdmin = asyncHandler(async (req: AuthRequest, res: Response) 
     }
     await Promise.all([User.deleteOne({ _id: admin._id }), Session.deleteMany({ userId: admin._id })]);
     sendSuccess(res, { ok: true }, 'Admin login deleted');
+});
+
+/** DELETE /admin/admins/:id/two-step — switch off another admin's two-step sign-in (their phone is lost). They are signed out and use the password alone until they turn it on again. */
+export const resetAdminTwoStep = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const admin = await User.findOne({ _id: req.params.id, role: 'admin' }).select(FIELDS);
+    if (!admin) throw AppError.notFound('Admin login not found');
+    if (String(admin._id) === String(req.user!._id)) throw AppError.badRequest('Turn off your own two-step sign-in from the account menu — it asks for your password and a code');
+    if (!admin.twoFactor?.on) throw AppError.badRequest('Two-step sign-in is not on for this admin');
+    await User.updateOne({ _id: admin._id }, { $unset: { twoFactor: 1 } });
+    await endSessions(admin._id);
+    sendSuccess(res, { ...shape(admin), twoStep: false }, 'Two-step sign-in is off for this admin');
 });
 
 /** GET /admin/audit?page=&limit= — what admins changed, newest first. */
