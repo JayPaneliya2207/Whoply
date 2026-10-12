@@ -188,6 +188,22 @@ const W = '/wholesaler';
         r = await api('POST', '/staff', st, body);
         check(`${name} is refused`, r.status === 400, `${r.status} ${msg(r)}`);
     }
+    // ID photos: kept on file, but not sent with every staff list
+    const PHOTO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const withId = d(await api('POST', '/staff', st, { name: 'R2 With Id', mobile: '9833399005', role: 'cashier', kyc: { docType: 'pan', docNumber: 'abcde1234f', documents: [PHOTO, PHOTO] } }));
+    r = await api('GET', '/staff', st);
+    const idRow = (d(r)?.staff || []).find((x) => String(x._id) === String(withId?._id));
+    check('the staff list says how many ID photos there are, without carrying them', idRow?.kyc?.documentCount === 2 && idRow.kyc.documents === undefined && idRow.kyc.docNumber === 'ABCDE1234F' && !JSON.stringify(d(r)).includes('data:image'), JSON.stringify(idRow?.kyc));
+    r = await api('GET', `/staff/${withId?._id}/detail`, st);
+    check('opening one person gives the photos', d(r)?.staff?.kyc?.documents?.length === 2, `${r.status} ${d(r)?.staff?.kyc?.documents?.length}`);
+    r = await api('PATCH', `/staff/${withId?._id}`, st, { salary: 9500, kyc: { docType: 'pan', docNumber: 'abcde1234f', verified: true } });
+    check('an edit that does not send the photos keeps them', r.status === 200 && d(r)?.kyc?.verified === true && d(await api('GET', `/staff/${withId?._id}/detail`, st))?.staff?.kyc?.documents?.length === 2, `${r.status} ${msg(r)}`);
+    r = await api('PATCH', `/staff/${withId?._id}`, st, { kyc: { docType: 'pan', docNumber: 'abcde1234f', verified: true, documents: [PHOTO] } });
+    check('an edit that sends photos replaces them', r.status === 200 && d(await api('GET', `/staff/${withId?._id}/detail`, st))?.staff?.kyc?.documents?.length === 1, `${r.status} ${msg(r)}`);
+    r = await api('PATCH', `/staff/${withId?._id}`, st, { kyc: { docType: 'aadhaar', docNumber: '1234 5678 9012' } });
+    const aad = d(await api('GET', `/staff/${withId?._id}/detail`, st))?.staff?.kyc;
+    check('switching the ID to Aadhaar drops the photos and keeps only the last 4 digits', r.status === 200 && aad?.documents?.length === 0 && aad?.docNumber === 'XXXX XXXX 9012', JSON.stringify({ n: aad?.documents?.length, no: aad?.docNumber }));
+
     const phone1 = await login('9833399001', 'Again@123');
     const phone2 = await login('9833399001', 'Again@123');
     r = await api('POST', '/auth/change-password', phone1, { currentPassword: 'Again@123', newPassword: 'Newer@123' });

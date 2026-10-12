@@ -11,13 +11,24 @@ import { can, staffRolesFor } from '../../utils/permissions.js';
 import { Types } from 'mongoose';
 import { staffFields, findRehire, endSessions } from '../../utils/staff.js';
 
-/** GET /staff — all staff of the business + monthly salary total */
+/**
+ * GET /staff — all staff of the business + monthly salary total. ID photos are
+ * NOT in the list (each can be 1-2 MB, five per person: a big team made every
+ * open of this screen tens of megabytes); it says how many there are in
+ * `kyc.documentCount`, and GET /staff/:id/detail has the photos themselves.
+ */
 export const listStaff = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const staff = await User.find({ businessId, role: { $in: STAFF_ROLES }, isActive: true })
-        .select('name mobile countryCode role salary kyc createdAt')
-        .sort({ createdAt: -1 })
-        .lean();
+    const staff = await User.aggregate([
+        { $match: { businessId: new Types.ObjectId(String(businessId)), role: { $in: [...STAFF_ROLES] }, isActive: true } },
+        { $sort: { createdAt: -1 } },
+        {
+            $project: {
+                name: 1, mobile: 1, countryCode: 1, role: 1, salary: 1, createdAt: 1,
+                kyc: { docType: '$kyc.docType', docNumber: '$kyc.docNumber', verified: '$kyc.verified', documentCount: { $size: { $ifNull: ['$kyc.documents', []] } } },
+            },
+        },
+    ]);
     const monthlySalary = staff.reduce((s, u) => s + (u.salary || 0), 0);
     const byRole = STAFF_ROLES.map((r) => ({ role: r, count: staff.filter((s) => s.role === r).length })).filter((x) => x.count > 0);
     sendSuccess(res, { staff, monthlySalary, count: staff.length, byRole });
@@ -57,7 +68,15 @@ export const createStaff = asyncHandler(async (req: AuthRequest, res: Response) 
 export const updateStaff = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const patch: any = staffFields(req.body, false);
-    if (req.body.kyc !== undefined) patch.kyc = sanitizeKyc(req.body.kyc);
+    if (req.body.kyc !== undefined) {
+        patch.kyc = sanitizeKyc(req.body.kyc);
+        // An edit that does not send the photos (the list no longer carries them) keeps the ones on
+        // file. Aadhaar is the exception: no copy of it is ever kept (utils/kyc.ts).
+        if (req.body.kyc?.documents === undefined && patch.kyc.docType !== 'aadhaar') {
+            const current = await User.findOne({ _id: req.params.id, businessId }).select('kyc.documents').lean();
+            patch.kyc.documents = current?.kyc?.documents || [];
+        }
+    }
     if (req.body.role !== undefined) {
         if (!staffRolesFor(req.user?.businessType).includes(req.body.role)) throw AppError.badRequest('Invalid staff role');
         patch.role = req.body.role;
@@ -66,7 +85,7 @@ export const updateStaff = asyncHandler(async (req: AuthRequest, res: Response) 
         { _id: req.params.id, businessId, role: { $in: STAFF_ROLES }, isActive: true },
         patch,
         { new: true, runValidators: true }
-    ).select('name mobile role salary kyc');
+    ).select('name mobile role salary kyc.docType kyc.docNumber kyc.verified');
     if (!staff) throw AppError.notFound('Staff not found');
     sendSuccess(res, staff, 'Staff updated');
 });
