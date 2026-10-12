@@ -517,7 +517,9 @@ export function printOrder(o: any, biz?: Biz, template: Template = getTemplate()
 }
 
 export function downloadFile(filename: string, content: string, mime = 'text/csv;charset=utf-8') {
-    const blob = new Blob([content], { type: mime });
+    // A CSV starts with the UTF-8 mark: without it Excel shows Gujarati and Hindi names as garbage.
+    const text = mime.startsWith('text/csv') && !content.startsWith('﻿') ? '﻿' + content : content;
+    const blob = new Blob([text], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
