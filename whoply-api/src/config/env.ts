@@ -26,6 +26,20 @@ const envSchema = z.object({
     // sign-in routes have their own, lower limits on top (server.ts).
     RATE_LIMIT_PER_MIN: z.coerce.number().int().min(0).default(1500),
 
+    // Who may sign in. Self sign-up (POST /auth/register) is closed unless this is "true":
+    // a platform admin creates each business. OTP sign-in needs an SMS provider to carry the
+    // code to the phone — none is wired yet — so in production it is off unless this is "on"
+    // (owners and staff sign in with the password set for them).
+    ALLOW_SIGNUP: z.enum(['true', 'false']).default('false'),
+    OTP_LOGIN: z.enum(['on', 'off']).optional(),
+
+    // Phone notifications (Web Push). `npm run push:keys` prints a key pair; without it
+    // phone notifications are simply off. VAPID_SUBJECT is a contact for the push service:
+    // "mailto:you@your-domain.com". Never change the keys once devices have signed up.
+    VAPID_PUBLIC_KEY: z.string().optional(),
+    VAPID_PRIVATE_KEY: z.string().optional(),
+    VAPID_SUBJECT: z.string().optional(),
+
     // Database: connections kept open to MongoDB, and the longest one query may run.
     DB_POOL_SIZE: z.coerce.number().int().min(1).max(500).default(20),
     DB_QUERY_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),

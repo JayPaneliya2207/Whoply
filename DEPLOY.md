@@ -103,6 +103,20 @@ live server, because they delete everything.
 Then open `https://admin.yourdomain.com`, sign in, and add the first shop with **Add business**.
 Give the owner a password there: OTP sign-in needs an SMS provider, which isn't connected yet.
 
+## Step 8 — Phone notifications (optional, once)
+
+Reminders and alerts can reach a phone even when Whoply is closed. The server needs one key pair:
+
+```bash
+docker compose run --rm api npm run push:keys:prod
+```
+
+Copy the three lines it prints into `deploy/.env` (put your real support email in `VAPID_SUBJECT`),
+then run `./deploy.sh` again. Each person turns it on for their own device in the app:
+**Notifications → Turn on**. On an iPhone the app must first be installed ("Add to Home Screen").
+
+Make the keys **once**. If they change, every device has to turn notifications on again.
+
 ## Updating to a new version
 
 ```bash
@@ -128,9 +142,25 @@ docker compose run --rm api node dist/seeds/restore.js whoply-2026-10-01_0215 --
 
 - [ ] Company details in `whoply-front/src/lib/legal.ts` (the Privacy and Terms pages show "Draft" until then), and a lawyer's review.
 - [ ] Try the app on a phone: sign in, make a bill, print, and install it ("Add to Home screen").
-- [ ] An SMS provider for OTP sign-in and self sign-up. Until then, owners sign in with the password you set.
+- [ ] An SMS provider for OTP sign-in. Until then, owners sign in with the password you set. (Self sign-up is closed on purpose: you add each business in the admin panel.)
 - [ ] Copy one backup off the server and check that it restores (for example into a test database with `--into`).
 - [ ] Go through the checklist in `SECURITY.md` (secrets, admin logins, database access, uptime monitor).
+
+### Five checks on the live server itself
+
+These can not be seen from the code — do them once, from any computer:
+
+1. **It runs as production.** Open `https://api.yourdomain.com/api/health`: it must say
+   `"environment":"production"`. (If it does not, the API also prints a warning when it starts.)
+2. **No demo logins.** The demo numbers (9000000001, 9000000010, 9000000099 …) must not exist on
+   the live database. In the admin panel, **Users** and **Access control** should list only real
+   people. The demo password is refused on a live server either way.
+3. **Nobody can sign up alone.** `curl -X POST https://api.yourdomain.com/api/auth/register -H "Content-Type: application/json" -d "{}"`
+   must answer "Sign-up is closed".
+4. **Only the web ports are open.** From outside, ports 7000, 3000 and 27017 must not answer;
+   in Atlas, **Network Access** lists only the server's IP address.
+5. **The secrets were made on the server.** `JWT_SECRET` is not the one from your own PC, and
+   `deploy/.env` is readable only by you (`chmod 600 deploy/.env`).
 
 ## If something goes wrong
 

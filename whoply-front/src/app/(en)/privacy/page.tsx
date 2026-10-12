@@ -45,6 +45,8 @@ const sections: LegalSection[] = [
                 <li><b>Business records:</b> products, prices and stock; bills, quotations, returns and credit notes; customers with their mobile, GSTIN and udhar balance; dealers, orders, dispatch and payments; suppliers and purchase orders; expenses.</li>
                 <li><b>Sign-in and security:</b> for each login, the device name and type, browser, operating system, IP address and login / last-activity times — so we can keep your account secure and spot misuse.</li>
                 <li><b>Messages to support:</b> what you send us when you contact us.</li>
+                <li><b>Requests from this website:</b> when you ask for an account, pick a plan or send a question, your name, mobile number, business name and type, city, the plan you picked and your message. We also note the network address the request came from, only to stop spam.</li>
+                <li><b>Phone notifications, if you turn them on:</b> the address your browser gives us for that device, so your alerts can be sent to it.</li>
             </ul>
         ),
     },
@@ -53,8 +55,10 @@ const sections: LegalSection[] = [
         title: 'How we use it',
         body: (
             <ul>
-                <li>To run the service: log you in (including sending a one-time password by SMS), calculate GST, keep stock and udhar, and produce bills, reports and GST filing data.</li>
-                <li>To show you reminders inside the app, such as the daily summary, the morning udhar list and weekly supplier payables.</li>
+                <li>To run the service: log you in (with your password, or a one-time password by SMS where that is switched on), calculate GST, keep stock and udhar, and produce bills, reports and GST filing data.</li>
+                <li>To set up your account when you ask for one, and to call or message you about that request.</li>
+                <li>To show you reminders inside the app, such as the daily summary, the morning udhar list and weekly supplier payables — and, if you turn phone notifications on, to send the same reminders to that device.</li>
+                <li>To tell you about Whoply itself — a new feature, a notice or an offer — in a message inside the app that you can close.</li>
                 <li>To keep accounts secure and investigate misuse.</li>
                 <li>To give support when you ask for it.</li>
                 <li>To meet legal obligations.</li>
@@ -80,7 +84,8 @@ const sections: LegalSection[] = [
             <>
                 <p>Only with:</p>
                 <ul>
-                    <li><b>Service providers</b> who run parts of Whoply for us — hosting and database, and the SMS provider that delivers login codes — under contracts that limit them to that purpose.</li>
+                    <li><b>Service providers</b> who run parts of Whoply for us — hosting and database, and, where sign-in codes by SMS are switched on, the SMS provider that delivers them — under contracts that limit them to that purpose.</li>
+                    <li><b>Your phone’s notification service</b> (run by Google, Apple, Mozilla or Microsoft, depending on your browser), if you turn phone notifications on. It carries the alert to your device; the content is encrypted so that only your device can read it.</li>
                     <li><b>People you choose</b> — for example the staff you give a login to, or anyone you send a bill or a report to.</li>
                     <li><b>Authorities</b> when the law requires it, such as a valid order from a court or a government agency.</li>
                     <li>A buyer or successor if Whoply’s business is transferred, who must keep to this policy.</li>
@@ -107,6 +112,7 @@ const sections: LegalSection[] = [
         body: (
             <>
                 <p>We keep your data while your account is open. You can export your bills, orders and reports at any time, on any plan.</p>
+                <p>A request you send from this website (for an account, a plan or a question) is kept while we deal with it. Ask us and we will delete it.</p>
                 <p>
                     If you close your account we delete or anonymise your data within 90 days, except what we must keep by law. Note that GST law
                     requires <i>you</i> to keep your invoices and accounts for 72 months — export them before you close.
@@ -160,8 +166,9 @@ const sections: LegalSection[] = [
             <>
                 <p>This website does not use cookies, analytics or ad trackers. Its fonts are served from our own site.</p>
                 <p>
-                    The app stores a few things in your browser so it works: your login, your language, an unfinished bill, and your chosen
-                    invoice design. Nothing is used to track you across other sites.
+                    The app stores a few things in your browser so it works: your login, your language, an unfinished bill, your chosen
+                    invoice design, and — if you turn them on — the registration for phone notifications on that device. Nothing is used to
+                    track you across other sites. You can turn phone notifications off in the app (Notifications) or in your phone’s settings.
                 </p>
             </>
         ),

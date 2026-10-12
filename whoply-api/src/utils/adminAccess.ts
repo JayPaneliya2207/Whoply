@@ -23,6 +23,7 @@ export const ADMIN_PERMS = [
     'support.chat',
     'inquiries.view',
     'inquiries.manage',
+    'announcements.manage', // popups shown inside the app: offers, news, notices
     'admins.manage', // admin logins, roles and the activity log
 ] as const;
 export type AdminPerm = (typeof ADMIN_PERMS)[number];

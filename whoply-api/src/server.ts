@@ -8,7 +8,8 @@ import { connectDB } from './config/database.js';
 import { env } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { initializeCronJobs } from './cron/index.js';
-import { jsonBody, rejectOperators, rateLimit } from './middleware/security.middleware.js';
+import { jsonBody, ensureBody, rejectOperators, rateLimit } from './middleware/security.middleware.js';
+import { isLocalDb } from './utils/devMode.js';
 
 export const app: Express = express();
 
@@ -40,6 +41,7 @@ app.use('/api/public', rateLimit({ max: Math.min(120, env.RATE_LIMIT_PER_MIN) })
 app.use('/api/auth', rateLimit({ max: Math.min(100, env.RATE_LIMIT_PER_MIN) })); // on top of the sign-in guesses guard (utils/loginGuard.ts)
 app.use(jsonBody);
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
+app.use(ensureBody);
 app.use(rejectOperators);
 
 // Routes
@@ -51,6 +53,8 @@ import adminRoutes from './routes/admin/index.js';
 import staffRoutes from './routes/staff.routes.js';
 import subscriptionRoutes from './routes/subscription.routes.js';
 import supportRoutes from './routes/support.routes.js';
+import announcementRoutes from './routes/announcement.routes.js';
+import pushRoutes from './routes/push.routes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
@@ -60,6 +64,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/push', pushRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -84,6 +90,7 @@ const startServer = async (): Promise<void> => {
     try {
         await connectDB();
         initializeCronJobs();
+        if (env.NODE_ENV !== 'production' && !isLocalDb(env.MONGODB_URI)) console.warn('[security] NODE_ENV is not "production" but the database is not on this machine. If this is the live server, set NODE_ENV=production. (Test OTP and demo logins stay off either way.)');
         if (env.NODE_ENV === 'production' && !env.TRUST_PROXY) console.warn('[security] TRUST_PROXY is not set: behind a proxy every visitor shares one address for the request limits. Set TRUST_PROXY=1.');
         server = app.listen(env.PORT, () => {
             console.log(`

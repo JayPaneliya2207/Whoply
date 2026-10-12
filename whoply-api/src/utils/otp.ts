@@ -1,15 +1,15 @@
 import { randomInt, timingSafeEqual } from 'node:crypto';
+import { isDevMode } from './devMode.js';
 
 /**
  * Generate a 6-digit OTP.
- * Production → a real random code (dispatch it via your SMS provider).
- * Dev/test  → fixed 123456 so manual testing is friction-free.
+ * Dev/test (utils/devMode.ts) → fixed 123456 so manual testing is friction-free.
+ * Everywhere else → a real random code (dispatch it via your SMS provider). A
+ * live server with a wrong NODE_ENV still gets the random code.
  */
 export const generateOtp = (): string => {
-    if (process.env.NODE_ENV === 'production') {
-        return String(randomInt(100000, 1000000)); // crypto-strength, not Math.random
-    }
-    return '123456';
+    if (isDevMode()) return '123456';
+    return String(randomInt(100000, 1000000)); // crypto-strength, not Math.random
 };
 
 /** Compare a typed OTP with the stored one without leaking how much matched. */

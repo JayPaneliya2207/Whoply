@@ -255,6 +255,12 @@ export interface LandingCopy {
             successTitle: string; success: string; again: string; error: string; privacy: string;
         };
     };
+    /** The "Start with Whoply" popup behind every Start free and plan button. */
+    lead: {
+        title: string; sub: string; points: string[];
+        businessName: string; planLabel: string; notSure: string; billing: string;
+        messageOpt: string; messagePh: string; send: string; successTitle: string; success: string; close: string;
+    };
     footer: {
         tagline: string;
         columns: { head: string; links: [string, string][] }[];
@@ -475,7 +481,7 @@ const en: LandingCopy = {
             'Returns handled properly — credit notes, damage and wastage against profit.',
             'Suppliers and purchases — POs, goods receipt, and what you still owe.',
         ],
-        cta: 'Start free — set up in 30 seconds',
+        cta: 'Start free — we set it up with you',
         stats: [
             ['Bill time', '< 10 sec'],
             ['Low-stock alerts', 'Before it runs out'],
@@ -537,7 +543,7 @@ const en: LandingCopy = {
             'Your team on one app — each rep gets their own login to take orders and record collections.',
             'Warehouse that matches reality — stock in, stock out, and what’s on the shelf.',
         ],
-        cta: 'Start free — set up in 30 seconds',
+        cta: 'Start free — we set it up with you',
         timelineLabel: 'Dispatch timeline',
         timeline: [
             ['Order placed', 'Gupta Distributors · ₹84,200'],
@@ -682,18 +688,18 @@ const en: LandingCopy = {
         sub: 'Everything you used to flip through registers for — in one place, every morning.',
         hint: 'Tap a dot, or pick from the list',
         items: [
-            { title: 'Today’s sales, as they happen', cap: 'Every bill lands here the moment it’s made, with the week’s trend beside it.' },
+            { title: 'Today’s sales, as they happen', cap: 'Every bill lands here the moment it’s made, with today’s profit right under it.' },
             { title: 'What’s actually selling', cap: 'Your best sellers by quantity and value — stock more of what moves.' },
-            { title: 'Every order, and where it is', cap: 'Delivered, processing or pending — no phone calls to find out.' },
-            { title: 'Low stock, before it runs out', cap: 'Items about to finish are flagged with exactly how many are left.' },
-            { title: 'Where the money went', cap: 'Rent, purchases and bills sorted, so the profit you see is real.' },
+            { title: 'Udhar still to collect', cap: 'What your customers owe in total, and how many of them — tap it to see who.' },
+            { title: 'Low stock, before it runs out', cap: 'How many items need reordering — tap it to see what’s left of each.' },
+            { title: 'What you’re owed, what you owe', cap: 'Customers’ udhar against your supplier dues — one number tells you where you stand.' },
         ],
     },
     how: {
         eyebrow: 'Getting started',
         title: 'Running by this evening',
         steps: [
-            ['Sign up with your mobile', 'An OTP, thirty seconds, no paperwork, no card.'],
+            ['Tell us about your shop', 'A short form — no paperwork, no card. We create your account and call you.'],
             ['Add your products', 'Type them in on your phone, or scan their barcodes.'],
             ['Start billing', 'Proper GST invoices from your very first sale.'],
         ],
@@ -770,7 +776,7 @@ const en: LandingCopy = {
         title: 'Stop running your shop on paper.',
         sub: 'Free to start. No card, no computer, no training.',
         button: 'Start free today',
-        foot: 'Set up in 30 seconds · Cancel any time',
+        foot: 'We set it up with you · Cancel any time',
     },
     contact: {
         whatsapp: 'Chat on WhatsApp',
@@ -789,6 +795,21 @@ const en: LandingCopy = {
             successTitle: 'Thank you!', success: 'We got your message and will contact you soon.', again: 'Send another message',
             error: 'Could not send. Please check your connection and try again.', privacy: 'We use your number only to reply to you.',
         },
+    },
+    lead: {
+        title: 'Start with Whoply',
+        sub: 'Tell us about your business. We create your account, call you, and help you add your first items.',
+        points: ['No card and no payment now', 'We set up your shop with you', 'We reply in English, Hindi or Gujarati'],
+        businessName: 'Business name',
+        planLabel: 'Plan',
+        notSure: 'Not sure yet — help me choose',
+        billing: 'Payment',
+        messageOpt: 'Anything else?',
+        messagePh: 'e.g. I have 2 counters and about 3,000 items',
+        send: 'Send request',
+        successTitle: 'Request sent!',
+        success: 'Thank you. Our team will call or WhatsApp you soon to set up your account.',
+        close: 'Close',
     },
     footer: {
         tagline: 'Billing, stock, udhar and orders — for Bharat’s shops and wholesalers.',
@@ -1036,7 +1057,7 @@ const hi: LandingCopy = {
             'रिटर्न का सही हिसाब — क्रेडिट नोट, टूट-फूट और बर्बादी सीधे मुनाफ़े के सामने।',
             'सप्लायर और खरीद — PO, माल की रसीद, और आप पर कितना बाकी है।',
         ],
-        cta: 'मुफ़्त शुरू करें — 30 सेकंड में सेटअप',
+        cta: 'मुफ़्त शुरू करें — सेटअप हम साथ में करते हैं',
         stats: [
             ['बिल का समय', '10 सेकंड से कम'],
             ['कम स्टॉक अलर्ट', 'खत्म होने से पहले'],
@@ -1098,7 +1119,7 @@ const hi: LandingCopy = {
             'पूरी टीम एक ऐप पर — हर रेप का अपना लॉगिन, ऑर्डर लेने और वसूली दर्ज करने के लिए।',
             'गोदाम जो हकीकत से मेल खाए — माल आया, माल गया, और शेल्फ़ पर क्या है।',
         ],
-        cta: 'मुफ़्त शुरू करें — 30 सेकंड में सेटअप',
+        cta: 'मुफ़्त शुरू करें — सेटअप हम साथ में करते हैं',
         timelineLabel: 'डिस्पैच टाइमलाइन',
         timeline: [
             ['ऑर्डर मिला', 'Gupta Distributors · ₹84,200'],
@@ -1243,18 +1264,18 @@ const hi: LandingCopy = {
         sub: 'जिसके लिए रजिस्टर पलटने पड़ते थे — वो सब एक जगह, हर सुबह।',
         hint: 'किसी बिंदु पर टैप करें, या लिस्ट से चुनें',
         items: [
-            { title: 'आज की बिक्री, उसी वक़्त', cap: 'हर बिल बनते ही यहाँ दिखता है, साथ में पूरे हफ़्ते का ट्रेंड।' },
+            { title: 'आज की बिक्री, उसी वक़्त', cap: 'हर बिल बनते ही यहाँ दिखता है, ठीक नीचे आज का मुनाफ़ा।' },
             { title: 'असल में क्या बिक रहा है', cap: 'मात्रा और कीमत के हिसाब से सबसे ज़्यादा बिकने वाला माल — जो चलता है, वही ज़्यादा रखें।' },
-            { title: 'हर ऑर्डर, और वो कहाँ है', cap: 'डिलीवर, प्रोसेसिंग या पेंडिंग — पता करने के लिए फ़ोन नहीं करना पड़ता।' },
-            { title: 'स्टॉक खत्म होने से पहले', cap: 'जो माल खत्म होने वाला है, वो ठीक कितना बचा है, उसके साथ दिखता है।' },
-            { title: 'पैसा कहाँ गया', cap: 'किराया, खरीद और बिल अलग-अलग — ताकि जो मुनाफ़ा दिखे, वो असली हो।' },
+            { title: 'उधार, जो अभी वसूलना है', cap: 'ग्राहकों पर कुल कितना बकाया है और कितने ग्राहकों पर — टैप करके देखें किस पर।' },
+            { title: 'स्टॉक खत्म होने से पहले', cap: 'कितने आइटम दोबारा मँगाने हैं — टैप करके देखें किसका कितना बचा है।' },
+            { title: 'लेना कितना, देना कितना', cap: 'ग्राहकों का उधार और सप्लायरों का बकाया आमने-सामने — एक आँकड़ा बता देता है आप कहाँ खड़े हैं।' },
         ],
     },
     how: {
         eyebrow: 'शुरुआत',
         title: 'आज शाम तक चालू',
         steps: [
-            ['मोबाइल से साइन अप', 'एक OTP, तीस सेकंड, न कागज़ी काम, न कार्ड।'],
+            ['अपनी दुकान के बारे में बताइए', 'एक छोटा फ़ॉर्म — न कागज़ी काम, न कार्ड। हम आपका अकाउंट बनाकर आपको कॉल करते हैं।'],
             ['अपना माल जोड़ें', 'फ़ोन पर टाइप करें, या बारकोड स्कैन करें।'],
             ['बिलिंग शुरू', 'पहली ही बिक्री से पूरे GST बिल।'],
         ],
@@ -1331,7 +1352,7 @@ const hi: LandingCopy = {
         title: 'अब दुकान कागज़ पर नहीं।',
         sub: 'शुरुआत मुफ़्त। न कार्ड, न कंप्यूटर, न ट्रेनिंग।',
         button: 'आज ही मुफ़्त शुरू करें',
-        foot: '30 सेकंड में सेटअप · कभी भी बंद करें',
+        foot: 'सेटअप हम साथ में करते हैं · कभी भी बंद करें',
     },
     contact: {
         whatsapp: 'WhatsApp पर बात करें',
@@ -1350,6 +1371,21 @@ const hi: LandingCopy = {
             successTitle: 'धन्यवाद!', success: 'आपका संदेश मिल गया। हम जल्द संपर्क करेंगे।', again: 'एक और संदेश भेजें',
             error: 'भेज नहीं पाए। इंटरनेट जाँचें और फिर कोशिश करें।', privacy: 'आपका नंबर सिर्फ़ आपको जवाब देने के लिए इस्तेमाल होगा।',
         },
+    },
+    lead: {
+        title: 'Whoply शुरू करें',
+        sub: 'अपने कारोबार के बारे में बताइए। हम आपका अकाउंट बनाते हैं, आपको कॉल करते हैं और पहला सामान जोड़ने में मदद करते हैं।',
+        points: ['अभी कोई कार्ड या पेमेंट नहीं', 'आपकी दुकान हम आपके साथ सेट करते हैं', 'जवाब हिंदी, गुजराती या English में'],
+        businessName: 'कारोबार का नाम',
+        planLabel: 'प्लान',
+        notSure: 'अभी पक्का नहीं — चुनने में मदद करें',
+        billing: 'भुगतान',
+        messageOpt: 'और कुछ बताना है?',
+        messagePh: 'जैसे: मेरे 2 काउंटर हैं और करीब 3,000 आइटम',
+        send: 'रिक्वेस्ट भेजें',
+        successTitle: 'रिक्वेस्ट मिल गई!',
+        success: 'धन्यवाद। हमारी टीम जल्द ही आपको कॉल या WhatsApp करके आपका अकाउंट सेट करेगी।',
+        close: 'बंद करें',
     },
     footer: {
         tagline: 'बिलिंग, स्टॉक, उधार और ऑर्डर — भारत की दुकानों और थोक विक्रेताओं के लिए।',
@@ -1597,7 +1633,7 @@ const gu: LandingCopy = {
             'રિટર્નનો સાચો હિસાબ — ક્રેડિટ નોટ, તૂટફૂટ અને બગાડ સીધા નફા સામે.',
             'સપ્લાયર અને ખરીદી — PO, માલની પહોંચ, અને તમારે કેટલું ચૂકવવાનું બાકી છે.',
         ],
-        cta: 'મફત શરૂ કરો — 30 સેકન્ડમાં સેટઅપ',
+        cta: 'મફત શરૂ કરો — સેટઅપ અમે સાથે કરીએ છીએ',
         stats: [
             ['બિલનો સમય', '10 સેકન્ડથી ઓછો'],
             ['ઓછા સ્ટોકની ચેતવણી', 'ખલાસ થાય એ પહેલાં'],
@@ -1659,7 +1695,7 @@ const gu: LandingCopy = {
             'આખી ટીમ એક એપ પર — દરેક રેપનું પોતાનું લોગિન, ઓર્ડર લેવા અને વસૂલાત નોંધવા માટે.',
             'ગોદામ જે હકીકત સાથે મળે — માલ આવ્યો, માલ ગયો, અને શેલ્ફ પર શું છે.',
         ],
-        cta: 'મફત શરૂ કરો — 30 સેકન્ડમાં સેટઅપ',
+        cta: 'મફત શરૂ કરો — સેટઅપ અમે સાથે કરીએ છીએ',
         timelineLabel: 'ડિસ્પેચ ટાઇમલાઇન',
         timeline: [
             ['ઓર્ડર મળ્યો', 'Gupta Distributors · ₹84,200'],
@@ -1804,18 +1840,18 @@ const gu: LandingCopy = {
         sub: 'જેના માટે ચોપડા ફેરવવા પડતા — તે બધું એક જગ્યાએ, દરરોજ સવારે.',
         hint: 'કોઈ બિંદુ પર ટેપ કરો, કે યાદીમાંથી પસંદ કરો',
         items: [
-            { title: 'આજનું વેચાણ, એ જ ક્ષણે', cap: 'દરેક બિલ બનતાં જ અહીં દેખાય છે, સાથે આખા અઠવાડિયાનો ટ્રેન્ડ.' },
+            { title: 'આજનું વેચાણ, એ જ ક્ષણે', cap: 'દરેક બિલ બનતાં જ અહીં દેખાય છે, બરાબર નીચે આજનો નફો.' },
             { title: 'ખરેખર શું વેચાય છે', cap: 'જથ્થા અને કિંમત પ્રમાણે સૌથી વધુ વેચાતો માલ — જે ચાલે છે, તે વધુ રાખો.' },
-            { title: 'દરેક ઓર્ડર, અને તે ક્યાં છે', cap: 'ડિલિવર, પ્રોસેસિંગ કે પેન્ડિંગ — જાણવા માટે ફોન નહીં કરવો પડે.' },
-            { title: 'સ્ટોક ખલાસ થાય તે પહેલાં', cap: 'જે માલ ખલાસ થવાનો છે, તે બરાબર કેટલો બચ્યો છે તેની સાથે દેખાય છે.' },
-            { title: 'પૈસા ક્યાં ગયા', cap: 'ભાડું, ખરીદી અને બિલ અલગ-અલગ — જેથી જે નફો દેખાય, તે સાચો હોય.' },
+            { title: 'ઉધાર, જે હજી વસૂલવાનું છે', cap: 'ગ્રાહકો પાસે કુલ કેટલું બાકી છે અને કેટલા ગ્રાહકો પાસે — ટેપ કરીને જુઓ કોની પાસે.' },
+            { title: 'સ્ટોક ખલાસ થાય તે પહેલાં', cap: 'કેટલી આઇટમ ફરી મંગાવવાની છે — ટેપ કરીને જુઓ કોનો કેટલો બચ્યો છે.' },
+            { title: 'લેવાના કેટલા, આપવાના કેટલા', cap: 'ગ્રાહકોનું ઉધાર અને સપ્લાયરનું બાકી સામસામે — એક આંકડો કહી દે છે તમે ક્યાં ઊભા છો.' },
         ],
     },
     how: {
         eyebrow: 'શરૂઆત',
         title: 'આજે સાંજ સુધીમાં ચાલુ',
         steps: [
-            ['મોબાઇલથી સાઇન અપ', 'એક OTP, ત્રીસ સેકન્ડ, ન કાગળિયાં, ન કાર્ડ.'],
+            ['તમારી દુકાન વિશે જણાવો', 'એક નાનું ફોર્મ — ન કાગળિયાં, ન કાર્ડ. અમે તમારું એકાઉન્ટ બનાવીને તમને કૉલ કરીએ છીએ.'],
             ['તમારો માલ ઉમેરો', 'ફોન પર ટાઇપ કરો, કે બારકોડ સ્કેન કરો.'],
             ['બિલિંગ શરૂ', 'પહેલા જ વેચાણથી પૂરાં GST બિલ.'],
         ],
@@ -1892,7 +1928,7 @@ const gu: LandingCopy = {
         title: 'હવે દુકાન કાગળ પર નહીં.',
         sub: 'શરૂઆત મફત. ન કાર્ડ, ન કમ્પ્યુટર, ન તાલીમ.',
         button: 'આજે જ મફત શરૂ કરો',
-        foot: '30 સેકન્ડમાં સેટઅપ · ગમે ત્યારે બંધ કરો',
+        foot: 'સેટઅપ અમે સાથે કરીએ છીએ · ગમે ત્યારે બંધ કરો',
     },
     contact: {
         whatsapp: 'WhatsApp પર વાત કરો',
@@ -1911,6 +1947,21 @@ const gu: LandingCopy = {
             successTitle: 'આભાર!', success: 'તમારો સંદેશ મળી ગયો. અમે જલ્દી સંપર્ક કરીશું.', again: 'બીજો સંદેશ મોકલો',
             error: 'મોકલી શકાયું નહીં. ઇન્ટરનેટ તપાસો અને ફરી પ્રયત્ન કરો.', privacy: 'તમારો નંબર ફક્ત તમને જવાબ આપવા માટે વપરાશે.',
         },
+    },
+    lead: {
+        title: 'Whoply શરૂ કરો',
+        sub: 'તમારા વેપાર વિશે જણાવો. અમે તમારું એકાઉન્ટ બનાવીએ છીએ, તમને કૉલ કરીએ છીએ અને પહેલો માલ ઉમેરવામાં મદદ કરીએ છીએ.',
+        points: ['હમણાં કોઈ કાર્ડ કે પેમેન્ટ નહીં', 'તમારી દુકાન અમે તમારી સાથે સેટ કરીએ છીએ', 'જવાબ ગુજરાતી, હિંદી કે English માં'],
+        businessName: 'વેપારનું નામ',
+        planLabel: 'પ્લાન',
+        notSure: 'હજી નક્કી નથી — પસંદ કરવામાં મદદ કરો',
+        billing: 'ચુકવણી',
+        messageOpt: 'બીજું કંઈ જણાવવું છે?',
+        messagePh: 'જેમ કે: મારે 2 કાઉન્ટર છે અને આશરે 3,000 આઇટમ',
+        send: 'રિક્વેસ્ટ મોકલો',
+        successTitle: 'રિક્વેસ્ટ મળી ગઈ!',
+        success: 'આભાર. અમારી ટીમ જલ્દી તમને કૉલ કે WhatsApp કરીને તમારું એકાઉન્ટ સેટ કરશે.',
+        close: 'બંધ કરો',
     },
     footer: {
         tagline: 'બિલિંગ, સ્ટોક, ઉધાર અને ઓર્ડર — ભારતની દુકાનો અને જથ્થાબંધ વેપારીઓ માટે.',

@@ -17,6 +17,13 @@ import { useT, useLang, LANGS, type Lang } from '@/i18n';
 
 type Method = 'otp' | 'password';
 
+/**
+ * OTP sign-in needs an SMS provider to deliver the code. Until one is set up
+ * (then build with NEXT_PUBLIC_OTP_LOGIN=1) a live build offers the password
+ * only — an OTP tab that never sends anything would just lock people out.
+ */
+const OTP_ON = process.env.NEXT_PUBLIC_OTP_LOGIN === '1' || process.env.NODE_ENV !== 'production';
+
 export default function LoginPage() {
     const router = useRouter();
     const setSession = useAuth((s) => s.setSession);
@@ -28,7 +35,7 @@ export default function LoginPage() {
     const [country, setCountry] = useState('+91');
     const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
     const [password, setPassword] = useState('');
-    const [method, setMethod] = useState<Method>('otp');
+    const [method, setMethod] = useState<Method>(OTP_ON ? 'otp' : 'password');
     const [otpSent, setOtpSent] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -176,7 +183,7 @@ export default function LoginPage() {
                                     </div>
 
                                     {/* Tabs */}
-                                    {!otpSent && (
+                                    {!otpSent && OTP_ON && (
                                         <div className="flex gap-1 p-1 rounded-xl mb-5" style={{ background: 'var(--surface-2)' }}>
                                             {(['otp', 'password'] as Method[]).map((m) => (
                                                 <button key={m} onClick={() => { setMethod(m); setError(''); }} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all"

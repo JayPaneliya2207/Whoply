@@ -5,6 +5,10 @@ import { businessOf } from '../../utils/http.js';
 import { reorderSuggestions } from '../../services/ai.service.js';
 import Notification from '../../models/Notification.js';
 import type { AuthRequest } from '../../interfaces/index.js';
+import { kindsForRole } from '../../utils/notificationKinds.js';
+
+/** Only the kinds this role may read (utils/notificationKinds.ts) — a cashier does not get the day's sales and profit. */
+const kindsFor = (role?: Parameters<typeof kindsForRole>[0]): any => ({ $in: kindsForRole(role) });
 
 /** GET /ai/reorder — AI reorder suggestions */
 export const aiReorder = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -20,21 +24,22 @@ export const aiReorder = asyncHandler(async (req: AuthRequest, res: Response) =>
 /** GET /notifications */
 export const listNotifications = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    const items = await Notification.find({ businessId }).sort({ createdAt: -1 }).limit(30).lean();
-    const unread = await Notification.countDocuments({ businessId, isRead: false });
+    const type = kindsFor(req.user?.role);
+    const items = await Notification.find({ businessId, type }).sort({ createdAt: -1 }).limit(30).lean();
+    const unread = await Notification.countDocuments({ businessId, type, isRead: false });
     sendSuccess(res, { unread, items });
 });
 
 /** POST /notifications/read-all */
 export const markAllRead = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    await Notification.updateMany({ businessId, isRead: false }, { isRead: true });
+    await Notification.updateMany({ businessId, type: kindsFor(req.user?.role), isRead: false }, { isRead: true });
     sendSuccess(res, { ok: true });
 });
 
 /** POST /notifications/:id/read — mark a single notification read (on open) */
 export const markRead = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
-    await Notification.updateOne({ _id: req.params.id, businessId }, { isRead: true });
+    await Notification.updateOne({ _id: req.params.id, businessId, type: kindsFor(req.user?.role) }, { isRead: true });
     sendSuccess(res, { ok: true });
 });

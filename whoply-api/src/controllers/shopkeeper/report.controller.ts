@@ -318,7 +318,7 @@ export const exportInvoicesCsv = asyncHandler(async (req: AuthRequest, res: Resp
     const csv = [header.map(esc).join(','), ...lines].join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="whoply-invoices-${period}.csv"`);
-    res.send(csv);
+    res.send('﻿' + csv); // the UTF-8 mark: without it Excel shows Gujarati and Hindi names as garbage
 });
 
 /**

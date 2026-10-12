@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, MessageCircle, BellRing, CheckCircle2, Printer, Ban, Zap, IndianRupee, AlertTriangle, Wallet, Copy, HandCoins } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Search, MessageCircle, BellRing, CheckCircle2, Printer, Ban, Zap, IndianRupee, AlertTriangle, Wallet, Copy, HandCoins, ArrowRight } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { inr, inr2 } from '@/lib/cn';
 import { Modal, Field } from '@/components/Modal';
@@ -46,6 +47,8 @@ export default function BillingPage() {
     const { data: settings } = useQuery({ queryKey: ['admin-settings'], queryFn: async () => (await api.get('/admin/settings')).data.data });
     const { data: businesses } = useQuery({ queryKey: ['admin-businesses-lite'], queryFn: async () => (await api.get('/admin/businesses?lite=1&limit=100')).data.data.items as any[] });
     const { data: plans } = useQuery({ queryKey: ['plans'], queryFn: async () => (await api.get('/admin/plans')).data.data as any[] });
+    // People who asked for a plan on the website and have no account yet (hidden for admins who may not see inquiries).
+    const { data: requests } = useQuery({ queryKey: ['inquiry-summary'], queryFn: async () => (await api.get('/admin/inquiries/summary')).data.data, retry: false, refetchInterval: 60_000 });
 
     const [creating, setCreating] = useState(false);
     const [form, setForm] = useState({ businessId: '', periods: '1', amount: '', note: '' });
@@ -107,6 +110,12 @@ export default function BillingPage() {
                 </div>
             </div>
             {flash && <div className="rounded-xl px-4 py-2.5 text-sm font-medium" style={{ background: 'var(--success-tint)', color: 'var(--success)' }}>{flash}</div>}
+            {!!requests?.newPlans && (
+                <Link href="/inquiries?kind=plan" className="flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-3 text-sm font-semibold" style={{ background: 'var(--accent-tint)', color: 'var(--accent-strong)' }}>
+                    <span>{requests.newPlans} new plan {requests.newPlans === 1 ? 'request' : 'requests'} from the website — they want an account and are waiting for your call.</span>
+                    <span className="flex items-center gap-1">See requests <ArrowRight size={15} /></span>
+                </Link>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <Tile label="To collect" value={inr(sum.dueTotal || 0)} sub={`${bills(sum.dueCount || 0)} due`} icon={Wallet} tone={{ bg: 'var(--warning-tint)', fg: 'var(--warning)' }} />

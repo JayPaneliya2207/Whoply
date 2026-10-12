@@ -5,6 +5,8 @@ import { useAuth, homeFor, storedUser } from '@/stores/auth.store';
 import { api } from '@/lib/api';
 import { AppShell } from '@/components/AppShell';
 import { Logo } from '@/components/Logo';
+import { AnnouncementPopup } from '@/components/AnnouncementPopup';
+import { syncPush } from '@/lib/push';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -26,6 +28,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
             return;
         }
         if (saved) setReady(true);
+        void syncPush(); // a device already signed up for phone notifications checks in
         // Refresh the saved user in the background: role, shop and setup can change
         // on another device (the owner changes a role, a new shop is set up).
         let alive = true;
@@ -51,5 +54,10 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
             </div>
         );
     }
-    return <AppShell>{children}</AppShell>;
+    return (
+        <>
+            <AppShell>{children}</AppShell>
+            <AnnouncementPopup />
+        </>
+    );
 }

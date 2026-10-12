@@ -20,6 +20,7 @@ import { supportSummary, listThreads, getThread, reply, startThread, setThreadSt
 import { getSettings, updateSettings, listBills, getBill, createBillFor, runBills, remind, updateBill } from '../../controllers/admin/billing.controller.js';
 import { accessInfo, listAdmins, createAdmin, updateAdmin, deleteAdmin, listAudit } from '../../controllers/admin/access.controller.js';
 import { listInquiries, inquirySummary, updateInquiry, deleteInquiry } from '../../controllers/admin/inquiries.controller.js';
+import { listAnnouncements, getAnnouncement, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../../controllers/admin/announcements.controller.js';
 
 /**
  * Every route needs an admin login AND the permission named beside it
@@ -76,6 +77,13 @@ router.get('/inquiries', ap('inquiries.view'), listInquiries);
 router.get('/inquiries/summary', ap('inquiries.view'), inquirySummary);
 router.patch('/inquiries/:id', ap('inquiries.manage'), updateInquiry);
 router.delete('/inquiries/:id', ap('inquiries.manage'), deleteInquiry);
+
+// Popups shown inside the app: offers, news, notices
+router.get('/announcements', ap('announcements.manage'), listAnnouncements);
+router.post('/announcements', ap('announcements.manage'), createAnnouncement);
+router.get('/announcements/:id', ap('announcements.manage'), getAnnouncement);
+router.patch('/announcements/:id', ap('announcements.manage'), updateAnnouncement);
+router.delete('/announcements/:id', ap('announcements.manage'), deleteAnnouncement);
 
 // Access control: admin logins and the activity log
 router.get('/admins', ap('admins.manage'), listAdmins);

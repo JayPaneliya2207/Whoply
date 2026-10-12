@@ -7,6 +7,7 @@ import { CheckCheck, BellOff, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useT } from '@/i18n';
 import { useAuth } from '@/stores/auth.store';
+import { PushCard } from '@/components/PushCard';
 
 const typeIcon: Record<string, string> = { summary: '📊', low_stock: '📦', udhar: '💰', expiry: '⏰', order: '🚚', payable: '💸', subscription: '🧾', support: '💬', general: '🔔' };
 type Filter = 'all' | 'unread' | 'read';
@@ -61,6 +62,8 @@ export default function NotificationsPage() {
                 <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('notifications')}</h1>
                 {unreadCount > 0 && <button className="wp-btn wp-btn-ghost text-sm" onClick={() => readAll.mutate()}><CheckCheck size={15} /> {t('markAllRead')}</button>}
             </div>
+
+            <PushCard />
 
             {/* Read / Unread filter */}
             <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-2)' }}>

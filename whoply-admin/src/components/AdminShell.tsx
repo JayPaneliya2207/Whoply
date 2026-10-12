@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare, Inbox, KeyRound, Lock } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare, Inbox, KeyRound, Lock, Megaphone } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/stores/auth.store';
 import { api } from '@/lib/api';
@@ -23,11 +23,12 @@ const NAV: { title: string; items: NavItem[] }[] = [
             { href: '/plans', label: 'Subscriptions', icon: CreditCard, blurb: 'Plans, prices and who is on them', perm: 'plans.view' },
             { href: '/billing', label: 'Billing', icon: Receipt, blurb: 'Subscription bills, reminders and payments', perm: 'billing.view' },
             { href: '/support', label: 'Support', icon: MessagesSquare, blurb: 'Chat with business owners', perm: 'support.chat' },
-            { href: '/inquiries', label: 'Inquiries', icon: Inbox, blurb: 'Messages from the website contact form', perm: 'inquiries.view' },
+            { href: '/inquiries', label: 'Requests', icon: Inbox, blurb: 'Plan requests and questions from the website', perm: 'inquiries.view' },
         ],
     },
     {
         title: 'Platform', items: [
+            { href: '/announcements', label: 'App popups', icon: Megaphone, blurb: 'Offers, news and notices shown inside the app', perm: 'announcements.manage' },
             { href: '/settings', label: 'Settings', icon: Settings, blurb: 'Company, payment details, reminders, support', perm: 'settings.manage' },
             { href: '/access', label: 'Access control', icon: KeyRound, blurb: 'Admin logins, roles and the activity log', perm: 'admins.manage' },
         ],

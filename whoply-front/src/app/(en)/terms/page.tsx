@@ -17,7 +17,7 @@ const sections: LegalSection[] = [
         body: (
             <>
                 <p>
-                    These terms are an agreement between you and <b>{orPending(LEGAL.entityName)}</b> (“Whoply”, “we”). By creating an account
+                    These terms are an agreement between you and <b>{orPending(LEGAL.entityName)}</b> (“Whoply”, “we”). By asking us for an account
                     or using Whoply you accept them, and our <a href="/privacy">Privacy Policy</a>.
                 </p>
                 <p>Whoply is for businesses. You must be 18 or older and allowed to act for the business you register.</p>
@@ -43,6 +43,7 @@ const sections: LegalSection[] = [
         title: 'Your account and your staff',
         body: (
             <ul>
+                <li>We create your account when you ask for one — there is no self sign-up. We may ask for details to confirm the business, and we may decline a request.</li>
                 <li>Give correct details and keep them up to date — especially your business name, address and GSTIN, which print on your bills.</li>
                 <li>Keep your password and one-time passwords private. You are responsible for what happens under your login.</li>
                 <li>You decide who on your team gets a login and what they do with it, and you are responsible for their actions in Whoply.</li>
@@ -57,6 +58,7 @@ const sections: LegalSection[] = [
             <ul>
                 <li>The Free plan costs nothing. Paid plans and their prices are shown on our pricing page; GST is added where it applies.</li>
                 <li>You are only charged after you choose a paid plan, and we will show you the amount and how to pay before you do.</li>
+                <li>For now you pay by UPI or bank transfer against the bill shown in the app, and your plan is marked paid once we confirm the payment. Nothing is taken from your account automatically.</li>
                 <li>We may change prices with at least 30 days’ notice; a change applies from your next billing period.</li>
                 <li>Fees already paid are not refunded for part of a period, unless the law requires it.</li>
             </ul>
@@ -118,6 +120,19 @@ const sections: LegalSection[] = [
                 We work to keep Whoply running and your data safe, but we can’t promise it will never be interrupted. Export your records
                 regularly as your own backup. Support is available at {orPending(LEGAL.email)}.
             </p>
+        ),
+    },
+    {
+        id: 'messages',
+        title: 'Messages from us',
+        body: (
+            <>
+                <p>We may show you a message inside the app — about the service, a new feature or an offer. You can close it.</p>
+                <p>
+                    If you turn on phone notifications, your reminders and alerts also arrive on that device. You can turn them off at any time
+                    in the app or in your phone’s settings.
+                </p>
+            </>
         ),
     },
     {

@@ -82,11 +82,18 @@ function productFields(b: any, opts: { create: boolean }): Record<string, any> {
     return out;
 }
 
+/** The category must be this business's own — an id from another shop would show that shop's category name. */
+const assertOwnCategory = async (businessId: unknown, categoryId: unknown) => {
+    if (!categoryId) return;
+    if (!(await Category.exists({ _id: categoryId, businessId } as any))) throw AppError.badRequest('Category not found');
+};
+
 /** POST /products */
 export const createProduct = asyncHandler(async (req: AuthRequest, res: Response) => {
     const businessId = businessOf(req);
     const fields = productFields(req.body, { create: true });
     if (!fields.name || !fields.sku) throw AppError.badRequest('name and sku are required');
+    await assertOwnCategory(businessId, fields.categoryId);
     // MRP-style (GST included) for shops, GST on top for wholesalers — unless the client says otherwise.
     if (fields.priceIncludesGst === undefined) fields.priceIncludesGst = req.user?.businessType === 'retail';
 
@@ -109,6 +116,7 @@ export const updateProduct = asyncHandler(async (req: AuthRequest, res: Response
     const businessId = businessOf(req);
     const fields = productFields(req.body, { create: false });
     if (fields.name === '' || fields.sku === '') throw AppError.badRequest('name and sku cannot be empty');
+    await assertOwnCategory(businessId, fields.categoryId);
     const product = await Product.findOneAndUpdate({ _id: req.params.id, businessId }, { $set: fields }, { new: true });
     if (!product) throw AppError.notFound('Product not found');
     // the threshold may have changed — keep the low-stock flag truthful

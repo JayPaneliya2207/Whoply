@@ -8,7 +8,7 @@ import { Reveal, RevealWords } from '@/components/landing/Reveal';
 import { Backdrop, type BackdropVariant } from '@/components/landing/Backdrop';
 import { cn } from '@/lib/cn';
 import { getCopy, type Lang } from '@/i18n/landing';
-import { appEntry } from '@/lib/links';
+import type { Role } from '@/lib/links';
 import { StickyCta } from '@/components/landing/StickyCta';
 import { CounterKit } from '@/components/landing/CounterKit';
 import { DashboardShowcase } from '@/components/landing/DashboardShowcase';
@@ -20,6 +20,8 @@ import { WholesalePipeline } from '@/components/landing/WholesalePipeline';
 import { Pricing, type Plan } from '@/components/landing/Pricing';
 import { GetStarted } from '@/components/landing/GetStarted';
 import { Contact } from '@/components/landing/Contact';
+import { LeadDialog } from '@/components/landing/LeadDialog';
+import { StartButton } from '@/components/landing/StartButton';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7000/api';
 
@@ -135,14 +137,14 @@ function SectionHead({
 }
 
 /** Section head with its CTA beside it on desktop, under it on a phone. */
-function FeatureHead({ eyebrow, title, sub, cta, href }: { eyebrow: string; title: string; sub: string; cta: string; href: string }) {
+function FeatureHead({ eyebrow, title, sub, cta, role }: { eyebrow: string; title: string; sub: string; cta: string; role: Role }) {
     return (
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <SectionHead align="left" eyebrow={eyebrow} title={title} sub={sub} />
             <Reveal delay={200} className="shrink-0">
-                <a href={href} className="btn btn-primary">
+                <StartButton ask={{ role }} className="btn btn-primary">
                     {cta} <ArrowRight size={17} aria-hidden="true" />
-                </a>
+                </StartButton>
             </Reveal>
         </div>
     );
@@ -187,7 +189,7 @@ export async function Landing({ lang }: { lang: Lang }) {
                         title={t.shopkeepers.title}
                         sub={t.shopkeepers.sub}
                         cta={t.shopkeepers.cta}
-                        href={appEntry(lang, 'retail')}
+                        role="retail"
                     />
                     <FeatureTabs lang={lang} className="mt-12" />
 
@@ -204,7 +206,7 @@ export async function Landing({ lang }: { lang: Lang }) {
                         title={t.wholesalers.title}
                         sub={t.wholesalers.sub}
                         cta={t.wholesalers.cta}
-                        href={appEntry(lang, 'wholesale')}
+                        role="wholesale"
                     />
                     <Reveal className="mt-12">
                         <WholesalePipeline lang={lang} />
@@ -268,16 +270,6 @@ export async function Landing({ lang }: { lang: Lang }) {
                                             </a>
                                         </li>
                                     ))}
-                                    {col.head === t.footer.columns[0].head && (
-                                        <li>
-                                            <a
-                                                href={appEntry(lang)}
-                                                className="text-sm text-white/60 transition-colors hover:text-white"
-                                            >
-                                                {t.nav.login}
-                                            </a>
-                                        </li>
-                                    )}
                                 </ul>
                             </div>
                         ))}
@@ -288,6 +280,7 @@ export async function Landing({ lang }: { lang: Lang }) {
             </footer>
 
             <StickyCta lang={lang} />
+            <LeadDialog lang={lang} plans={plans} />
         </div>
     );
 }

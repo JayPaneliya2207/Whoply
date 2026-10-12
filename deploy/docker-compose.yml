@@ -30,6 +30,12 @@ services:
       TRUST_PROXY: '1' # Caddy sits in front — sign-in limits count each visitor's own address
       BACKUP_DIR: /backups
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      # Phone notifications: empty = off (deploy/.env.example says how to make the keys)
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      # Sign-in: self sign-up stays closed; OTP stays off until an SMS provider is connected
+      OTP_LOGIN: ${OTP_LOGIN:-off}
     volumes:
       - ./backups:/backups # daily backups land in deploy/backups on the server — copy them off it too
     # "healthy" only while the API answers AND its database is connected (docker compose ps shows it)

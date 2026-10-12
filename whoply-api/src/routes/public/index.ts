@@ -6,6 +6,7 @@ import Business from '../../models/Business.js';
 import Invoice from '../../models/Invoice.js';
 import Order from '../../models/Order.js';
 import { createInquiry } from '../../controllers/admin/inquiries.controller.js';
+import { announcementImage } from '../../controllers/shared/announcement.controller.js';
 
 const router = Router();
 
@@ -20,6 +21,10 @@ interface PublicStats {
 /* The stats are unauthenticated and hit several collections, so compute them
    at most once per window rather than on every request. */
 const STATS_TTL_MS = 10 * 60 * 1000;
+/* With only a few businesses the "platform" numbers are really one shop's bill
+   count, refreshed every ten minutes for anyone who asks. Publish them only
+   once they describe a crowd. */
+const STATS_MIN_BUSINESSES = 25;
 let statsCache: { at: number; data: PublicStats } | null = null;
 
 async function computeStats(): Promise<PublicStats> {
@@ -34,6 +39,9 @@ async function computeStats(): Promise<PublicStats> {
     const statesCovered = new Set(
         (states as unknown[]).map((s) => String(s ?? '').trim().toLowerCase()).filter(Boolean)
     ).size;
+    if (shopkeepers + wholesalers < STATS_MIN_BUSINESSES) {
+        return { shopkeepers: 0, wholesalers: 0, gstInvoices: 0, statesCovered: 0, updatedAt: new Date().toISOString() };
+    }
     return {
         shopkeepers,
         wholesalers,
@@ -90,5 +98,8 @@ router.get(
 
 /** POST /api/public/inquiries — the marketing site's "Contact us" form (see the controller for its guards). */
 router.post('/inquiries', createInquiry);
+
+/** GET /api/public/announcements/:id/image — the poster of a popup that is live in the app. */
+router.get('/announcements/:id/image', announcementImage);
 
 export default router;

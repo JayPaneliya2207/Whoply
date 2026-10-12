@@ -22,7 +22,6 @@ import Dealer from '../models/Dealer.js';
 import Order from '../models/Order.js';
 import Notification from '../models/Notification.js';
 import { withJobLock } from '../models/JobLock.js';
-import { sendWhatsApp } from '../services/messaging.service.js';
 import { todayRange } from '../utils/http.js';
 import { IST_TZ } from '../utils/ist.js';
 import mongoose from 'mongoose';
@@ -137,22 +136,17 @@ export async function generateUdharReminders(): Promise<number> {
     const notifications: any[] = [];
     const customerStamps: any[] = [];
     const dealerStamps: any[] = [];
-    const whatsapps: { to: string; msg: string }[] = [];
 
-    const queue = (businessId: any, name: string, mobile: string | undefined, country: string | undefined, amount: number) => {
-        const amt = inr(amount);
+    // The reminder is for the SHOP: who to chase today. Nothing is sent to the customer from
+    // here — there is no WhatsApp / SMS provider — so the words must not say it was. The shop
+    // sends it with one tap from the Customers / Dealers screen (a wa.me link, their own phone).
+    const queue = (businessId: any, name: string, amount: number) => {
         notifications.push({
             businessId,
-            title: '💰 Payment reminder sent',
-            body: `${name} has ₹${amt} pending. A reminder was sent${mobile ? ` to ${mobile}` : ''}.`,
+            title: '💰 Payment reminder due',
+            body: `${name} has ₹${inr(amount)} pending. Open the list and tap WhatsApp to remind them.`,
             type: 'udhar' as const,
         });
-        if (mobile) {
-            whatsapps.push({
-                to: `${country || '+91'}${mobile}`,
-                msg: `Hi ${name}, this is a gentle reminder from ${nameOf.get(idStr(businessId))}: ₹${amt} is pending on your account. Kindly clear it at your convenience. Thank you! 🙏`,
-            });
-        }
     };
 
     // ---- Retail: customers carrying udhar ----
@@ -168,7 +162,7 @@ export async function generateUdharReminders(): Promise<number> {
             .lean();
 
         for (const c of due) {
-            queue(c.businessId, c.name, c.mobile, c.countryCode, c.creditBalance);
+            queue(c.businessId, c.name, c.creditBalance);
             customerStamps.push({ updateOne: { filter: { _id: c._id }, update: { $set: { lastUdharReminderAt: new Date() } } } });
         }
     }
@@ -194,7 +188,7 @@ export async function generateUdharReminders(): Promise<number> {
             .lean();
 
         for (const dl of dealers) {
-            queue(dl.businessId, dl.name, dl.mobile, dl.countryCode, dueBy.get(idStr(dl._id)) || 0);
+            queue(dl.businessId, dl.name, dueBy.get(idStr(dl._id)) || 0);
             dealerStamps.push({ updateOne: { filter: { _id: dl._id }, update: { $set: { lastReminderAt: new Date() } } } });
         }
     }
@@ -206,11 +200,7 @@ export async function generateUdharReminders(): Promise<number> {
     if (customerStamps.length) await Customer.bulkWrite(customerStamps);
     if (dealerStamps.length) await Dealer.bulkWrite(dealerStamps);
 
-    // Outbound channel is a stub today. When a real provider is wired this must move
-    // to a queue with retries — a failed send here must not lose the whole batch.
-    for (const w of whatsapps) sendWhatsApp(w.to, w.msg);
-
-    console.log(`[cron] sent ${notifications.length} udhar reminders`);
+    console.log(`[cron] made ${notifications.length} payment reminders for shops`);
     return notifications.length;
 }
 

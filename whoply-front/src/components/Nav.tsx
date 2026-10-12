@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useScroll, useSpring } from 'framer-motion';
 import { ArrowRight, Check, ChevronDown, Globe, Menu, X } from 'lucide-react';
 import { Logo } from './Logo';
 import { getCopy, pathFor, LANGS, LANG_LABEL, HREF_LANG, type Lang } from '@/i18n/landing';
-import { appEntry } from '@/lib/links';
+import { StartButton } from '@/components/landing/StartButton';
 
 /**
  * Globe button that opens the language list. Each option is a real link to
@@ -157,12 +157,9 @@ export function Nav({ lang }: { lang: Lang }) {
 
                     <div className="hidden items-center gap-4 lg:flex">
                         <LangMenu lang={lang} label={t.nav.switchLabel} />
-                        <a href={appEntry(lang)} className="text-sm font-semibold text-white">
-                            {t.nav.login}
-                        </a>
-                        <a href={appEntry(lang)} className="btn btn-primary !px-5 !py-2.5 text-sm">
+                        <StartButton className="btn btn-primary !px-5 !py-2.5 text-sm">
                             {t.nav.start} <ArrowRight size={16} aria-hidden="true" />
-                        </a>
+                        </StartButton>
                     </div>
 
                     <div className="flex items-center gap-3 lg:hidden">
@@ -195,20 +192,9 @@ export function Nav({ lang }: { lang: Lang }) {
                             ))}
                         </nav>
                         <div className="mt-4 flex flex-col gap-3">
-                            <a
-                                href={appEntry(lang)}
-                                className="btn btn-ghost-navy w-full"
-                                onClick={() => setOpen(false)}
-                            >
-                                {t.nav.login}
-                            </a>
-                            <a
-                                href={appEntry(lang)}
-                                className="btn btn-primary w-full"
-                                onClick={() => setOpen(false)}
-                            >
+                            <StartButton className="btn btn-primary w-full" onClick={() => setOpen(false)}>
                                 {t.nav.start} <ArrowRight size={16} aria-hidden="true" />
-                            </a>
+                            </StartButton>
                         </div>
                     </div>
                 )}

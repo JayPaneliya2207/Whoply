@@ -8,6 +8,7 @@ import { useAuth } from '@/stores/auth.store';
 import { useLang, LANGS, type Lang } from '@/i18n';
 import { useT } from '@/i18n';
 import { useCan } from '@/lib/permissions';
+import { disablePush } from '@/lib/push';
 import { printBill, getTemplate, type Template } from '@/lib/bill';
 import { GSTIN_PLACEHOLDER, maskGstin, isValidGstin } from '@/lib/gstin';
 
@@ -29,7 +30,8 @@ export default function SettingsPage() {
     // A full page load (not router.replace): screens still on the page would
     // otherwise refetch into the just-cleared cache, and every bit of in-memory
     // state from this login goes with it.
-    const doLogout = async () => { try { await api.post('/auth/logout'); } catch { /* ignore */ } logout(); window.location.replace('/login'); };
+    // Phone notifications stop first: the next person to sign in here must not get this login's alerts.
+    const doLogout = async () => { await disablePush().catch(() => { /* ignore */ }); try { await api.post('/auth/logout'); } catch { /* ignore */ } logout(); window.location.replace('/login'); };
     const { lang, setLang } = useLang();
     const qc = useQueryClient();
     const base = user?.business?.type === 'wholesale' ? '/wholesaler' : '/shopkeeper';

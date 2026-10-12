@@ -10,21 +10,23 @@ import { cn } from '@/lib/cn';
 import { SpotDot, SpotProgress, spotVars, useSpotCycle, type Spot } from './Hotspots';
 
 /**
- * Positions on `dashboard.png`, in the order of `tour.items`. Dots sit in the
- * gap beside each panel's heading so they never cover a number; the
- * spotlight centres on the panel itself.
+ * Positions on `app-dashboard.png` (the app's real home screen), in the order
+ * of `tour.items`. Dots sit in the empty corner of each card so they never
+ * cover a number; the spotlight centres on the card itself.
  */
 const SPOTS: Spot[] = [
-    { x: 42.3, y: 44.3, fx: 44, fy: 54.5, w: 26, h: 19 }, // sales overview
-    { x: 79.1, y: 44.1, fx: 75.5, fy: 54.5, w: 18, h: 19 }, // top selling
-    { x: 31.6, y: 70.9, fx: 29.7, fy: 79.6, w: 15.5, h: 15.5 }, // recent orders
-    { x: 55.7, y: 71.3, fx: 53.1, fy: 79.8, w: 16.5, h: 15.5 }, // low stock
-    { x: 77.7, y: 71.6, fx: 76.8, fy: 80.1, w: 16, h: 16 }, // expenses
+    { x: 28.5, y: 22.6, fx: 19.6, fy: 26.6, w: 21, h: 12.5 }, // today's sales
+    { x: 26, y: 76.3, fx: 50, fy: 81.7, w: 60, h: 13.5 }, // top products
+    { x: 22.5, y: 40.4, fx: 19.6, fy: 44.4, w: 21, h: 12.5 }, // pending udhar
+    { x: 52.8, y: 40.4, fx: 50, fy: 44.4, w: 21, h: 12.5 }, // low stock
+    { x: 19.5, y: 60.2, fx: 50, fy: 62.8, w: 60, h: 13 }, // net position
 ];
 
 /**
- * The dashboard lies back in 3D and stands up as it scrolls in, then invites
- * exploring: each list item lights its panel on the screen.
+ * The tablet lies back in 3D and stands up as it scrolls in, then invites
+ * exploring: each list item lights its card on the screen. The screen is a
+ * real screenshot of the app, so the bezel is drawn here rather than baked
+ * into the picture and the hotspots stay exact at every size.
  */
 export function DashboardShowcase({ lang }: { lang: Lang }) {
     const tour = getCopy(lang).tour;
@@ -110,18 +112,22 @@ export function DashboardShowcase({ lang }: { lang: Lang }) {
                         aria-hidden="true"
                         className="absolute inset-x-[12%] top-[18%] bottom-[6%] rounded-[50%] bg-sand/20 blur-[70px]"
                     />
-                    <div className="spot-stage relative" style={spotVars(SPOTS[active], 0.5)}>
-                        <Image
-                            src={MEDIA.dashboard.src}
-                            alt={MEDIA.dashboard.alt[lang]}
-                            width={MEDIA.dashboard.width}
-                            height={MEDIA.dashboard.height}
-                            sizes="(max-width: 1024px) 100vw, 1000px"
-                            className="spot-mask relative h-auto w-full"
-                        />
-                        {SPOTS.map((s, i) => (
-                            <SpotDot key={i} spot={s} active={i === active} onSelect={() => pick(i)} onNavy />
-                        ))}
+                    {/* Bezel. Padding is a % of the width, so it scales with the tablet. */}
+                    <div className="relative rounded-[clamp(12px,2.6vw,30px)] bg-gradient-to-b from-[#232c3a] to-[#0b1119] p-[1.7%] shadow-[0_45px_90px_-35px_rgb(0,0,0,0.75)] ring-1 ring-white/20">
+                        <span aria-hidden="true" className="absolute top-[0.85%] left-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/25 sm:h-1 sm:w-1" />
+                        <div className="spot-stage relative" style={spotVars(SPOTS[active], 0.68)}>
+                            <Image
+                                src={MEDIA.dashboard.src}
+                                alt={MEDIA.dashboard.alt[lang]}
+                                width={MEDIA.dashboard.width}
+                                height={MEDIA.dashboard.height}
+                                sizes="(max-width: 1024px) 100vw, 1000px"
+                                className="spot-mask relative h-auto w-full rounded-[clamp(6px,1.5vw,18px)]"
+                            />
+                            {SPOTS.map((s, i) => (
+                                <SpotDot key={i} spot={s} active={i === active} onSelect={() => pick(i)} />
+                            ))}
+                        </div>
                     </div>
                 </motion.div>
             </div>

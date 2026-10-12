@@ -359,13 +359,14 @@ export function ordersToCsv(orders: any[], mobileOf?: (o: any) => string): strin
 /** Printable quotation/estimate (A4, save as PDF). No paid/due — it's an estimate. */
 export function printQuote(q: any, biz?: Biz, template: Template = getTemplate()) {
     const { css, header } = tplBase(template, biz);
-    const rows = q.items.map((it: any) => `<tr><td>${it.name}</td><td class="r">${it.quantity}</td><td class="r">${inr2(it.price)}</td><td class="r">${it.gstRate}%</td><td class="r">${inr2(it.lineTotal)}</td></tr>`).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${q.quoteNo}</title>
+    // Every value below is typed by someone (a customer name, an item name) — escape all of it.
+    const rows = q.items.map((it: any) => `<tr><td>${esc(it.name)}</td><td class="r">${esc(it.quantity)}</td><td class="r">${inr2(it.price)}</td><td class="r">${esc(it.gstRate)}%</td><td class="r">${inr2(it.lineTotal)}</td></tr>`).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(q.quoteNo)}</title>
     <style>${css}</style></head><body>
       <div class="tag">QUOTATION</div>
       <div style="margin-top:6px">${header}</div>
-      <div><b>Quote:</b> ${q.quoteNo}<br><span class="muted">${new Date(q.createdAt).toLocaleString('en-IN')}${q.validUntil ? ' · valid till ' + new Date(q.validUntil).toLocaleDateString('en-IN') : ''}</span></div>
-      ${q.customerName ? `<div style="margin-top:6px"><b>For:</b> ${q.customerName}${q.customerMobile ? ' · ' + q.customerMobile : ''}${q.customerGstin ? '<br>GSTIN: ' + q.customerGstin : ''}</div>` : ''}<hr>
+      <div><b>Quote:</b> ${esc(q.quoteNo)}<br><span class="muted">${new Date(q.createdAt).toLocaleString('en-IN')}${q.validUntil ? ' · valid till ' + new Date(q.validUntil).toLocaleDateString('en-IN') : ''}</span></div>
+      ${q.customerName ? `<div style="margin-top:6px"><b>For:</b> ${esc(q.customerName)}${q.customerMobile ? ' · ' + esc(q.customerMobile) : ''}${q.customerGstin ? '<br>GSTIN: ' + esc(q.customerGstin) : ''}</div>` : ''}<hr>
       <table><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
       <div style="margin-top:12px"><div class="tot"><span>Subtotal</span><span>${inr2(q.subtotal)}</span></div>${q.discount > 0 ? `<div class="tot"><span>Discount</span><span>- ${inr2(q.discount)}</span></div>` : ''}<div class="tot"><span>GST</span><span>${inr2(q.totalGst)}</span></div><div class="tot grand"><span>Estimated total</span><span>${inr2(q.grandTotal)}</span></div></div>
       <hr><p class="muted" style="text-align:center">This is an estimate, not a tax invoice. Powered by Whoply</p>
@@ -409,23 +410,24 @@ const GST_DOC_CSS = `*{font-family:Arial,Helvetica,sans-serif;box-sizing:border-
 /** Injects a "Download portal JSON" button + script into a printable GST doc window. */
 function jsonBtn(data: any, filename: string): string {
     const safe = JSON.stringify(data).replace(/</g, '\\u003c');
+    const file = filename.replace(/[^\w.-]/g, '-'); // it lands inside a script string
     return `<div class="btns"><button class="pbtn" onclick="window.print()">Print / Save as PDF</button><button class="jbtn" onclick="dlJson()">Download portal JSON</button></div>
-    <script>var _D=${safe};function dlJson(){var b=new Blob([JSON.stringify(_D,null,2)],{type:'application/json'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='${filename}.json';a.click();URL.revokeObjectURL(u);}setTimeout(function(){},100);</script>`;
+    <script>var _D=${safe};function dlJson(){var b=new Blob([JSON.stringify(_D,null,2)],{type:'application/json'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='${file}.json';a.click();URL.revokeObjectURL(u);}setTimeout(function(){},100);</script>`;
 }
 
 /** Human-readable e-way bill (A4/PDF) built from the portal JSON, with a Download-JSON button. */
 export function printEwayBill(d: any, biz?: Biz) {
     const modes: Record<string, string> = { '1': 'Road', '2': 'Rail', '3': 'Air', '4': 'Ship' };
-    const rows = (d.itemList || []).map((it: any) => `<tr><td>${it.productName}</td><td class="r">${it.hsnCode || '—'}</td><td class="r">${it.quantity} ${it.qtyUnit || ''}</td><td class="r">${inr2(it.taxableAmount)}</td><td class="r">${(it.cgstRate || 0) + (it.sgstRate || 0) + (it.igstRate || 0)}%</td></tr>`).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>e-Way ${d.docNo}</title><style>${GST_DOC_CSS}</style></head><body>
+    const rows = (d.itemList || []).map((it: any) => `<tr><td>${esc(it.productName)}</td><td class="r">${esc(it.hsnCode || '—')}</td><td class="r">${esc(it.quantity)} ${esc(it.qtyUnit || '')}</td><td class="r">${inr2(it.taxableAmount)}</td><td class="r">${(Number(it.cgstRate) || 0) + (Number(it.sgstRate) || 0) + (Number(it.igstRate) || 0)}%</td></tr>`).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>e-Way ${esc(d.docNo)}</title><style>${GST_DOC_CSS}</style></head><body>
       <div class="tag">e-WAY BILL · DRAFT</div>
-      <h1>${biz?.name || 'Whoply'}</h1><p class="muted">${biz?.gstin ? 'GSTIN: ' + biz.gstin : ''}</p>
-      <div><b>Document:</b> ${d.docType || 'INV'} ${d.docNo} · <span class="muted">${d.docDate}</span> · Value <b>${inr2(d.totInvValue)}</b></div>
+      <h1>${esc(biz?.name || 'Whoply')}</h1><p class="muted">${biz?.gstin ? 'GSTIN: ' + esc(biz.gstin) : ''}</p>
+      <div><b>Document:</b> ${esc(d.docType || 'INV')} ${esc(d.docNo)} · <span class="muted">${esc(d.docDate)}</span> · Value <b>${inr2(d.totInvValue)}</b></div>
       <div class="grid">
-        <div class="box"><h4>From (Consignor)</h4>${d.fromTrdName || ''}<br><span class="muted">GSTIN: ${d.fromGstin} · ${d.fromPlace || ''} (${d.fromStateCode || '-'})</span></div>
-        <div class="box"><h4>To (Consignee)</h4>${d.toTrdName || ''}<br><span class="muted">GSTIN: ${d.toGstin} · ${d.toPlace || ''} (${d.toStateCode || '-'})</span></div>
+        <div class="box"><h4>From (Consignor)</h4>${esc(d.fromTrdName || '')}<br><span class="muted">GSTIN: ${esc(d.fromGstin)} · ${esc(d.fromPlace || '')} (${esc(d.fromStateCode || '-')})</span></div>
+        <div class="box"><h4>To (Consignee)</h4>${esc(d.toTrdName || '')}<br><span class="muted">GSTIN: ${esc(d.toGstin)} · ${esc(d.toPlace || '')} (${esc(d.toStateCode || '-')})</span></div>
       </div>
-      <div class="box"><h4>Transport</h4>Mode: ${modes[d.transMode] || 'Road'} · Vehicle: <b>${d.vehicleNo || '—'}</b> · Distance: ${d.transDistance || 0} km${d.transporterName ? ' · Transporter: ' + d.transporterName : ''}</div>
+      <div class="box"><h4>Transport</h4>Mode: ${modes[d.transMode] || 'Road'} · Vehicle: <b>${esc(d.vehicleNo || '—')}</b> · Distance: ${esc(d.transDistance || 0)} km${d.transporterName ? ' · Transporter: ' + esc(d.transporterName) : ''}</div>
       <hr>
       <table><thead><tr><th>Item</th><th class="r">HSN</th><th class="r">Qty</th><th class="r">Taxable</th><th class="r">GST</th></tr></thead><tbody>${rows}</tbody></table>
       <div style="margin-top:10px"><div class="tot"><span>Taxable value</span><span>${inr2(d.totalValue)}</span></div><div class="tot"><span>CGST</span><span>${inr2(d.cgstValue)}</span></div><div class="tot"><span>SGST</span><span>${inr2(d.sgstValue)}</span></div><div class="tot"><span>IGST</span><span>${inr2(d.igstValue)}</span></div><div class="tot grand"><span>Total value</span><span>${inr2(d.totInvValue)}</span></div></div>
@@ -438,15 +440,15 @@ export function printEwayBill(d: any, biz?: Biz) {
 
 /** Human-readable e-invoice (A4/PDF) built from the IRP JSON, with a Download-JSON button. */
 export function printEInvoice(d: any, biz?: Biz) {
-    const rows = (d.ItemList || []).map((it: any) => `<tr><td>${it.SlNo}</td><td>${it.PrdDesc}</td><td class="r">${it.HsnCd || '—'}</td><td class="r">${it.Qty}</td><td class="r">${inr2(it.UnitPrice)}</td><td class="r">${it.GstRt}%</td><td class="r">${inr2(it.TotItemVal)}</td></tr>`).join('');
+    const rows = (d.ItemList || []).map((it: any) => `<tr><td>${esc(it.SlNo)}</td><td>${esc(it.PrdDesc)}</td><td class="r">${esc(it.HsnCd || '—')}</td><td class="r">${esc(it.Qty)}</td><td class="r">${inr2(it.UnitPrice)}</td><td class="r">${esc(it.GstRt)}%</td><td class="r">${inr2(it.TotItemVal)}</td></tr>`).join('');
     const v = d.ValDtls || {};
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>e-Invoice ${d.DocDtls?.No}</title><style>${GST_DOC_CSS}</style></head><body>
-      <div class="tag">e-INVOICE · ${d.TranDtls?.SupTyp || ''}</div>
-      <h1>${biz?.name || 'Whoply'}</h1><p class="muted">${biz?.gstin ? 'GSTIN: ' + biz.gstin : ''}</p>
-      <div><b>Invoice:</b> ${d.DocDtls?.No} · <span class="muted">${d.DocDtls?.Dt}</span></div>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>e-Invoice ${esc(d.DocDtls?.No)}</title><style>${GST_DOC_CSS}</style></head><body>
+      <div class="tag">e-INVOICE · ${esc(d.TranDtls?.SupTyp || '')}</div>
+      <h1>${esc(biz?.name || 'Whoply')}</h1><p class="muted">${biz?.gstin ? 'GSTIN: ' + esc(biz.gstin) : ''}</p>
+      <div><b>Invoice:</b> ${esc(d.DocDtls?.No)} · <span class="muted">${esc(d.DocDtls?.Dt)}</span></div>
       <div class="grid">
-        <div class="box"><h4>Seller</h4>${d.SellerDtls?.LglNm || ''}<br><span class="muted">GSTIN: ${d.SellerDtls?.Gstin} · ${d.SellerDtls?.Loc || ''} (${d.SellerDtls?.Stcd || '-'})</span></div>
-        <div class="box"><h4>Buyer</h4>${d.BuyerDtls?.LglNm || ''}<br><span class="muted">GSTIN: ${d.BuyerDtls?.Gstin} · ${d.BuyerDtls?.Loc || ''} (${d.BuyerDtls?.Stcd || '-'})</span></div>
+        <div class="box"><h4>Seller</h4>${esc(d.SellerDtls?.LglNm || '')}<br><span class="muted">GSTIN: ${esc(d.SellerDtls?.Gstin)} · ${esc(d.SellerDtls?.Loc || '')} (${esc(d.SellerDtls?.Stcd || '-')})</span></div>
+        <div class="box"><h4>Buyer</h4>${esc(d.BuyerDtls?.LglNm || '')}<br><span class="muted">GSTIN: ${esc(d.BuyerDtls?.Gstin)} · ${esc(d.BuyerDtls?.Loc || '')} (${esc(d.BuyerDtls?.Stcd || '-')})</span></div>
       </div>
       <table><thead><tr><th>#</th><th>Item</th><th class="r">HSN</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">GST</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table>
       <div style="margin-top:10px"><div class="tot"><span>Taxable value</span><span>${inr2(v.AssVal)}</span></div><div class="tot"><span>CGST</span><span>${inr2(v.CgstVal)}</span></div><div class="tot"><span>SGST</span><span>${inr2(v.SgstVal)}</span></div><div class="tot"><span>IGST</span><span>${inr2(v.IgstVal)}</span></div><div class="tot grand"><span>Total</span><span>${inr2(v.TotInvVal)}</span></div></div>
@@ -515,7 +517,9 @@ export function printOrder(o: any, biz?: Biz, template: Template = getTemplate()
 }
 
 export function downloadFile(filename: string, content: string, mime = 'text/csv;charset=utf-8') {
-    const blob = new Blob([content], { type: mime });
+    // A CSV starts with the UTF-8 mark: without it Excel shows Gujarati and Hindi names as garbage.
+    const text = mime.startsWith('text/csv') && !content.startsWith('﻿') ? '﻿' + content : content;
+    const blob = new Blob([text], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
