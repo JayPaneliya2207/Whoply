@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Whoply — Introduction</title>
+<style>
+    :root {
+        --navy: #0F2B46; --navy-dark: #0A1F33; --navy-light: #1B3A5F; --navy-tint: #EEF2F6;
+        --sand: #D9C8B0; --accent: #C25000; --accent-strong: #A64400; --accent-bright: #CC5500; --accent-tint: #FFF4ED;
+        --text: #111827; --muted: #556070; --border: #E2E6EC; --bg: #F8F9FB;
+        --success: #047857; --success-tint: #ECFDF5; --danger: #B42318; --danger-tint: #FEF3F2;
+    }
+    @page { size: 210mm 297mm; margin: 0; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', 'Nirmala UI', system-ui, sans-serif; color: var(--text); font-size: 12.5pt; line-height: 1.45; }
+    h1, h2, h3, p, ul { margin: 0; padding: 0; }
+    ul { list-style: none; }
+    .ic { width: 1em; height: 1em; display: block; }
+
+    /* ── Page frame ── */
+    .page { width: 210mm; height: 297mm; padding: 13mm 16mm 11mm; position: relative; overflow: hidden; display: flex; flex-direction: column; background: #fff; break-after: page; }
+    .page:last-child { break-after: auto; }
+    .page > * { flex-shrink: 0; }
+    .head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 4mm; border-bottom: .3mm solid var(--border); }
+    .brand { display: flex; align-items: center; gap: 2.6mm; font-size: 15pt; font-weight: 700; color: var(--navy); letter-spacing: -.2pt; }
+    .logo { width: 8.6mm; height: 8.6mm; display: block; }
+    .head-tag { font-size: 9.5pt; font-weight: 600; letter-spacing: 1.2pt; text-transform: uppercase; color: var(--muted); }
+    .foot { margin-top: auto; padding-top: 3.5mm; border-top: .3mm solid var(--border); display: flex; justify-content: space-between; font-size: 9pt; color: var(--muted); }
+
+    .intro { margin-top: 9mm; }
+    .eyebrow { font-size: 9.5pt; font-weight: 700; letter-spacing: 1.6pt; text-transform: uppercase; color: var(--accent-strong); }
+    h2 { margin-top: 2.2mm; font-size: 27pt; line-height: 1.14; font-weight: 700; color: var(--navy); letter-spacing: -.5pt; }
+    .lead { margin-top: 3.6mm; font-size: 13.5pt; color: var(--muted); max-width: 150mm; }
+    h3 { font-size: 15pt; font-weight: 700; color: var(--navy); }
+
+    /* ── Text + phone, side by side ── */
+    .cols { display: flex; gap: 11mm; align-items: flex-start; margin-top: 9mm; }
+    .cols.flip { flex-direction: row-reverse; }
+    .col-text { flex: 1; min-width: 0; }
+    .col-phone { flex: none; width: 66mm; }
+    .phone { border-radius: 8mm; padding: 2.2mm; background: #0B1626; box-shadow: 0 7mm 14mm -7mm rgba(15, 43, 70, .5); }
+    .phone img { display: block; width: 100%; border-radius: 6mm; }
+    .cap { margin-top: 3.4mm; font-size: 9.5pt; line-height: 1.35; color: var(--muted); text-align: center; }
+
+    .feats { display: flex; flex-direction: column; gap: 5.4mm; }
+    .feat { display: flex; gap: 4.2mm; align-items: flex-start; }
+    .ib { flex: none; width: 10.6mm; height: 10.6mm; border-radius: 3mm; background: var(--navy-tint); color: var(--navy); display: flex; align-items: center; justify-content: center; font-size: 15pt; }
+    .feat b { display: block; font-size: 13.5pt; line-height: 1.25; color: var(--navy); }
+    .feat span { display: block; margin-top: .9mm; font-size: 11.5pt; line-height: 1.4; color: var(--muted); }
+
+    /* ── Cover ── */
+    .cover { background: var(--navy); color: #fff; padding-bottom: 12mm; }
+    .cover .head { border-bottom-color: rgba(255, 255, 255, .14); }
+    .cover .brand { color: #fff; }
+    .cover .head-tag { color: var(--sand); }
+    .ring { position: absolute; border-radius: 50%; border: .5mm solid rgba(217, 200, 176, .13); }
+    .ring.a { width: 190mm; height: 190mm; right: -70mm; top: 62mm; }
+    .ring.b { width: 120mm; height: 120mm; right: -35mm; top: 97mm; background: rgba(27, 58, 95, .55); border: 0; }
+    .hero { position: relative; margin-top: 15mm; }
+    .pill { display: inline-block; padding: 1.6mm 4.2mm; border-radius: 99mm; background: var(--navy-light); color: var(--sand); font-size: 10.5pt; font-weight: 600; letter-spacing: .3pt; }
+    h1 { margin-top: 6mm; font-size: 45pt; line-height: 1.06; font-weight: 700; letter-spacing: -1.2pt; }
+    h1 em { font-style: normal; color: var(--sand); }
+    .hero p { margin-top: 6mm; max-width: 132mm; font-size: 15pt; line-height: 1.45; color: #DCE3EB; }
+    .cover-lower { position: relative; flex: 1; display: flex; gap: 10mm; align-items: flex-end; justify-content: space-between; margin-top: 8mm; }
+    .points { flex: 1; display: flex; flex-direction: column; gap: 6.4mm; padding-bottom: 1mm; }
+    .point { display: flex; gap: 4.2mm; align-items: flex-start; }
+    .point .ib { background: var(--navy-light); color: var(--sand); }
+    .point b { display: block; font-size: 14.5pt; line-height: 1.25; }
+    .point span { display: block; margin-top: .8mm; font-size: 11.5pt; color: #C3CDD9; }
+    .langs { margin-top: 5mm; padding-top: 5.5mm; border-top: .3mm solid rgba(255, 255, 255, .14); font-size: 11.5pt; color: #C3CDD9; }
+    .langs b { color: #fff; font-weight: 600; }
+    .cover .col-phone { width: 70mm; }
+    .cover .phone { background: #050D18; box-shadow: 0 10mm 20mm -8mm rgba(0, 0, 0, .6); }
+
+    /* ── Page 2: one bill, five jobs ── */
+    .flow { margin-top: 8mm; display: flex; align-items: stretch; gap: 5mm; padding: 6mm; border-radius: 5mm; background: var(--navy-tint); }
+    .flow-in { flex: none; width: 50mm; border-radius: 4mm; background: var(--navy); color: #fff; padding: 6mm 5.5mm; display: flex; flex-direction: column; justify-content: center; }
+    .flow-in .ib { background: var(--navy-light); color: var(--sand); margin-bottom: 4.5mm; }
+    .flow-in b { font-size: 17pt; line-height: 1.2; }
+    .flow-in span { margin-top: 2.4mm; font-size: 11pt; color: #C3CDD9; line-height: 1.4; }
+    .flow-arrow { flex: none; align-self: center; color: var(--accent-bright); font-size: 22pt; }
+    .flow-out { flex: 1; display: flex; flex-direction: column; gap: 2.2mm; }
+    .flow-out li { display: flex; align-items: center; gap: 3.4mm; padding: 2mm 4mm; border-radius: 3mm; background: #fff; border: .3mm solid var(--border); }
+    .flow-out .ic { flex: none; font-size: 15pt; color: var(--success); }
+    .flow-out b { font-size: 12.5pt; color: var(--navy); }
+    .flow-out span { font-size: 11pt; color: var(--muted); }
+
+    .vs { margin-top: 4mm; border: .3mm solid var(--border); border-radius: 4mm; overflow: hidden; }
+    .vs-row { display: grid; grid-template-columns: 24mm 1fr 1fr; }
+    .vs-row + .vs-row { border-top: .3mm solid var(--border); }
+    .vs-row > div { padding: 2.3mm 4mm; font-size: 11.5pt; line-height: 1.36; }
+    .vs-head > div { font-size: 9.5pt; font-weight: 700; letter-spacing: 1.2pt; text-transform: uppercase; color: var(--muted); background: var(--bg); padding-top: 2.4mm; padding-bottom: 2.4mm; }
+    .vs-head .yes { color: var(--success); }
+    .vs-topic { font-weight: 700; color: var(--navy); background: var(--bg); }
+    .vs-no { color: var(--muted); }
+    .vs-yes { color: var(--text); background: var(--success-tint); }
+
+    /* ── Billing ── */
+    .steps { display: flex; flex-direction: column; gap: 5mm; }
+    .step { display: flex; gap: 4.2mm; align-items: flex-start; }
+    .num { flex: none; width: 10.6mm; height: 10.6mm; border-radius: 50%; background: var(--accent); color: #fff; font-size: 14pt; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .step b { display: block; font-size: 13.5pt; line-height: 1.25; color: var(--navy); }
+    .step span { display: block; margin-top: .9mm; font-size: 11.5pt; line-height: 1.4; color: var(--muted); }
+    .sub { margin-top: 8mm; margin-bottom: 4mm; }
+    .kit { display: grid; grid-template-columns: 1fr 1fr; gap: 3.2mm; }
+    .kit-item { padding: 3.6mm 4mm; border: .3mm solid var(--border); border-radius: 3.6mm; background: var(--bg); }
+    .kit-item .ic { font-size: 15pt; color: var(--navy); margin-bottom: 2mm; }
+    .kit-item b { display: block; font-size: 12pt; color: var(--navy); line-height: 1.25; }
+    .kit-item span { display: block; margin-top: .8mm; font-size: 10.5pt; line-height: 1.35; color: var(--muted); }
+    .chips { display: flex; flex-wrap: wrap; gap: 2.4mm; margin-top: 4mm; }
+    .chip { padding: 1.5mm 3.8mm; border-radius: 99mm; background: var(--navy-tint); color: var(--navy); font-size: 11pt; font-weight: 600; }
+
+    .gain { margin-top: auto; margin-bottom: 6mm; display: flex; gap: 4.6mm; align-items: center; padding: 5mm 6mm; border-radius: 5mm; background: var(--navy-tint); }
+    .gain .ib { background: #fff; color: var(--accent-strong); }
+    .gain b { display: block; font-size: 9.5pt; letter-spacing: 1.4pt; text-transform: uppercase; color: var(--accent-strong); }
+    .gain span { display: block; margin-top: 1mm; font-size: 13.5pt; line-height: 1.35; font-weight: 600; color: var(--navy); }
+    .gain + .foot { margin-top: 0; }
+
+    /* ── Staff, automation, wholesale ── */
+    .roles { margin-top: 7.5mm; display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+    .role { display: flex; gap: 4mm; align-items: flex-start; padding: 4.4mm 4.6mm; border: .3mm solid var(--border); border-radius: 4mm; }
+    .role b { display: block; font-size: 13.5pt; color: var(--navy); line-height: 1.25; }
+    .role span { display: block; margin-top: .9mm; font-size: 11.5pt; line-height: 1.4; color: var(--muted); }
+    .band { margin-top: 7.5mm; padding: 6.5mm 6.5mm 7mm; border-radius: 5mm; background: var(--navy); color: #fff; }
+    .band h3 { color: #fff; }
+    .band-sub { margin-top: 1.2mm; font-size: 11.5pt; color: #C3CDD9; }
+    .timed { margin-top: 5mm; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+    .timed > div { padding: 4.4mm; border-radius: 3.6mm; background: var(--navy-light); }
+    .when { display: flex; align-items: center; gap: 2.2mm; font-size: 17pt; font-weight: 700; line-height: 1.2; color: #fff; }
+    .when .ic { font-size: 13pt; color: var(--sand); }
+    .every { margin-top: .6mm; font-size: 9.5pt; font-weight: 700; letter-spacing: 1.2pt; text-transform: uppercase; color: var(--sand); }
+    .timed p { margin-top: 2.4mm; font-size: 11.5pt; line-height: 1.4; color: #E9EEF3; }
+    .note { margin-top: 6.5mm; display: flex; gap: 4.6mm; align-items: flex-start; padding: 5.5mm 6mm; border-radius: 5mm; background: var(--accent-tint); border: .3mm solid #F3D9C4; }
+    .note .ib { background: #fff; color: var(--accent-strong); }
+    .note b { display: block; font-size: 13.5pt; color: var(--navy); }
+    .note span { display: block; margin-top: 1mm; font-size: 11.5pt; line-height: 1.42; color: #4A5565; }
+
+    /* ── Last page ── */
+    .start { margin-top: 8mm; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+    .start > div { padding: 5mm 4.6mm; border: .3mm solid var(--border); border-radius: 4mm; background: var(--bg); }
+    .start .num { margin-bottom: 3.6mm; }
+    .start b { display: block; font-size: 13pt; color: var(--navy); line-height: 1.25; }
+    .start span { display: block; margin-top: 1.2mm; font-size: 11.2pt; line-height: 1.4; color: var(--muted); }
+    .qa { margin-top: 4.5mm; display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 7mm; }
+    .qa > div { padding-top: 3.6mm; border-top: .5mm solid var(--navy); }
+    .qa b { display: block; font-size: 12.5pt; color: var(--navy); line-height: 1.28; }
+    .qa span { display: block; margin-top: 1.2mm; font-size: 11.2pt; line-height: 1.42; color: var(--muted); }
+    .close { margin-top: auto; margin-bottom: 6mm; padding: 9mm 8mm; border-radius: 5mm; background: var(--navy); color: #fff; position: relative; overflow: hidden; }
+    .close::after { content: ''; position: absolute; width: 70mm; height: 70mm; right: -20mm; top: -22mm; border-radius: 50%; background: var(--navy-light); }
+    .close b { position: relative; z-index: 1; display: block; font-size: 23pt; line-height: 1.15; letter-spacing: -.4pt; }
+    .close span { position: relative; z-index: 1; display: block; margin-top: 2.6mm; max-width: 120mm; font-size: 12.5pt; color: #DCE3EB; }
+    .close + .foot { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<!-- 1 · Cover -->
+<section class="page cover">
+    <div class="ring a"></div><div class="ring b"></div>
+    <header class="head">
+        <div class="brand">{{logo:navy}}<span>Whoply</span></div>
+        <div class="head-tag">Introduction</div>
+    </header>
+    <div class="hero">
+        <div class="pill">For shops, supermarkets and wholesalers</div>
+        <h1>Your whole store,<br><em>in one app.</em></h1>
+        <p>Billing, stock, udhar, purchases and reports, together on your phone or tablet. Simple enough for anyone at your counter to use.</p>
+    </div>
+    <div class="cover-lower">
+        <div class="points">
+            <div class="point"><div class="ib">{{icon:receipt-text}}</div><div><b>Bill in seconds</b><span>Correct GST on every bill.</span></div></div>
+            <div class="point"><div class="ib">{{icon:package}}</div><div><b>Stock that updates itself</b><span>Know what is low before it finishes.</span></div></div>
+            <div class="point"><div class="ib">{{icon:wallet}}</div><div><b>No udhar forgotten</b><span>Every customer's balance, always clear.</span></div></div>
+            <div class="point"><div class="ib">{{icon:trending-up}}</div><div><b>Profit every night</b><span>Real numbers, not a guess.</span></div></div>
+            <div class="langs">Works in <b>English · हिंदी · ગુજરાતી</b><br>No computer needed.</div>
+        </div>
+        <div class="col-phone"><div class="phone"><img src="img/dashboard.png" alt="Whoply home screen"></div></div>
+    </div>
+</section>
+
+<!-- 2 · The idea -->
+<section class="page">
+    <header class="head"><div class="brand">{{logo}}<span>Whoply</span></div><div class="head-tag">What is Whoply</div></header>
+    <div class="intro">
+        <div class="eyebrow">The idea</div>
+        <h2>One app that does the daily work of your store.</h2>
+        <p class="lead" style="max-width:none">Today the bill book, stock register, udhar diary and calculator are four separate things. Whoply joins them: you make the bill, and Whoply does the rest.</p>
+    </div>
+    <div class="flow">
+        <div class="flow-in">
+            <div class="ib">{{icon:receipt-text}}</div>
+            <b>You make<br>one bill</b>
+            <span>Scan or tap the items. Take the payment.</span>
+        </div>
+        <div class="flow-arrow">{{icon:chevron-right}}</div>
+        <ul class="flow-out">
+            <li>{{icon:circle-check}}<div><b>Stock goes down</b> <span>· by itself</span></div></li>
+            <li>{{icon:circle-check}}<div><b>GST is calculated</b> <span>· right rate, right total</span></div></li>
+            <li>{{icon:circle-check}}<div><b>Udhar is written</b> <span>· on the customer's name</span></div></li>
+            <li>{{icon:circle-check}}<div><b>Profit is counted</b> <span>· today and this month</span></div></li>
+            <li>{{icon:circle-check}}<div><b>Reports are ready</b> <span>· for you and your CA</span></div></li>
+        </ul>
+    </div>
+    <h3 class="sub">Paper today. Whoply tomorrow.</h3>
+    <div class="vs" style="margin-top:0">
+        <div class="vs-row vs-head"><div></div><div>On paper</div><div class="yes">With Whoply</div></div>
+        <div class="vs-row"><div class="vs-topic">Billing</div><div class="vs-no">Written by hand. A wrong rate or total becomes an argument.</div><div class="vs-yes">A correct GST bill in seconds. Print it or send it on WhatsApp.</div></div>
+        <div class="vs-row"><div class="vs-topic">Stock</div><div class="vs-no">You learn it is finished when a customer asks for it.</div><div class="vs-yes">A low-stock alert, and how much to order.</div></div>
+        <div class="vs-row"><div class="vs-topic">Udhar</div><div class="vs-no">A name in a diary. Easy to forget.</div><div class="vs-yes">Every customer's balance, and a list each morning of who to remind.</div></div>
+        <div class="vs-row"><div class="vs-topic">Profit</div><div class="vs-no">A guess until the month ends.</div><div class="vs-yes">Real profit, every night.</div></div>
+        <div class="vs-row"><div class="vs-topic">Staff</div><div class="vs-no">Everyone uses the same book and sees everything.</div><div class="vs-yes">Each person has a login and sees only their own work.</div></div>
+    </div>
+    <footer class="foot"><span>Whoply · Introduction</span><span>2</span></footer>
+</section>
+
+<!-- 3 · Billing -->
+<section class="page">
+    <header class="head"><div class="brand">{{logo}}<span>Whoply</span></div><div class="head-tag">Billing</div></header>
+    <div class="intro">
+        <div class="eyebrow">Billing</div>
+        <h2>A correct GST bill, in seconds.</h2>
+        <p class="lead">The counter moves faster, and every bill is right.</p>
+    </div>
+    <div class="cols">
+        <div class="col-text">
+            <div class="steps">
+                <div class="step"><div class="num">1</div><div><b>Scan or tap the item</b><span>Use a barcode scanner, the phone camera, or search by name.</span></div></div>
+                <div class="step"><div class="num">2</div><div><b>Choose how the customer pays</b><span>Cash, UPI, card, a mix of them, or udhar.</span></div></div>
+                <div class="step"><div class="num">3</div><div><b>Complete the sale</b><span>Print the bill or send it on WhatsApp. Stock and accounts update by themselves.</span></div></div>
+            </div>
+            <h3 class="sub">Works with your counter</h3>
+            <div class="kit">
+                <div class="kit-item">{{icon:scan-barcode}}<b>Barcode scanner</b><span>A USB scanner, or the phone camera.</span></div>
+                <div class="kit-item">{{icon:printer}}<b>Bill printer</b><span>58 mm or 80 mm roll, or a full A4 GST invoice.</span></div>
+                <div class="kit-item">{{icon:qr-code}}<b>UPI QR</b><span>Your QR with the bill amount already filled in.</span></div>
+                <div class="kit-item">{{icon:message-circle}}<b>WhatsApp bill</b><span>Send the bill to the customer's WhatsApp.</span></div>
+            </div>
+        </div>
+        <div class="col-phone">
+            <div class="phone"><img src="img/billing-cart.png" alt="A bill being made in Whoply"></div>
+            <p class="cap">Real screen from the app, with demo data: a bill with five items.</p>
+        </div>
+    </div>
+    <h3 class="sub">Also in billing</h3>
+    <div class="chips" style="margin-top:0">
+        <span class="chip">Discount on the bill</span>
+        <span class="chip">Returns and credit notes</span>
+        <span class="chip">Estimate today, bill tomorrow</span>
+        <span class="chip">GST bill for business customers</span>
+        <span class="chip">Sell by piece, kg, box or bag</span>
+    </div>
+    <footer class="foot"><span>Whoply · Introduction</span><span>3</span></footer>
+</section>
+
+<!-- 4 · Stock -->
+<section class="page">
+    <header class="head"><div class="brand">{{logo}}<span>Whoply</span></div><div class="head-tag">Stock</div></header>
+    <div class="intro">
+        <div class="eyebrow">Stock and purchases</div>
+        <h2>Always know what is on your shelf.</h2>
+        <p class="lead">No more counting by hand, and no more empty shelves.</p>
+    </div>
+    <div class="cols flip">
+        <div class="col-text">
+            <div class="feats">
+                <div class="feat"><div class="ib">{{icon:package}}</div><div><b>Stock updates by itself</b><span>Every bill takes stock out. Every purchase puts stock in.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:triangle-alert}}</div><div><b>Low-stock alerts</b><span>You know an item is running low before the shelf is empty.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:sparkles}}</div><div><b>What to order, and how much</b><span>Worked out from how fast each item sold in the last 30 days.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:truck}}</div><div><b>Suppliers and purchases</b><span>Purchase orders, goods received, and what you still owe each supplier.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:rotate-ccw}}</div><div><b>Damage and wastage</b><span>Correct the stock for damaged items, so your numbers stay true.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:tags}}</div><div><b>Items in categories</b><span>Grocery, clothes, toys, steel. Find any item by name or barcode.</span></div></div>
+            </div>
+        </div>
+        <div class="col-phone">
+            <div class="phone"><img src="img/insights.png" alt="Reorder suggestions in Whoply"></div>
+            <p class="cap">Real screen, demo data: stock left, sale per day, days left, and how much to order.</p>
+        </div>
+    </div>
+    <div class="gain"><div class="ib">{{icon:circle-check}}</div><div><b>What it means for you</b><span>Less money stuck in slow items, and no sale lost to an empty shelf.</span></div></div>
+    <footer class="foot"><span>Whoply · Introduction</span><span>4</span></footer>
+</section>
+
+<!-- 5 · Udhar -->
+<section class="page">
+    <header class="head"><div class="brand">{{logo}}<span>Whoply</span></div><div class="head-tag">Udhar</div></header>
+    <div class="intro">
+        <div class="eyebrow">Udhar and customers</div>
+        <h2>No udhar is ever forgotten.</h2>
+        <p class="lead">One forgotten udhar is money lost. Whoply remembers every rupee.</p>
+    </div>
+    <div class="cols">
+        <div class="col-text">
+            <div class="feats">
+                <div class="feat"><div class="ib">{{icon:users}}</div><div><b>A ledger for every customer</b><span>Every credit bill and every payment, in one place.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:shield-check}}</div><div><b>A credit limit you set</b><span>Whoply warns you when a customer goes over the limit.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:calendar-days}}</div><div><b>A list every morning</b><span>Who owes what, oldest first, ready at 10 AM.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:message-circle}}</div><div><b>Remind on WhatsApp</b><span>One tap opens WhatsApp with the reminder already written.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:hand-coins}}</div><div><b>Collect in one tap</b><span>Record the payment and the balance updates at once.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:gift}}</div><div><b>Loyalty points</b><span>Customers earn 1 point for every ₹100 they spend.</span></div></div>
+            </div>
+        </div>
+        <div class="col-phone">
+            <div class="phone"><img src="img/customers.png" alt="Customers and udhar in Whoply"></div>
+            <p class="cap">Real screen, demo data: each customer's udhar balance and points.</p>
+        </div>
+    </div>
+    <div class="gain"><div class="ib">{{icon:circle-check}}</div><div><b>What it means for you</b><span>Money that used to be forgotten comes back to you.</span></div></div>
+    <footer class="foot"><span>Whoply · Introduction</span><span>5</span></footer>
+</section>
+
+<!-- 6 · Profit, reports, GST -->
+<section class="page">
+    <header class="head"><div class="brand">{{logo}}<span>Whoply</span></div><div class="head-tag">Profit and reports</div></header>
+    <div class="intro">
+        <div class="eyebrow">Profit, reports and GST</div>
+        <h2>Know your profit before you close the shutter.</h2>
+        <p class="lead">Every number you used to work out by hand is already there.</p>
+    </div>
+    <div class="cols flip">
+        <div class="col-text">
+            <div class="feats">
+                <div class="feat"><div class="ib">{{icon:wallet}}</div><div><b>Day close in one tap</b><span>Cash, UPI, card, udhar given, udhar collected and expenses.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:trending-up}}</div><div><b>Real profit, every day</b><span>Not a guess at the end of the month.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:chart-column}}</div><div><b>Best and slow sellers</b><span>Keep more of what sells. Stop buying what does not.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:package}}</div><div><b>Money in your stock</b><span>See how much cash is sitting on your shelves.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:indian-rupee}}</div><div><b>Expenses</b><span>Rent, salaries and bills, so the profit you see is the true one.</span></div></div>
+                <div class="feat"><div class="ib">{{icon:file-spreadsheet}}</div><div><b>GST reports for your CA</b><span>GSTR-1 and GSTR-3B reports as files your CA opens in Excel.</span></div></div>
+            </div>
+        </div>
+        <div class="col-phone">
+            <div class="phone"><img src="img/reports.png" alt="Reports in Whoply"></div>
+            <p class="cap">Real screen, demo data: today's day close and the month's numbers.</p>
+        </div>
+    </div>
+    <div class="gain"><div class="ib">{{icon:circle-check}}</div><div><b>What it means for you</b><span>You decide with real numbers, not from memory.</span></div></div>
+    <footer class="foot"><span>Whoply · Introduction</span><span>6</span></footer>
+</section>
+
+<!-- 7 · Staff, automation, wholesale -->
+<section class="page">
+    <header class="head"><div class="brand">{{logo}}<span>Whoply</span></div><div class="head-tag">Staff and control</div></header>
+    <div class="intro">
+        <div class="eyebrow">Staff and control</div>
+        <h2>Your cashier bills. Your cashier never sees your profit.</h2>
+        <p class="lead">Each person signs in with their own mobile number and sees only their own work.</p>
+    </div>
+    <div class="roles">
+        <div class="role"><div class="ib">{{icon:store}}</div><div><b>Owner</b><span>Sees everything. Only the owner adds staff logins.</span></div></div>
+        <div class="role"><div class="ib">{{icon:users-round}}</div><div><b>Manager</b><span>Runs the store day to day. Cannot add staff or change store details.</span></div></div>
+        <div class="role"><div class="ib">{{icon:shopping-cart}}</div><div><b>Cashier</b><span>Billing, bills, returns, customers, udhar and today's cash.</span></div></div>
+        <div class="role"><div class="ib">{{icon:file-spreadsheet}}</div><div><b>Accountant</b><span>Reports, GST and accounts. View only.</span></div></div>
+    </div>
+    <div class="band">
+        <h3>Whoply works while you sleep</h3>
+        <p class="band-sub">Three things arrive on your phone without you asking.</p>
+        <div class="timed">
+            <div><div class="when">{{icon:clock}}9 PM</div><div class="every">Every night</div><p>Your day's summary: sales, profit, dues and low stock.</p></div>
+            <div><div class="when">{{icon:clock}}10 AM</div><div class="every">Every morning</div><p>Today's udhar list: who owes what, oldest first.</p></div>
+            <div><div class="when">{{icon:clock}}9 AM</div><div class="every">Every Monday</div><p>What you owe your suppliers this week.</p></div>
+        </div>
+    </div>
+    <div class="note">
+        <div class="ib">{{icon:route}}</div>
+        <div><b>Are you a wholesaler or distributor?</b><span>Whoply has a separate wholesale side: dealer-wise price lists, bulk orders and dispatch, a sales team with collections, and each dealer's outstanding with a credit limit. Tell us, and we set up your account that way.</span></div>
+    </div>
+    <footer class="foot"><span>Whoply · Introduction</span><span>7</span></footer>
+</section>
+
+<!-- 8 · Start, questions, close -->
+<section class="page">
+    <header class="head"><div class="brand">{{logo}}<span>Whoply</span></div><div class="head-tag">Getting started</div></header>
+    <div class="intro">
+        <div class="eyebrow">Getting started</div>
+        <h2>Three steps to your first bill.</h2>
+    </div>
+    <div class="start">
+        <div><div class="num">1</div><b>We open your store account</b><span>You get your own login on your mobile number.</span></div>
+        <div><div class="num">2</div><b>Your items go in</b><span>Name, price, GST rate and stock. Scan the barcode in place of typing it.</span></div>
+        <div><div class="num">3</div><b>You start billing</b><span>Proper GST bills from your very first sale.</span></div>
+    </div>
+    <h3 class="sub">Good to know</h3>
+    <div class="qa" style="margin-top:0">
+        <div><b>Do I need a computer?</b><span>No. An Android phone or tablet is enough. Whoply installs from the browser and opens like any other app.</span></div>
+        <div><b>Which languages does it work in?</b><span>English, हिंदी and ગુજરાતી. Each person can pick their own language.</span></div>
+        <div><b>Does it need internet?</b><span>Yes. Billing needs an internet connection today.</span></div>
+        <div><b>Can my staff use it?</b><span>Yes. Each one gets a separate login, so nobody needs your password.</span></div>
+        <div><b>Is my data safe?</b><span>Your data is backed up every day, and you can download your bills at any time.</span></div>
+        <div><b>What if I need help?</b><span>There is a Help and Support chat inside the app, and we help you with the setup.</span></div>
+    </div>
+    <div class="close">
+        <b>Stop running your store on paper.</b>
+        <span>Ask us for a demo on your own phone. You will see your own items on your own bill in a few minutes.</span>
+    </div>
+    <footer class="foot"><span>Whoply · Introduction</span><span>8</span></footer>
+</section>
+
+</body>
+</html>
