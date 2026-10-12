@@ -5,6 +5,7 @@ import { useAuth, homeFor, storedUser } from '@/stores/auth.store';
 import { api } from '@/lib/api';
 import { AppShell } from '@/components/AppShell';
 import { Logo } from '@/components/Logo';
+import { AnnouncementPopup } from '@/components/AnnouncementPopup';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -51,5 +52,10 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
             </div>
         );
     }
-    return <AppShell>{children}</AppShell>;
+    return (
+        <>
+            <AppShell>{children}</AppShell>
+            <AnnouncementPopup />
+        </>
+    );
 }

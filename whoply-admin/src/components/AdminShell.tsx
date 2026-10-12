@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare, Inbox, KeyRound, Lock } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, LogOut, Moon, Sun, ShieldCheck, CreditCard, Menu, X, PanelLeftClose, PanelLeft, CalendarDays, ChevronDown, Receipt, Settings, MessagesSquare, Inbox, KeyRound, Lock, Megaphone } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/stores/auth.store';
 import { api } from '@/lib/api';
@@ -28,6 +28,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     },
     {
         title: 'Platform', items: [
+            { href: '/announcements', label: 'App popups', icon: Megaphone, blurb: 'Offers, news and notices shown inside the app', perm: 'announcements.manage' },
             { href: '/settings', label: 'Settings', icon: Settings, blurb: 'Company, payment details, reminders, support', perm: 'settings.manage' },
             { href: '/access', label: 'Access control', icon: KeyRound, blurb: 'Admin logins, roles and the activity log', perm: 'admins.manage' },
         ],

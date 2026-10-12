@@ -6,6 +6,7 @@ import Business from '../../models/Business.js';
 import Invoice from '../../models/Invoice.js';
 import Order from '../../models/Order.js';
 import { createInquiry } from '../../controllers/admin/inquiries.controller.js';
+import { announcementImage } from '../../controllers/shared/announcement.controller.js';
 
 const router = Router();
 
@@ -97,5 +98,8 @@ router.get(
 
 /** POST /api/public/inquiries — the marketing site's "Contact us" form (see the controller for its guards). */
 router.post('/inquiries', createInquiry);
+
+/** GET /api/public/announcements/:id/image — the poster of a popup that is live in the app. */
+router.get('/announcements/:id/image', announcementImage);
 
 export default router;

@@ -14,8 +14,8 @@ import { verifyToken } from '../utils/jwt.js';
 
 /* ───────────── body size ───────────── */
 
-/** Routes that carry photos as data URLs: staff ID photos, the shop's UPI QR, a profile or product picture. */
-const PHOTO_ROUTES = /^\/api\/(staff(\/|$)|auth\/profile$|(shopkeeper|wholesaler)\/(business$|products(\/|$)))/;
+/** Routes that carry photos as data URLs: staff ID photos, the shop's UPI QR, a profile or product picture, an admin's popup poster. */
+const PHOTO_ROUTES = /^\/api\/(staff(\/|$)|auth\/profile$|admin\/announcements(\/|$)|(shopkeeper|wholesaler)\/(business$|products(\/|$)))/;
 const smallJson = express.json({ limit: '1mb' });
 const photoJson = express.json({ limit: '12mb' });
 

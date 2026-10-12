@@ -22,6 +22,7 @@ const PERM_ROWS: [string, string, string][] = [
     ['Billing', 'billing.view', 'billing.manage'],
     ['Support chat', 'support.chat', 'support.chat'],
     ['Inquiries', 'inquiries.view', 'inquiries.manage'],
+    ['App popups', 'announcements.manage', 'announcements.manage'],
     ['Settings', 'settings.manage', 'settings.manage'],
     ['Admin logins & activity', 'admins.manage', 'admins.manage'],
 ];
