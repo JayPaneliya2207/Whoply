@@ -20,6 +20,10 @@ interface PublicStats {
 /* The stats are unauthenticated and hit several collections, so compute them
    at most once per window rather than on every request. */
 const STATS_TTL_MS = 10 * 60 * 1000;
+/* With only a few businesses the "platform" numbers are really one shop's bill
+   count, refreshed every ten minutes for anyone who asks. Publish them only
+   once they describe a crowd. */
+const STATS_MIN_BUSINESSES = 25;
 let statsCache: { at: number; data: PublicStats } | null = null;
 
 async function computeStats(): Promise<PublicStats> {
@@ -34,6 +38,9 @@ async function computeStats(): Promise<PublicStats> {
     const statesCovered = new Set(
         (states as unknown[]).map((s) => String(s ?? '').trim().toLowerCase()).filter(Boolean)
     ).size;
+    if (shopkeepers + wholesalers < STATS_MIN_BUSINESSES) {
+        return { shopkeepers: 0, wholesalers: 0, gstInvoices: 0, statesCovered: 0, updatedAt: new Date().toISOString() };
+    }
     return {
         shopkeepers,
         wholesalers,

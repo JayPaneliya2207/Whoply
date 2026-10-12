@@ -58,7 +58,8 @@ export const errorHandler: ErrorRequestHandler = (
         statusCode = 400;
         message = err.message;
         code = 'VALIDATION_ERROR';
-    } else if (err.name === 'CastError') {
+    } else if (err.name === 'CastError' || err.name === 'BSONError') {
+        // BSONError: an id built by hand from the address (new Types.ObjectId('abc')).
         statusCode = 400;
         message = 'Invalid ID format';
         code = 'INVALID_ID';

@@ -10,6 +10,7 @@
  */
 import express, { type Request, type Response, type NextFunction, type RequestHandler } from 'express';
 import { AppError } from '../utils/AppError.js';
+import { verifyToken } from '../utils/jwt.js';
 
 /* ───────────── body size ───────────── */
 
@@ -18,7 +19,22 @@ const PHOTO_ROUTES = /^\/api\/(staff(\/|$)|auth\/profile$|(shopkeeper|wholesaler
 const smallJson = express.json({ limit: '1mb' });
 const photoJson = express.json({ limit: '12mb' });
 
-export const jsonBody: RequestHandler = (req, res, next) => (PHOTO_ROUTES.test(req.path) ? photoJson : smallJson)(req, res, next);
+/** A token we signed ourselves (a cheap check, no database): only a signed-in caller may send a big body. */
+const signedIn = (req: Request): boolean => {
+    const header = req.headers.authorization || '';
+    if (!header.startsWith('Bearer ')) return false;
+    try { verifyToken(header.slice(7)); return true; } catch { return false; }
+};
+
+// The body is read before any route runs, so without the token check a stranger could make
+// the API buffer and parse 12 MB again and again just by naming a photo route.
+export const jsonBody: RequestHandler = (req, res, next) => (PHOTO_ROUTES.test(req.path) && signedIn(req) ? photoJson : smallJson)(req, res, next);
+
+/** A request without a JSON body leaves `req.body` undefined; routes read fields from it, so give them an empty one. */
+export const ensureBody: RequestHandler = (req, _res, next) => {
+    if (req.body === undefined || req.body === null) req.body = {};
+    next();
+};
 
 /* ───────────── operator / prototype keys ───────────── */
 

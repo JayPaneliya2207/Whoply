@@ -10,7 +10,7 @@ export const businessOf = (req: AuthRequest) => {
 
 /** Parse ?page=&limit= into skip/limit + a meta builder. */
 export const paginate = (query: any) => {
-    const page = Math.max(1, parseInt(query.page as string) || 1);
+    const page = Math.min(100_000, Math.max(1, parseInt(query.page as string) || 1)); // a huge page number is a database error, not a page
     const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 20));
     const skip = (page - 1) * limit;
     const meta = (total: number): IPaginationMeta => ({

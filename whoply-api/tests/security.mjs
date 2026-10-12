@@ -95,6 +95,52 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
     r = await api('GET', '/admin/stats', st);
     check('a shop login can not use the admin API', r.status === 403, `${r.status}`);
 
+    suite('requests that used to be server errors');
+    r = await api('DELETE', '/shopkeeper/suppliers/abc', st);
+    check('a hand-typed id is a clean 400', r.status === 400 && code(r) === 'INVALID_ID', `${r.status} ${code(r)} ${msg(r)}`);
+    r = await raw('POST', '/shopkeeper/customers', st, undefined);
+    check('a POST with no body at all is a clean 400', r.status === 400, `${r.status} ${code(r)} ${msg(r)}`);
+    r = await api('GET', '/shopkeeper/products?page=999999999999999999999', st);
+    check('an absurd page number is not a server error', r.status === 200, `${r.status} ${msg(r)}`);
+
+    suite('big bodies need a login');
+    r = await api('POST', '/staff', null, { name: 'Stranger', mobile: '12', pad: 'x'.repeat(1_500_000) });
+    check('a stranger can not make the API read a big body on a photo route (413)', r.status === 413 && code(r) === 'PAYLOAD_TOO_LARGE', `${r.status} ${code(r)}`);
+    r = await api('POST', '/staff', 'not.a.real.token', { name: 'Stranger', mobile: '12', pad: 'x'.repeat(1_500_000) });
+    check('…nor with a made-up token', r.status === 413, `${r.status} ${code(r)}`);
+    r = await api('POST', '/staff', st, { name: 'Owner', mobile: '12', pad: 'x'.repeat(1_500_000) });
+    check('…a signed-in owner still can (refused for the content, not the size)', r.status !== 413 && r.status < 500, `${r.status} ${code(r)} ${msg(r)}`);
+
+    suite('one business, one set of data');
+    const ws = await login('9000000010');
+    const otherCat = d(await api('POST', '/wholesaler/categories', ws, { name: 'Another business category' }));
+    const prod = d(await api('POST', '/shopkeeper/products', st, { name: 'Category check item', sku: 'CAT-CHECK-1', sellPrice: 10, costPrice: 5 }));
+    r = await api('PATCH', `/shopkeeper/products/${prod?._id}`, st, { categoryId: otherCat?._id });
+    check('a product can not be put in another business’s category', !!otherCat?._id && !!prod?._id && r.status === 400, `${r.status} ${msg(r)} cat=${otherCat?._id} prod=${prod?._id}`);
+    const ownCat = d(await api('POST', '/shopkeeper/categories', st, { name: 'My own category' }));
+    r = await api('PATCH', `/shopkeeper/products/${prod?._id}`, st, { categoryId: ownCat?._id });
+    check('…its own category is fine', !!ownCat?._id && r.status === 200, `${r.status} ${msg(r)}`);
+    r = await api('GET', '/public/stats', null);
+    check('public stats give nothing away while there are only a few businesses', r.status === 200 && d(r)?.gstInvoices === 0 && d(r)?.shopkeepers === 0 && d(r)?.wholesalers === 0, JSON.stringify(d(r)));
+
+    suite('staff see only their own notifications');
+    const adm = await login('9000000099');
+    await api('POST', '/staff', st, { name: 'Counter Cashier', mobile: '9811100031', role: 'cashier', salary: 9000, password: 'Cashier@2026' });
+    const cashier = await login('9811100031', 'Cashier@2026');
+    await api('POST', '/support/messages', st, { text: 'Please call me about my printer.' });
+    const thread = d(await api('GET', '/admin/support/threads', adm))?.items?.[0];
+    r = await api('POST', `/admin/support/threads/${thread?._id}/messages`, adm, { text: 'We will call you at 5 pm today.' });
+    const mine = d(await api('GET', '/shopkeeper/notifications', st));
+    const theirs = d(await api('GET', '/shopkeeper/notifications', cashier));
+    const kinds = (x) => JSON.stringify((x?.items || []).map((n) => n.type));
+    check('the owner gets the support reply as a notification', r.status < 300 && (mine?.items || []).some((n) => n.type === 'support'), `${r.status} ${msg(r)} ${kinds(mine)}`);
+    check('a cashier does not get owner-only notifications', !!cashier && Array.isArray(theirs?.items) && theirs.items.every((n) => !['support', 'summary', 'payable', 'subscription'].includes(n.type)), kinds(theirs));
+    check('…and they are not counted as unread for the cashier', (mine?.unread ?? 0) > (theirs?.unread ?? 0), `owner ${mine?.unread} cashier ${theirs?.unread}`);
+    const reply = (mine?.items || []).find((n) => n.type === 'support');
+    await api('POST', `/shopkeeper/notifications/${reply?._id}/read`, cashier);
+    const after = d(await api('GET', '/shopkeeper/notifications', st));
+    check('…nor can the cashier mark the owner’s as read', (after?.items || []).some((n) => String(n._id) === String(reply?._id) && n.isRead === false), kinds(after));
+
     suite('sign-up is closed');
     r = await api('POST', '/auth/register', null, { name: 'Stranger', mobile: '9811100001', password: 'Stranger@2026' });
     check('nobody can create an account by themselves', r.status === 403 && !d(r)?.userId, `${r.status} ${msg(r)}`);

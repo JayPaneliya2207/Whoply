@@ -22,9 +22,10 @@ import { BUSINESS_SUSPENDED } from '../middleware/auth.middleware.js';
 import { endSessions } from '../utils/staff.js';
 import { cleanImage, cleanText } from '../utils/image.js';
 import { env } from '../config/env.js';
+import { isDevMode, DEMO_PASSWORD } from '../utils/devMode.js';
 
-/** OTP sign-in works only where the code can reach the phone: off in production until OTP_LOGIN=on (an SMS provider is wired). */
-const otpLoginOn = () => (env.OTP_LOGIN ? env.OTP_LOGIN === 'on' : env.NODE_ENV !== 'production');
+/** OTP sign-in works only where the code can reach the phone: off outside dev mode until OTP_LOGIN=on (an SMS provider is wired). */
+const otpLoginOn = () => (env.OTP_LOGIN ? env.OTP_LOGIN === 'on' : isDevMode());
 const NO_ACCOUNT = 'No account found for this mobile. Please contact the Whoply team to get an account.';
 
 /** A business the platform admin suspended: no sign-in for its owner or staff. */
@@ -89,7 +90,7 @@ export const register = asyncHandler(async (req, res) => {
 
     sendCreated(
         res,
-        { mobile: maskMobile(mobile), userId: user._id, ...(process.env.NODE_ENV !== 'production' && { devOtp: otp }) },
+        { mobile: maskMobile(mobile), userId: user._id, ...(isDevMode() && { devOtp: otp }) },
         'Account created. Verify the OTP sent to your mobile.'
     );
 });
@@ -112,7 +113,7 @@ export const requestOtp = asyncHandler(async (req, res) => {
     await user.save();
 
     // In prod: dispatch SMS via your provider here. Dev returns the OTP for convenience.
-    sendSuccess(res, { mobile: maskMobile(mobile), ...(process.env.NODE_ENV !== 'production' && { devOtp: otp }) }, 'OTP sent successfully');
+    sendSuccess(res, { mobile: maskMobile(mobile), ...(isDevMode() && { devOtp: otp }) }, 'OTP sent successfully');
 });
 
 /** POST /api/auth/verify-otp — verify OTP and issue token (wrong tries count towards the lock) */
@@ -149,6 +150,12 @@ export const passwordLogin = asyncHandler(async (req, res) => {
     const body = passwordLoginSchema.parse(req.body);
     const mobile = normalizePhone(body.mobile);
     assertIpAllowed(req.ip);
+    // The demo logins' password is public (the repository is). It opens nothing on a live server,
+    // even if demo data ever reached its database.
+    if (!isDevMode() && body.password === DEMO_PASSWORD) {
+        failedFromIp(req.ip);
+        throw AppError.unauthorized('This password is not allowed here. Ask the Whoply team to set a new one.');
+    }
 
     const user = await User.findOne({ mobile }).select(`+password ${GUARD_FIELDS}`);
     if (!user) {
