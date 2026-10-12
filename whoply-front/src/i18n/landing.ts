@@ -682,11 +682,11 @@ const en: LandingCopy = {
         sub: 'Everything you used to flip through registers for — in one place, every morning.',
         hint: 'Tap a dot, or pick from the list',
         items: [
-            { title: 'Today’s sales, as they happen', cap: 'Every bill lands here the moment it’s made, with the week’s trend beside it.' },
+            { title: 'Today’s sales, as they happen', cap: 'Every bill lands here the moment it’s made, with today’s profit right under it.' },
             { title: 'What’s actually selling', cap: 'Your best sellers by quantity and value — stock more of what moves.' },
-            { title: 'Every order, and where it is', cap: 'Delivered, processing or pending — no phone calls to find out.' },
-            { title: 'Low stock, before it runs out', cap: 'Items about to finish are flagged with exactly how many are left.' },
-            { title: 'Where the money went', cap: 'Rent, purchases and bills sorted, so the profit you see is real.' },
+            { title: 'Udhar still to collect', cap: 'What your customers owe in total, and how many of them — tap it to see who.' },
+            { title: 'Low stock, before it runs out', cap: 'How many items need reordering — tap it to see what’s left of each.' },
+            { title: 'What you’re owed, what you owe', cap: 'Customers’ udhar against your supplier dues — one number tells you where you stand.' },
         ],
     },
     how: {
@@ -1243,11 +1243,11 @@ const hi: LandingCopy = {
         sub: 'जिसके लिए रजिस्टर पलटने पड़ते थे — वो सब एक जगह, हर सुबह।',
         hint: 'किसी बिंदु पर टैप करें, या लिस्ट से चुनें',
         items: [
-            { title: 'आज की बिक्री, उसी वक़्त', cap: 'हर बिल बनते ही यहाँ दिखता है, साथ में पूरे हफ़्ते का ट्रेंड।' },
+            { title: 'आज की बिक्री, उसी वक़्त', cap: 'हर बिल बनते ही यहाँ दिखता है, ठीक नीचे आज का मुनाफ़ा।' },
             { title: 'असल में क्या बिक रहा है', cap: 'मात्रा और कीमत के हिसाब से सबसे ज़्यादा बिकने वाला माल — जो चलता है, वही ज़्यादा रखें।' },
-            { title: 'हर ऑर्डर, और वो कहाँ है', cap: 'डिलीवर, प्रोसेसिंग या पेंडिंग — पता करने के लिए फ़ोन नहीं करना पड़ता।' },
-            { title: 'स्टॉक खत्म होने से पहले', cap: 'जो माल खत्म होने वाला है, वो ठीक कितना बचा है, उसके साथ दिखता है।' },
-            { title: 'पैसा कहाँ गया', cap: 'किराया, खरीद और बिल अलग-अलग — ताकि जो मुनाफ़ा दिखे, वो असली हो।' },
+            { title: 'उधार, जो अभी वसूलना है', cap: 'ग्राहकों पर कुल कितना बकाया है और कितने ग्राहकों पर — टैप करके देखें किस पर।' },
+            { title: 'स्टॉक खत्म होने से पहले', cap: 'कितने आइटम दोबारा मँगाने हैं — टैप करके देखें किसका कितना बचा है।' },
+            { title: 'लेना कितना, देना कितना', cap: 'ग्राहकों का उधार और सप्लायरों का बकाया आमने-सामने — एक आँकड़ा बता देता है आप कहाँ खड़े हैं।' },
         ],
     },
     how: {
@@ -1804,11 +1804,11 @@ const gu: LandingCopy = {
         sub: 'જેના માટે ચોપડા ફેરવવા પડતા — તે બધું એક જગ્યાએ, દરરોજ સવારે.',
         hint: 'કોઈ બિંદુ પર ટેપ કરો, કે યાદીમાંથી પસંદ કરો',
         items: [
-            { title: 'આજનું વેચાણ, એ જ ક્ષણે', cap: 'દરેક બિલ બનતાં જ અહીં દેખાય છે, સાથે આખા અઠવાડિયાનો ટ્રેન્ડ.' },
+            { title: 'આજનું વેચાણ, એ જ ક્ષણે', cap: 'દરેક બિલ બનતાં જ અહીં દેખાય છે, બરાબર નીચે આજનો નફો.' },
             { title: 'ખરેખર શું વેચાય છે', cap: 'જથ્થા અને કિંમત પ્રમાણે સૌથી વધુ વેચાતો માલ — જે ચાલે છે, તે વધુ રાખો.' },
-            { title: 'દરેક ઓર્ડર, અને તે ક્યાં છે', cap: 'ડિલિવર, પ્રોસેસિંગ કે પેન્ડિંગ — જાણવા માટે ફોન નહીં કરવો પડે.' },
-            { title: 'સ્ટોક ખલાસ થાય તે પહેલાં', cap: 'જે માલ ખલાસ થવાનો છે, તે બરાબર કેટલો બચ્યો છે તેની સાથે દેખાય છે.' },
-            { title: 'પૈસા ક્યાં ગયા', cap: 'ભાડું, ખરીદી અને બિલ અલગ-અલગ — જેથી જે નફો દેખાય, તે સાચો હોય.' },
+            { title: 'ઉધાર, જે હજી વસૂલવાનું છે', cap: 'ગ્રાહકો પાસે કુલ કેટલું બાકી છે અને કેટલા ગ્રાહકો પાસે — ટેપ કરીને જુઓ કોની પાસે.' },
+            { title: 'સ્ટોક ખલાસ થાય તે પહેલાં', cap: 'કેટલી આઇટમ ફરી મંગાવવાની છે — ટેપ કરીને જુઓ કોનો કેટલો બચ્યો છે.' },
+            { title: 'લેવાના કેટલા, આપવાના કેટલા', cap: 'ગ્રાહકોનું ઉધાર અને સપ્લાયરનું બાકી સામસામે — એક આંકડો કહી દે છે તમે ક્યાં ઊભા છો.' },
         ],
     },
     how: {

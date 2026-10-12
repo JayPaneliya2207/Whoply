@@ -11,9 +11,16 @@
  * shopkeepers. They're kept, not deleted. `E-COMMERCE.jfif` joined them: a
  * 626px-wide dark neon render — too small to show sharp and off-palette.
  *
- * `public/img/assets/` PNGs carry alpha. The shopkeeper, dashboard and counter
- * kit are cutouts and sit on any background; the store photo's edges fade out
+ * `public/img/assets/` PNGs carry alpha. The shopkeeper and counter kit are
+ * cutouts and sit on any background; the store photo's edges fade out
  * unevenly, so it must sit on navy, which that fade dissolves into.
+ *
+ * The product itself is shown with real screens, never mock-ups:
+ * `shopkeeper-tablet.png` is the shopkeeper cutout with the app's home screen
+ * placed on his tablet (perspective-fitted to the four screen corners), and
+ * `app-dashboard.png` is the same home screen at desktop width. Both were taken
+ * from the app running on seed demo data. The earlier mock-up versions
+ * (`shopkeeper.png`, `dashboard.png`) moved to `public/img/unused/`.
  */
 
 export interface Media {
@@ -26,23 +33,23 @@ export interface Media {
 
 export const MEDIA = {
     heroCutout: {
-        src: '/img/assets/shopkeeper.png',
+        src: '/img/assets/shopkeeper-tablet.png',
         width: 1143,
         height: 1376,
         alt: {
-            en: 'A smiling shopkeeper in an apron pointing at a tablet that shows today’s sales and low-stock items.',
-            hi: 'एप्रन पहने मुस्कुराता दुकानदार, टैबलेट की ओर इशारा करते हुए जिसमें आज की बिक्री और कम स्टॉक दिख रहा है।',
-            gu: 'એપ્રન પહેરેલો હસતો દુકાનદાર, ટેબ્લેટ તરફ ઇશારો કરતો જેમાં આજનું વેચાણ અને ઓછો સ્ટોક દેખાય છે.',
+            en: 'A smiling shopkeeper in an apron pointing at a tablet showing the Whoply home screen: today’s sales, profit and pending udhar.',
+            hi: 'एप्रन पहने मुस्कुराता दुकानदार, टैबलेट की ओर इशारा करते हुए जिसमें Whoply की होम स्क्रीन दिख रही है: आज की बिक्री, मुनाफ़ा और बकाया उधार।',
+            gu: 'એપ્રન પહેરેલો હસતો દુકાનદાર, ટેબ્લેટ તરફ ઇશારો કરતો જેમાં Whoply ની હોમ સ્ક્રીન દેખાય છે: આજનું વેચાણ, નફો અને બાકી ઉધાર.',
         },
     },
     dashboard: {
-        src: '/img/assets/dashboard.png',
-        width: 1536,
-        height: 1024,
+        src: '/img/app-dashboard.png',
+        width: 3000,
+        height: 2000,
         alt: {
-            en: 'A tablet showing a shop dashboard: sales chart, top-selling products, recent orders, low-stock alerts and expenses.',
-            hi: 'दुकान का डैशबोर्ड दिखाता टैबलेट: बिक्री चार्ट, सबसे ज़्यादा बिकने वाला माल, हाल के ऑर्डर, कम स्टॉक अलर्ट और खर्च।',
-            gu: 'દુકાનનું ડેશબોર્ડ બતાવતું ટેબ્લેટ: વેચાણ ચાર્ટ, સૌથી વધુ વેચાતો માલ, તાજેતરના ઓર્ડર, ઓછા સ્ટોકની ચેતવણી અને ખર્ચ.',
+            en: 'The Whoply home screen on a tablet: today’s sales, orders and profit, pending udhar, low stock, supplier dues, net position and top products.',
+            hi: 'टैबलेट पर Whoply की होम स्क्रीन: आज की बिक्री, ऑर्डर और मुनाफ़ा, बकाया उधार, कम स्टॉक, सप्लायरों का बकाया, कुल स्थिति और सबसे ज़्यादा बिकने वाला माल।',
+            gu: 'ટેબ્લેટ પર Whoply ની હોમ સ્ક્રીન: આજનું વેચાણ, ઓર્ડર અને નફો, બાકી ઉધાર, ઓછો સ્ટોક, સપ્લાયરનું બાકી, કુલ સ્થિતિ અને સૌથી વધુ વેચાતો માલ.',
         },
     },
     counterKit: {
