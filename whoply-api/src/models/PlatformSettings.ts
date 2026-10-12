@@ -24,6 +24,13 @@ export interface IPlatformSettings {
     };
     support: { whatsapp: string; email: string; hours: string };
     templates: { bill: string; reminder: string };
+    /** The WhatsApp gateway that sends sign-in codes (services/whatsapp.service.ts). Absent until it is first saved. */
+    whatsapp?: {
+        enabled: boolean;
+        from: string; // the sender's number at the gateway: digits with the country code
+        apiUrl: string;
+        token?: string; // sealed (utils/seal.ts); hidden from every read unless asked for by name
+    };
 }
 export interface IPlatformSettingsDocument extends IPlatformSettings, Document {
     _id: Types.ObjectId;
@@ -47,6 +54,7 @@ const platformSettingsSchema = new Schema<IPlatformSettingsDocument>(
         },
         support: { whatsapp: s(), email: s(), hours: s() },
         templates: { bill: s(DEFAULT_BILL_TEMPLATE), reminder: s(DEFAULT_REMINDER_TEMPLATE) },
+        whatsapp: { enabled: { type: Boolean, default: false }, from: s(), apiUrl: s(), token: { type: String, default: '', select: false } },
     },
     { timestamps: true, collection: 'platformsettings', minimize: false }
 );

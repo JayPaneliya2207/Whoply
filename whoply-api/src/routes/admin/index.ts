@@ -18,6 +18,7 @@ import { platformStats } from '../../controllers/admin/stats.controller.js';
 import { listUsers, createUser, updateUser, deleteUser } from '../../controllers/admin/users.controller.js';
 import { supportSummary, listThreads, getThread, reply, startThread, setThreadStatus } from '../../controllers/admin/support.controller.js';
 import { getSettings, updateSettings, listBills, getBill, createBillFor, runBills, remind, updateBill } from '../../controllers/admin/billing.controller.js';
+import { getWhatsapp, updateWhatsapp, testWhatsapp } from '../../controllers/admin/whatsapp.controller.js';
 import { accessInfo, listAdmins, createAdmin, updateAdmin, deleteAdmin, resetAdminTwoStep, listAudit } from '../../controllers/admin/access.controller.js';
 import { listInquiries, inquirySummary, updateInquiry, deleteInquiry } from '../../controllers/admin/inquiries.controller.js';
 import { listAnnouncements, getAnnouncement, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../../controllers/admin/announcements.controller.js';
@@ -57,6 +58,10 @@ router.delete('/plans/:id', ap('plans.manage'), deletePlan);
 // Subscription bills + the settings behind them (the Billing page prints with the company details)
 router.get('/settings', ap('settings.manage', 'billing.view'), getSettings);
 router.put('/settings', ap('settings.manage'), updateSettings);
+// The WhatsApp gateway that sends sign-in codes — its token is write-only, so it has its own routes
+router.get('/whatsapp', ap('settings.manage'), getWhatsapp);
+router.put('/whatsapp', ap('settings.manage'), updateWhatsapp);
+router.post('/whatsapp/test', ap('settings.manage'), testWhatsapp);
 router.get('/bills', ap('billing.view'), listBills);
 router.post('/bills', ap('billing.manage'), createBillFor);
 router.post('/bills/run', ap('billing.manage'), runBills);

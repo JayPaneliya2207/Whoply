@@ -7,7 +7,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css';
 import 'swiper/css/effect-creative';
 import 'swiper/css/pagination';
-import { Smartphone, Lock, ArrowRight, ArrowLeft, ReceiptText, Package, BarChart3, ChevronRight, Loader2 } from 'lucide-react';
+import { Smartphone, Lock, ArrowRight, ArrowLeft, ReceiptText, Package, BarChart3, ChevronRight, Loader2, MessageCircle } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { OTPInput } from '@/components/OTPInput';
 import { PhoneInput } from '@/components/PhoneInput';
@@ -18,9 +18,11 @@ import { useT, useLang, LANGS, type Lang } from '@/i18n';
 type Method = 'otp' | 'password';
 
 /**
- * OTP sign-in needs an SMS provider to deliver the code. Until one is set up
- * (then build with NEXT_PUBLIC_OTP_LOGIN=1) a live build offers the password
- * only — an OTP tab that never sends anything would just lock people out.
+ * OTP sign-in is offered only when the code can reach the phone — the API says
+ * so (GET /auth/sign-in-options: on once WhatsApp is switched on in the admin
+ * panel). This is only the guess until that answer arrives: a live build shows
+ * the password alone, because an OTP tab that never sends anything would just
+ * lock people out.
  */
 const OTP_ON = process.env.NEXT_PUBLIC_OTP_LOGIN === '1' || process.env.NODE_ENV !== 'production';
 
@@ -36,6 +38,10 @@ export default function LoginPage() {
     const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
     const [password, setPassword] = useState('');
     const [method, setMethod] = useState<Method>(OTP_ON ? 'otp' : 'password');
+    const [otpOn, setOtpOn] = useState(OTP_ON);
+    const [otpChannel, setOtpChannel] = useState<string | null>(null); // 'whatsapp' when the code travels on WhatsApp
+    const [sentVia, setSentVia] = useState<string | null>(null);
+    const chose = useRef(false); // the person picked a tab or started typing a password: don't switch under their fingers
     const [otpSent, setOtpSent] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -44,6 +50,20 @@ export default function LoginPage() {
     const [cooldown, setCooldown] = useState(30);
 
     useEffect(() => { hydrate(); if (localStorage.getItem('whoply_token')) router.replace(homeFor(storedUser())); }, [hydrate, router]);
+
+    // What this server offers. If the question fails (offline, an older API) the guess above stays.
+    useEffect(() => {
+        let alive = true;
+        api.get('/auth/sign-in-options').then(({ data }) => {
+            if (!alive) return;
+            const on = !!data.data?.otp;
+            setOtpOn(on);
+            setOtpChannel(data.data?.otpChannel || null);
+            if (!on) setMethod('password');
+            else if (!chose.current) setMethod('otp');
+        }).catch(() => { /* keep the guess */ });
+        return () => { alive = false; };
+    }, []);
 
     // Deep link from the marketing site: /login?start=1&lang=hi&role=wholesale.
     // The visitor already saw the pitch there, so skip the intro slide, keep the
@@ -70,8 +90,8 @@ export default function LoginPage() {
         setError(''); setLoading(true);
         try {
             const { data } = await api.post('/auth/login', { mobile });
-            setDevOtp(data.data.devOtp || ''); setOtpSent(true); setCanResend(false); setCooldown(30);
-        } catch (e) { setError(apiErr(e)); } finally { setLoading(false); }
+            setDevOtp(data.data.devOtp || ''); setSentVia(data.data.channel || null); setOtpSent(true); setCanResend(false); setCooldown(30);
+        } catch (e: any) { setError(e?.response?.data?.error?.code === 'OTP_NOT_SENT' ? t('otpNotSent') : apiErr(e)); } finally { setLoading(false); }
     };
 
     const verifyOtp = useCallback(async (code: string) => {
@@ -183,10 +203,10 @@ export default function LoginPage() {
                                     </div>
 
                                     {/* Tabs */}
-                                    {!otpSent && OTP_ON && (
+                                    {!otpSent && otpOn && (
                                         <div className="flex gap-1 p-1 rounded-xl mb-5" style={{ background: 'var(--surface-2)' }}>
                                             {(['otp', 'password'] as Method[]).map((m) => (
-                                                <button key={m} onClick={() => { setMethod(m); setError(''); }} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all"
+                                                <button key={m} onClick={() => { chose.current = true; setMethod(m); setError(''); }} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all"
                                                     style={method === m ? { background: 'var(--card-bg)', color: 'var(--brand-text)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-secondary)' }}>
                                                     {m === 'otp' ? <Smartphone size={16} /> : <Lock size={16} />}{m === 'otp' ? t('otpLogin') : t('password')}
                                                 </button>
@@ -197,12 +217,15 @@ export default function LoginPage() {
                                     {/* OTP flow */}
                                     {method === 'otp' && (
                                         !otpSent ? (
-                                            <button className="wp-btn wp-btn-primary w-full !py-3.5 !text-base" disabled={loading} onClick={sendOtp}>
-                                                {loading ? <Loader2 className="animate-spin" size={18} /> : <>{t('sendOtpBtn')} <ChevronRight size={18} /></>}
-                                            </button>
+                                            <>
+                                                <button className="wp-btn wp-btn-primary w-full !py-3.5 !text-base" disabled={loading} onClick={sendOtp}>
+                                                    {loading ? <Loader2 className="animate-spin" size={18} /> : <>{t('sendOtpBtn')} <ChevronRight size={18} /></>}
+                                                </button>
+                                                {otpChannel === 'whatsapp' && <p className="flex items-center justify-center gap-1.5 text-xs mt-3" style={{ color: 'var(--text-muted)' }}><MessageCircle size={14} className="shrink-0" /> {t('otpViaWhatsapp')}</p>}
+                                            </>
                                         ) : (
                                             <div className="space-y-4">
-                                                <p className="text-xs font-semibold text-center" style={{ color: 'var(--text-secondary)' }}>{t('otpSentTo')} {country} {mobile}</p>
+                                                <p className="text-xs font-semibold text-center" style={{ color: 'var(--text-secondary)' }}>{t(sentVia === 'whatsapp' ? 'otpSentWhatsapp' : 'otpSentTo')} {country} {mobile}</p>
                                                 <OTPInput value={otp} onChange={setOtp} onComplete={verifyOtp} disabled={loading} />
                                                 {devOtp && <p className="text-xs text-center wp-chip mx-auto w-fit" style={{ background: 'var(--warning-tint)', color: 'var(--warning)' }}>Dev OTP: {devOtp}</p>}
                                                 {loading && <div className="flex justify-center"><Loader2 className="animate-spin" size={20} style={{ color: 'var(--brand-text)' }} /></div>}
@@ -219,7 +242,7 @@ export default function LoginPage() {
                                         <div className="space-y-4">
                                             <div className="relative">
                                                 <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                                                <input type="password" placeholder={t('password')} value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && passwordLogin()} className="wp-input pl-11" style={{ fontSize: 16 }} />
+                                                <input type="password" placeholder={t('password')} value={password} onChange={(e) => { chose.current = true; setPassword(e.target.value); }} onKeyDown={(e) => e.key === 'Enter' && passwordLogin()} className="wp-input pl-11" style={{ fontSize: 16 }} />
                                             </div>
                                             <button className="wp-btn wp-btn-primary w-full !py-3.5 !text-base" disabled={loading || !password} onClick={passwordLogin}>
                                                 {loading ? <Loader2 className="animate-spin" size={18} /> : <>{t('signIn')} <ArrowRight size={18} /></>}

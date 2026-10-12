@@ -50,6 +50,8 @@ const ACTIONS: [string, RegExp, string][] = [
     ['PATCH', /^\/plans\/:id$/, 'Changed a plan'],
     ['DELETE', /^\/plans\/:id$/, 'Deleted a plan'],
     ['PUT', /^\/settings$/, 'Changed platform settings'],
+    ['PUT', /^\/whatsapp$/, 'Changed the WhatsApp settings'],
+    ['POST', /^\/whatsapp\/test$/, 'Sent a WhatsApp test message'],
     ['POST', /^\/bills$/, 'Created a subscription bill'],
     ['POST', /^\/bills\/run$/, 'Billed every business'],
     ['POST', /^\/bills\/:id\/remind$/, 'Sent a bill reminder'],

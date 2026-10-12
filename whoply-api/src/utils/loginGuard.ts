@@ -17,7 +17,9 @@
  *   OTP, or a number with no account) → wait. Stops one password being tried on
  *   many numbers. In memory, per server process. Loopback is never limited, so
  *   a reverse proxy without TRUST_PROXY can't lock everyone out as one address.
- * - OTP sends: one per 30 seconds per number, at most 5 an hour.
+ * - OTP sends: one per 30 seconds per number, at most 5 an hour; and one
+ *   network address may ask for at most 20 codes in 15 minutes, whatever the
+ *   numbers — every code is a real WhatsApp message to someone's phone.
  */
 import { AppError } from './AppError.js';
 import User from '../models/User.js';
@@ -30,6 +32,7 @@ const IP_MAX_FAILS = 30;
 const OTP_GAP_MS = 30_000;
 const OTP_WINDOW_MS = 60 * 60_000;
 const OTP_PER_WINDOW = 5;
+const OTP_PER_IP = 20;
 
 /** The fields these checks read; select them with `+lockedUntil` etc. (they are hidden by default). */
 export const GUARD_FIELDS = '+lockedUntil +otpSentAt +otpSends +otpWindowAt';
@@ -58,6 +61,19 @@ export function failedFromIp(ip?: string): void {
     if (!e || e.resetAt <= now) ipFails.set(ip!, { count: 1, resetAt: now + LOCK_MS });
     else e.count++;
     if (ipFails.size > 10_000) for (const [k, v] of ipFails) if (v.resetAt <= now) ipFails.delete(k);
+}
+
+const ipOtpSends = new Map<string, { count: number; resetAt: number }>();
+
+/** Before sending a code: counts it against the asking address and refuses past 20 in 15 minutes. In memory, per server process. */
+export function allowOtpFromIp(ip?: string): void {
+    if (isLoopback(ip)) return;
+    const now = Date.now();
+    let e = ipOtpSends.get(ip!);
+    if (!e || e.resetAt <= now) ipOtpSends.set(ip!, (e = { count: 0, resetAt: now + LOCK_MS }));
+    if (e.count >= OTP_PER_IP) throw AppError.tooManyRequests(`Too many codes asked for from this network. Try again in ${minutes(e.resetAt - now)} minute(s), or sign in with your password.`);
+    e.count++;
+    if (ipOtpSends.size > 10_000) for (const [k, v] of ipOtpSends) if (v.resetAt <= now) ipOtpSends.delete(k);
 }
 
 // ── Per account (and per address on that account) ──────────────────────────

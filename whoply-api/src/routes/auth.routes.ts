@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     register,
+    signInOptions,
     requestOtp,
     verifyOtp,
     passwordLogin,
@@ -15,6 +16,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
+router.get('/sign-in-options', signInOptions);
 router.post('/register', register);
 router.post('/login', requestOtp);
 router.post('/verify-otp', verifyOtp);
