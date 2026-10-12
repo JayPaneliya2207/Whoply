@@ -25,7 +25,12 @@ import type { AuthRequest } from '../../interfaces/index.js';
 export const IMPORT_MAX_ROWS = 500;
 
 interface Row { name: string; sku: string; barcode: string; category: string; unit: string; hsn: string; costPrice: number; sellPrice: number; wholesalePrice: number; gstRate: number; currentStock: number; lowStockThreshold: number }
-type Issue = { row: number; name: string; reason: string };
+/**
+ * Why a row was left out: `reason` in plain English, and `why` (+ `what`: the
+ * column, code or barcode it is about) so the app can say it in its own language.
+ */
+type Problem = { reason: string; why: 'unreadable' | 'noName' | 'noPrice' | 'notNumber' | 'below0' | 'range100' | 'sameCode' | 'sameBarcode' | 'sameName'; what?: string };
+type Issue = { row: number; name: string } & Problem;
 
 const text = (v: unknown, max: number) => (typeof v === 'string' || typeof v === 'number' ? String(v).trim().slice(0, max) : '');
 /** "1,250.50", "₹ 1250", " 18% " → a number; '' → the fallback; anything else → NaN. */
@@ -36,14 +41,14 @@ const num = (v: unknown, fallback: number): number => {
 };
 const key = (s: string) => s.trim().toLowerCase();
 
-/** One row as typed in the file → a clean row, or the reason it can't be used. */
-function parseRow(raw: any): Row | string {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 'This row could not be read';
+/** One row as typed in the file → a clean row, or why it can't be used. */
+function parseRow(raw: any): Row | Problem {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { reason: 'This row could not be read', why: 'unreadable' };
     const name = text(raw.name, 120);
-    if (name.length < 1) return 'The item name is missing';
+    if (name.length < 1) return { reason: 'The item name is missing', why: 'noName' };
     const sellPrice = num(raw.sellPrice, NaN);
-    if (!Number.isFinite(sellPrice)) return 'The selling price is missing or is not a number';
-    if (sellPrice < 0) return 'The selling price can not be less than 0';
+    if (!Number.isFinite(sellPrice)) return { reason: 'The selling price is missing or is not a number', why: 'noPrice' };
+    if (sellPrice < 0) return { reason: 'The selling price can not be less than 0', why: 'below0', what: 'Selling price' };
     const row: Row = {
         name,
         sku: text(raw.sku, 40),
@@ -58,9 +63,11 @@ function parseRow(raw: any): Row | string {
         currentStock: num(raw.stock, 0),
         lowStockThreshold: num(raw.lowStock, 10),
     };
-    for (const [label, v, max] of [['cost price', row.costPrice, Infinity], ['wholesale price', row.wholesalePrice, Infinity], ['GST %', row.gstRate, 100], ['stock', row.currentStock, Infinity], ['low-stock number', row.lowStockThreshold, Infinity]] as const) {
-        if (!Number.isFinite(v)) return `The ${label} is not a number`;
-        if (v < 0 || v > max) return max === Infinity ? `The ${label} can not be less than 0` : `The ${label} must be between 0 and ${max}`;
+    // `what` is the column as the sample file heads it.
+    for (const [label, what, v, max] of [['cost price', 'Cost price', row.costPrice, Infinity], ['wholesale price', 'Wholesale price', row.wholesalePrice, Infinity], ['GST %', 'GST %', row.gstRate, 100], ['stock', 'Stock', row.currentStock, Infinity], ['low-stock number', 'Low stock alert', row.lowStockThreshold, Infinity]] as const) {
+        if (!Number.isFinite(v)) return { reason: `The ${label} is not a number`, why: 'notNumber', what };
+        if (v < 0) return { reason: `The ${label} can not be less than 0`, why: 'below0', what };
+        if (v > max) return { reason: `The ${label} must be between 0 and ${max}`, why: 'range100', what };
     }
     return row;
 }
@@ -69,7 +76,7 @@ function parseRow(raw: any): Row | string {
  * POST /products/import  { rows: [...], check?: true }
  * Each row: name, sellPrice (needed) and sku, barcode, category, unit, hsn,
  * costPrice, wholesalePrice, gstRate, stock, lowStock (optional).
- * Answers { created, ready, skipped: [{ row, name, reason }], errors: [...], newCategories }
+ * Answers { created, ready, skipped: [{ row, name, reason, why, what? }], errors: [...], newCategories }
  * — `row` counts from 1 within this request.
  */
 export const importProducts = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -84,7 +91,7 @@ export const importProducts = asyncHandler(async (req: AuthRequest, res: Respons
     const good: { row: number; data: Row }[] = [];
     rows.forEach((raw, i) => {
         const parsed = parseRow(raw);
-        if (typeof parsed === 'string') errors.push({ row: i + 1, name: text((raw as any)?.name, 60), reason: parsed });
+        if ('why' in parsed) errors.push({ row: i + 1, name: text((raw as any)?.name, 60), ...parsed });
         else good.push({ row: i + 1, data: parsed });
     });
 
@@ -104,10 +111,10 @@ export const importProducts = asyncHandler(async (req: AuthRequest, res: Respons
     const ready: { row: number; data: Row }[] = [];
     for (const g of good) {
         const d = g.data;
-        const skip = (reason: string) => skipped.push({ row: g.row, name: d.name, reason });
-        if (d.sku && skus.has(key(d.sku))) { skip(`An item with the code ${d.sku} is already there`); continue; }
-        if (d.barcode && barcodes.has(key(d.barcode))) { skip(`An item with the barcode ${d.barcode} is already there`); continue; }
-        if (!d.sku && names.has(key(d.name))) { skip('An item with this name is already there'); continue; }
+        const skip = (reason: string, why: Problem['why'], what?: string) => skipped.push({ row: g.row, name: d.name, reason, why, ...(what && { what }) });
+        if (d.sku && skus.has(key(d.sku))) { skip(`An item with the code ${d.sku} is already there`, 'sameCode', d.sku); continue; }
+        if (d.barcode && barcodes.has(key(d.barcode))) { skip(`An item with the barcode ${d.barcode} is already there`, 'sameBarcode', d.barcode); continue; }
+        if (!d.sku && names.has(key(d.name))) { skip('An item with this name is already there', 'sameName'); continue; }
         // No code in the file: the barcode serves as the code, else the next free ITM number.
         if (!d.sku) d.sku = d.barcode && !skus.has(key(d.barcode)) ? d.barcode : autoSku();
         skus.add(key(d.sku));

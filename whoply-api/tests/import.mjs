@@ -43,6 +43,8 @@ const all = async (tok, base = '/shopkeeper') => d(await api('GET', `${base}/pro
     const why = Object.fromEntries((d(r)?.errors || []).map((e) => [e.row, e.reason]));
     check('each bad row is named with a plain reason', /name is missing/i.test(why[5]) && /price is missing/i.test(why[6]) && /not a number/i.test(why[7]) && /less than 0/i.test(why[8]) && /between 0 and 100/i.test(why[9]), JSON.stringify(why));
     check('a code used twice in the file is caught', d(r)?.skipped?.[0]?.row === 10 && /RICE-5/.test(d(r).skipped[0].reason), JSON.stringify(d(r)?.skipped));
+    const codes = Object.fromEntries((d(r)?.errors || []).map((e) => [e.row, `${e.why}${e.what ? `:${e.what}` : ''}`]));
+    check('each reason also comes as a code, so the app can say it in Hindi or Gujarati', codes[5] === 'noName' && codes[6] === 'noPrice' && codes[7] === 'noPrice' && codes[8] === 'below0:Stock' && codes[9] === 'range100:GST %' && d(r)?.skipped?.[0]?.why === 'sameCode' && d(r).skipped[0].what === 'RICE-5', JSON.stringify(codes));
     check('new categories are listed (capitals do not make a second one)', JSON.stringify(d(r)?.newCategories) === JSON.stringify(['Grocery', 'કરિયાણું', 'Steel']), JSON.stringify(d(r)?.newCategories));
     check('…and nothing was saved', (await all(st)).length === 0, `${(await all(st)).length}`);
 

@@ -12,7 +12,7 @@ const CHUNK = 500;
 /** How many problem lines to list before "and N more". */
 const SHOWN = 40;
 
-interface Issue { line: number; name: string; reason: string }
+interface Issue { line: number; name: string; reason: string; why?: string; what?: string }
 interface Result { ready: number; created: number; skipped: Issue[]; errors: Issue[]; newCategories: string[] }
 type Stage = 'pick' | 'checking' | 'checked' | 'adding' | 'done';
 
@@ -44,7 +44,7 @@ export function ProductImport({ open, onClose, base, onDone }: { open: boolean; 
             const part = all.slice(at, at + CHUNK);
             const { data } = await api.post(`${base}/products/import`, { rows: part.map(({ line: _line, ...r }) => r), check });
             const d = data.data;
-            const lineOf = (x: any) => ({ line: part[x.row - 1]?.line ?? 0, name: x.name, reason: x.reason });
+            const lineOf = (x: any): Issue => ({ line: part[x.row - 1]?.line ?? 0, name: x.name, reason: x.reason, why: x.why, what: x.what });
             total.ready += d.ready;
             total.created += d.created;
             total.skipped.push(...d.skipped.map(lineOf));
@@ -85,11 +85,17 @@ export function ProductImport({ open, onClose, base, onDone }: { open: boolean; 
         }
     };
 
+    /** The reason in the app's language (the API sends a code for each one); its English text if the code is new to this app. */
+    const why = (x: Issue) => {
+        const key = `importWhy_${x.why}`;
+        const said = x.why ? t(key) : key;
+        return said === key ? x.reason : said.replace('{what}', x.what || '');
+    };
     const issues = (title: string, list: Issue[], tone: string) => !!list.length && (
         <div className="mt-3">
             <p className="text-sm font-semibold" style={{ color: tone }}>{title} · {list.length}</p>
             <ul className="mt-1.5 space-y-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {list.slice(0, SHOWN).map((x, i) => <li key={i}><b className="tabular">{t('importLine')} {x.line}</b>{x.name ? ` · ${x.name}` : ''} — {x.reason}</li>)}
+                {list.slice(0, SHOWN).map((x, i) => <li key={i}><b className="tabular">{t('importLine')} {x.line}</b>{x.name ? ` · ${x.name}` : ''} — {why(x)}</li>)}
                 {list.length > SHOWN && <li style={{ color: 'var(--text-muted)' }}>{n('importMore', list.length - SHOWN)}</li>}
             </ul>
         </div>

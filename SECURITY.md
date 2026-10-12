@@ -72,9 +72,11 @@ and not a surprise.
   pressing the same button at the same moment can't double-count.
 
 ### Checks that run on every push (GitHub CI)
-- 22 API test groups (900+ checks), including `tests/security.mjs` (injection,
-  body size, pictures, headers, request limit) and `tests/access.mjs` (admin
-  roles, lock-out rules, activity log, contact form).
+- 28 API test groups (1,100+ checks), including `tests/two-step.mjs` (admin
+  two-step sign-in), `tests/login-limits.mjs` (guessing limits),
+  `tests/security.mjs` (injection, body size, pictures, headers, request
+  limit) and `tests/access.mjs` (admin roles, lock-out rules, activity log,
+  contact form).
 - Production builds of the three sites, a full Docker deploy over HTTPS, and
   `npm audit` on what the live server runs (also every Monday).
 
