@@ -52,6 +52,7 @@ import {
     updateCategory,
     deleteCategory,
 } from '../../controllers/shopkeeper/product.controller.js';
+import { importProducts } from '../../controllers/shopkeeper/productImport.controller.js';
 
 const router = Router();
 // Each route then checks that the role has the permission (utils/permissions.ts).
@@ -66,6 +67,7 @@ router.patch('/business', p('business.edit'), updateMyBusiness);
 // Warehouse stock — full product & category CRUD
 router.get('/products', p('products.view'), listProducts);
 router.post('/products', p('products.manage'), createProduct);
+router.post('/products/import', p('products.manage'), importProducts);
 router.get('/products/:id', p('products.view'), getProduct);
 router.patch('/products/:id', p('products.manage'), updateProduct);
 router.delete('/products/:id', p('products.manage'), deleteProduct);

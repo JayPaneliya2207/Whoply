@@ -16,6 +16,7 @@ import {
     updateCategory,
     deleteCategory,
 } from '../../controllers/shopkeeper/product.controller.js';
+import { importProducts } from '../../controllers/shopkeeper/productImport.controller.js';
 import { createSale, listInvoices, getInvoice, markBillSent, getEInvoiceJson, getEWayBillJson } from '../../controllers/shopkeeper/billing.controller.js';
 import { createQuotation, listQuotations, getQuotation, deleteQuotation, convertQuotation } from '../../controllers/shopkeeper/quotation.controller.js';
 import { createReturn, listReturns } from '../../controllers/shopkeeper/return.controller.js';
@@ -58,6 +59,7 @@ router.patch('/business', p('business.edit'), updateMyBusiness);
 // Products & categories
 router.get('/products', p('products.view'), listProducts);
 router.post('/products', p('products.manage'), createProduct);
+router.post('/products/import', p('products.manage'), importProducts); // many items at once, from a file
 router.get('/products/:id', p('products.view'), getProduct);
 router.patch('/products/:id', p('products.manage'), updateProduct);
 router.delete('/products/:id', p('products.manage'), deleteProduct);
