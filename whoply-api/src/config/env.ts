@@ -33,6 +33,13 @@ const envSchema = z.object({
     ALLOW_SIGNUP: z.enum(['true', 'false']).default('false'),
     OTP_LOGIN: z.enum(['on', 'off']).optional(),
 
+    // Phone notifications (Web Push). `npm run push:keys` prints a key pair; without it
+    // phone notifications are simply off. VAPID_SUBJECT is a contact for the push service:
+    // "mailto:you@your-domain.com". Never change the keys once devices have signed up.
+    VAPID_PUBLIC_KEY: z.string().optional(),
+    VAPID_PRIVATE_KEY: z.string().optional(),
+    VAPID_SUBJECT: z.string().optional(),
+
     // Database: connections kept open to MongoDB, and the longest one query may run.
     DB_POOL_SIZE: z.coerce.number().int().min(1).max(500).default(20),
     DB_QUERY_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),

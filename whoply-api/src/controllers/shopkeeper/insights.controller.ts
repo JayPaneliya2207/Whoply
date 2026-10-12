@@ -5,24 +5,10 @@ import { businessOf } from '../../utils/http.js';
 import { reorderSuggestions } from '../../services/ai.service.js';
 import Notification from '../../models/Notification.js';
 import type { AuthRequest } from '../../interfaces/index.js';
-import { can, type Perm } from '../../utils/permissions.js';
+import { kindsForRole } from '../../utils/notificationKinds.js';
 
-/**
- * Which notification kinds a role may read: the day summary carries sales and
- * profit, "payable" the supplier dues, and so on — a cashier is kept away from
- * those numbers on every other screen, so here too. "general" is for everyone.
- */
-const NEEDS: Record<string, Perm[]> = {
-    summary: ['profit.view'],
-    payable: ['purchases.view'],
-    subscription: ['business.edit'],
-    support: ['support.chat'],
-    udhar: ['customers.view', 'dealers.view'],
-    low_stock: ['products.view'],
-    expiry: ['products.view'],
-    order: ['orders.view'],
-};
-const kindsFor = (role?: Parameters<typeof can>[0]): any => ({ $in: ['general', ...Object.keys(NEEDS).filter((k) => NEEDS[k].some((p) => can(role, p)))] });
+/** Only the kinds this role may read (utils/notificationKinds.ts) — a cashier does not get the day's sales and profit. */
+const kindsFor = (role?: Parameters<typeof kindsForRole>[0]): any => ({ $in: kindsForRole(role) });
 
 /** GET /ai/reorder — AI reorder suggestions */
 export const aiReorder = asyncHandler(async (req: AuthRequest, res: Response) => {

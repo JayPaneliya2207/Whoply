@@ -35,6 +35,15 @@ notificationSchema.index({ businessId: 1, isRead: 1, createdAt: -1 });
 // Cron de-dup lookups: "has a notification of this type been sent recently?"
 notificationSchema.index({ businessId: 1, type: 1, createdAt: -1 });
 
+// Every new notification also goes to the phones that asked for it (services/push.service.ts).
+// Hooked here, on create and insertMany, so no place that makes one can forget. The import is
+// lazy (the service needs this model) and a failed push never fails the save.
+const push = (docs: unknown[]) => {
+    void import('../services/push.service.js').then((m) => m.pushNotifications(docs as any[])).catch(() => { /* phone notifications are a bonus */ });
+};
+notificationSchema.post('save', (doc) => push([doc]));
+notificationSchema.post('insertMany', (docs) => push(Array.isArray(docs) ? docs : [docs]));
+
 const Notification: Model<INotificationDocument> =
     mongoose.models.Notification || mongoose.model<INotificationDocument>('Notification', notificationSchema);
 export default Notification;

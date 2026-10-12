@@ -54,6 +54,7 @@ import staffRoutes from './routes/staff.routes.js';
 import subscriptionRoutes from './routes/subscription.routes.js';
 import supportRoutes from './routes/support.routes.js';
 import announcementRoutes from './routes/announcement.routes.js';
+import pushRoutes from './routes/push.routes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
@@ -64,6 +65,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/push', pushRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

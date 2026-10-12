@@ -45,6 +45,10 @@ jobs:
       TRUST_PROXY: '1' # lets tests/login-limits.mjs check the per-address limit
       API_URL: http://localhost:7000/api
       RESET_BACKUP: 'off' # seed:reset runs before every suite; no need to back up test data
+      # Test-only key pair so tests/push.mjs can check device sign-up. Never used on a real server.
+      VAPID_PUBLIC_KEY: BHMN6cnfVbXjviL8kn1qTAO2zJMOMq6ppRls3thoFVC2g6nxhUroVa27_qzKqi3HKS790SAwg4fR8NYe-6kfKqI
+      VAPID_PRIVATE_KEY: 6jAu9qiALqExzdwM7a0IcFuvkcazmpil1Ngwi0Ki8MY
+      VAPID_SUBJECT: mailto:ci@whoply.test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
