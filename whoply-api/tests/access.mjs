@@ -23,10 +23,13 @@ const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const pw = (mobile, password = 'whoply123') => api('POST', '/auth/password-login', null, { mobile, password });
 const login = async (mobile, password) => d(await pw(mobile, password))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminPw = (mobile, password = 'whoply123') => api('POST', '/auth/admin-login', null, { mobile, password });
+const adminLogin = async (mobile, password) => d(await adminPw(mobile, password))?.token;
 const from = (ip) => ({ 'X-Forwarded-For': ip });
 
 (async () => {
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     const st = await login('9000000001');
     const me = d(await api('GET', '/auth/me', adm))?.user;
     const shop = (d(await api('GET', '/admin/businesses?limit=100&lite=1&type=retail', adm))?.items || [])[0];
@@ -46,17 +49,17 @@ const from = (ip) => ({ 'X-Forwarded-For': ip });
     check('a short admin password is refused', r.status === 400, `${r.status} ${msg(r)}`);
     r = await api('POST', '/admin/admins', adm, { name: 'Demo', mobile: '9822500004', password: 'whoply123', adminRole: 'viewer' });
     check('the demo password is refused', r.status === 400, `${r.status} ${msg(r)}`);
-    r = await api('POST', '/admin/admins', adm, { name: 'Dup', mobile: '9000000001', password: 'Another@2026', adminRole: 'viewer' });
-    check('a mobile already in use is refused', r.status === 409, `${r.status} ${msg(r)}`);
+    r = await api('POST', '/admin/admins', adm, { name: 'Dup', mobile: '9822500003', password: 'Another@2026', adminRole: 'viewer' });
+    check('a mobile another admin already uses is refused', r.status === 409, `${r.status} ${msg(r)}`);
     r = await api('POST', '/admin/admins', adm, { name: 'Odd', mobile: '9822500004', password: 'Another@2026', adminRole: 'owner' });
     check('an unknown admin role is refused', r.status === 400, `${r.status} ${msg(r)}`);
     r = await api('GET', '/admin/admins', adm);
     check('the list shows all four, no passwords', d(r)?.length === 4 && !JSON.stringify(d(r)).includes('password'), JSON.stringify(d(r)?.map((a) => a.adminRole)));
 
-    const sup = await login('9822500001', 'Support@2026');
-    const bil = await login('9822500002', 'Billing@2026');
-    const vie = await login('9822500003', 'Viewer@2026');
-    check('new admins can sign in; the login says which role', !!sup && !!bil && !!vie && d(await pw('9822500001', 'Support@2026'))?.user?.adminRole === 'support', '');
+    const sup = await adminLogin('9822500001', 'Support@2026');
+    const bil = await adminLogin('9822500002', 'Billing@2026');
+    const vie = await adminLogin('9822500003', 'Viewer@2026');
+    check('new admins can sign in; the login says which role', !!sup && !!bil && !!vie && d(await adminPw('9822500001', 'Support@2026'))?.user?.adminRole === 'support', '');
 
     suite('support role');
     r = await api('GET', '/admin/support/threads', sup);
@@ -108,7 +111,7 @@ const from = (ip) => ({ 'X-Forwarded-For': ip });
     check('…or delete yourself', r.status === 400, `${r.status} ${msg(r)}`);
     r = await api('PATCH', `/admin/admins/${supportId}`, adm, { adminRole: 'super' });
     check('a second super admin can be made', r.status === 200 && d(r)?.adminRole === 'super', `${r.status} ${msg(r)}`);
-    const sup2 = await login('9822500001', 'Support@2026');
+    const sup2 = await adminLogin('9822500001', 'Support@2026');
     r = await api('PATCH', `/admin/admins/${me.id}`, sup2, { adminRole: 'viewer' });
     check('…who may demote the first one (one super remains)', r.status === 200 && d(r)?.adminRole === 'viewer', `${r.status} ${msg(r)}`);
     r = await api('GET', '/admin/admins', adm);
@@ -125,7 +128,7 @@ const from = (ip) => ({ 'X-Forwarded-For': ip });
     check('…and signs that admin out', r.status === 401, `${r.status}`);
     r = await api('PATCH', `/admin/admins/${billingId}`, adm, { isActive: false });
     check('an admin login can be switched off', r.status === 200 && d(r)?.isActive === false, `${r.status} ${msg(r)}`);
-    r = await pw('9822500002', 'NewBilling@2026');
+    r = await adminPw('9822500002', 'NewBilling@2026');
     check('…and then can not sign in', r.status !== 200, `${r.status}`);
     r = await api('DELETE', `/admin/admins/${billingId}`, adm);
     check('an admin login can be deleted', r.status === 200, `${r.status} ${msg(r)}`);

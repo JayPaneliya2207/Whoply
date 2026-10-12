@@ -33,7 +33,7 @@ import Visit from '../../models/Visit.js';
 import Dealer from '../../models/Dealer.js';
 import Notification from '../../models/Notification.js';
 import Session from '../../models/Session.js';
-import { VALID_ROLES, type AuthRequest, type roles } from '../../interfaces/index.js';
+import { VALID_ROLES, type AuthRequest, type ShopRole } from '../../interfaces/index.js';
 
 const LIST_FIELDS = 'name mobile countryCode role businessId isActive lastLogin createdAt';
 const shape = (u: any) => ({ _id: u._id, name: u.name, mobile: u.mobile, countryCode: u.countryCode, role: u.role, businessId: u.businessId, isActive: u.isActive, lastLogin: u.lastLogin, createdAt: u.createdAt });
@@ -50,7 +50,7 @@ export const listUsers = asyncHandler(async (req: AuthRequest, res: Response) =>
         const digits = String(req.query.search).replace(/\D/g, '');
         filter.$or = [{ name: containsText(req.query.search) }, ...(digits.length >= 3 ? [{ mobile: containsText(digits) }] : [])];
     }
-    if (req.query.role && VALID_ROLES.includes(req.query.role as roles)) filter.role = req.query.role;
+    if (req.query.role && VALID_ROLES.includes(req.query.role as ShopRole)) filter.role = req.query.role;
     if (req.query.businessId && Types.ObjectId.isValid(String(req.query.businessId))) filter.businessId = req.query.businessId;
     if (req.query.active === 'true' || req.query.active === 'false') filter.isActive = req.query.active === 'true';
     const [items, total] = await Promise.all([
@@ -83,16 +83,12 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
     sendCreated(res, shape(user), back ? 'Login added back' : 'User created');
 });
 
-/** PATCH /admin/users/:id — name, role, mobile, password, on/off. Never an admin — that could lock everyone out. */
+/** PATCH /admin/users/:id — name, role, mobile, password, on/off. (Admin logins are not users: see access.controller.ts.) */
 export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = await User.findById(req.params.id).select('name mobile countryCode role businessId isActive');
     if (!user) throw AppError.notFound('User not found');
     const body = req.body;
 
-    if (user.role === 'admin') {
-        if (body.isActive === false) throw AppError.badRequest('An admin login can not be turned off here');
-        if (body.role !== undefined || body.mobile !== undefined || body.password !== undefined) throw AppError.badRequest('Admin logins can not be changed from this list');
-    }
     if (typeof body.isActive === 'boolean') user.isActive = body.isActive;
     if (body.name !== undefined) {
         const name = String(body.name).trim();
@@ -138,7 +134,6 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
 export const deleteUser = asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = await User.findById(req.params.id).select('role businessId isActive');
     if (!user) throw AppError.notFound('User not found');
-    if (user.role === 'admin') throw AppError.badRequest('Admin logins can not be deleted here');
     if (user.role === 'owner') throw AppError.badRequest('An owner can not be deleted — suspend the business instead');
 
     const id = user._id;

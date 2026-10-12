@@ -1,10 +1,13 @@
 /**
- * User — a person who logs into Whoply. Belongs to a Business and carries a role.
+ * User — a person who logs into the Whoply app: the owner or a staff member of
+ * a shop or wholesale business. Belongs to a Business and carries a role.
  * Auth supports both OTP and password login (like 1socio).
+ *
+ * Platform admins are NOT here: they have their own collection (models/AdminUser.ts).
  */
 import mongoose, { Schema, type Document, type Types, type Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import type { roles } from '../interfaces/index.js';
+import type { ShopRole } from '../interfaces/index.js';
 
 export interface IUser {
     name: string;
@@ -12,8 +15,7 @@ export interface IUser {
     countryCode: string;
     email?: string;
     password?: string;
-    role: roles;
-    adminRole?: 'super' | 'support' | 'billing' | 'viewer'; // platform admins only (utils/adminAccess.ts); none = super
+    role: ShopRole;
     businessId?: Types.ObjectId;
     language: string;
     otp?: string;
@@ -25,15 +27,6 @@ export interface IUser {
     otpSentAt?: Date;
     otpSends?: number;
     otpWindowAt?: Date;
-    // two-step sign-in, admin logins only (services/twoStep.service.ts)
-    twoFactor?: {
-        on?: boolean;
-        secret?: string; // sealed (utils/totp.ts)
-        pending?: string; // a setup that was started and not confirmed yet, sealed
-        lastStep?: number; // the time step of the last code used — a code works once
-        recovery?: string[]; // hashes of the one-time recovery codes not used yet
-        since?: Date;
-    };
     avatar?: string;
     isActive: boolean;
     lastLogin?: Date;
@@ -63,11 +56,10 @@ const userSchema = new Schema<IUserDocument>(
         password: { type: String, select: false },
         role: {
             type: String,
-            enum: ['owner', 'manager', 'cashier', 'warehouse', 'salesStaff', 'accountant', 'admin'],
+            enum: ['owner', 'manager', 'cashier', 'warehouse', 'salesStaff', 'accountant'],
             required: true,
             index: true,
         },
-        adminRole: { type: String, enum: ['super', 'support', 'billing', 'viewer'] },
         businessId: { type: Schema.Types.ObjectId, ref: 'Business', index: true },
         language: { type: String, default: 'en' },
         otp: { type: String, select: false },
@@ -78,14 +70,6 @@ const userSchema = new Schema<IUserDocument>(
         otpSentAt: { type: Date, select: false },
         otpSends: { type: Number, select: false },
         otpWindowAt: { type: Date, select: false },
-        twoFactor: {
-            on: Boolean,
-            secret: { type: String, select: false },
-            pending: { type: String, select: false },
-            lastStep: { type: Number, select: false },
-            recovery: { type: [String], select: false, default: undefined },
-            since: Date,
-        },
         avatar: String,
         isActive: { type: Boolean, default: true, index: true },
         lastLogin: Date,
@@ -112,5 +96,13 @@ userSchema.methods.comparePassword = async function (candidate: string): Promise
 };
 
 const User: Model<IUserDocument> = mongoose.models.User || mongoose.model<IUserDocument>('User', userSchema);
+
+/**
+ * Add to a sign-in or session lookup. Rows with role "admin" can exist in
+ * `users` only on a database from before admins got their own collection, in
+ * the moment before the API moves them (models/AdminUser.ts) — such a row must
+ * never be signed in as a shop login.
+ */
+export const SHOP_LOGIN: Record<string, any> = { role: { $ne: 'admin' } };
 
 export default User;

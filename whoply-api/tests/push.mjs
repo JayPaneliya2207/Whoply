@@ -19,6 +19,8 @@ async function api(method, path, token, body) {
 const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const login = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/password-login', null, { mobile, password }))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 // What a browser hands over: an address at its push service and two keys (these are made up, nothing is sent to them).
 const KEYS = { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' };
 const sub = (endpoint) => ({ subscription: { endpoint, keys: KEYS } });
@@ -89,7 +91,7 @@ const FCM = (id) => `https://fcm.googleapis.com/fcm/send/${id}`;
         suite('nothing breaks when a notification is made');
         // A support reply creates a notification, which is pushed to the owner's (made-up) devices:
         // the push service refuses them, and the request must still succeed.
-        const adm = await login('9000000099');
+        const adm = await adminLogin('9000000099');
         await api('POST', '/support/messages', st, { text: 'Please call me about notifications.' });
         const thread = d(await api('GET', '/admin/support/threads', adm))?.items?.[0];
         r = await api('POST', `/admin/support/threads/${thread?._id}/messages`, adm, { text: 'Calling you in five minutes.' });

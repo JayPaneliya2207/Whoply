@@ -13,7 +13,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
-import User from '../models/User.js';
+import AdminUser, { moveAdminsToOwnCollection } from '../models/AdminUser.js';
 import Session from '../models/Session.js';
 import { normalizePhone } from '../utils/phone.js';
 
@@ -24,11 +24,12 @@ async function main() {
     await mongoose.connect(env.MONGODB_URI);
     console.log(`Connected: ${mongoose.connection.name}`);
 
-    const admin = await User.findOne({ mobile, role: 'admin' }).select('name twoFactor.on');
+    await moveAdminsToOwnCollection(); // a database from before admins had their own collection
+    const admin = await AdminUser.findOne({ mobile }).select('name twoFactor.on');
     if (!admin) throw new Error(`No admin login with the mobile ${mobile}`);
     if (!admin.twoFactor?.on) console.log(`   Two-step sign-in was not on for ${admin.name} (${mobile}) — nothing to do`);
     else {
-        await User.updateOne({ _id: admin._id }, { $unset: { twoFactor: 1 } });
+        await AdminUser.updateOne({ _id: admin._id }, { $unset: { twoFactor: 1 } });
         await Session.updateMany({ userId: admin._id, isActive: true }, { isActive: false });
         console.log(`✅ Two-step sign-in is off for ${admin.name} (${mobile}). They sign in with the password and can turn it on again.`);
     }

@@ -13,6 +13,8 @@
  *    back through udhar repayments stop showing as due.
  * 5. Privacy: staff Aadhaar numbers are cut to the last 4 digits and Aadhaar
  *    card photos deleted (utils/kyc.ts).
+ * 6. Admin logins move from `users` to their own collection `adminusers`
+ *    (models/AdminUser.ts). The API does the same when it starts.
  *
  * Note: syncIndexes also DROPS indexes that are no longer declared on a schema.
  * Everything here is declared in code, so that's intended — but run it against a
@@ -33,13 +35,14 @@ import Dealer from '../models/Dealer.js';
 import Payment from '../models/Payment.js';
 import JobLock from '../models/JobLock.js';
 import Plan from '../models/Plan.js';
+import AdminUser, { moveAdminsToOwnCollection } from '../models/AdminUser.js';
 import { PLAN_FEATURE_RENAMES } from './plans.js';
 import { backfillOrderAdvances, relabelReturnLedgerRows, backfillCashRefunds, dropDefaultTierRows, maskStoredAadhaar, settleRepaidBills } from './backfills.js';
 
 const MODELS = [
     ['Product', Product], ['Invoice', Invoice], ['Order', Order], ['StockMovement', StockMovement],
     ['Notification', Notification], ['CreditNote', CreditNote], ['CreditLedger', CreditLedger],
-    ['Customer', Customer], ['Dealer', Dealer], ['Payment', Payment], ['JobLock', JobLock],
+    ['Customer', Customer], ['Dealer', Dealer], ['Payment', Payment], ['JobLock', JobLock], ['AdminUser', AdminUser],
 ] as const;
 
 async function run() {
@@ -85,6 +88,10 @@ async function run() {
 
     console.log('\n→ Privacy fixes…');
     console.log(`   ✓ ${await maskStoredAadhaar()} staff Aadhaar record(s) cut to the last 4 digits, card photos removed`);
+
+    console.log('\n→ Admin logins…');
+    console.log(`   ✓ ${await moveAdminsToOwnCollection()} admin login(s) moved out of "users" into "adminusers"`);
+    console.log(`   ℹ ${await AdminUser.countDocuments({})} admin login(s) in "adminusers"`);
 
     console.log('\n✅ Migration complete.');
     await mongoose.connection.close();

@@ -118,10 +118,14 @@ jobs:
           check www.localhost / 301
           check app.localhost /login 200
           check admin.localhost /login 200
-          # The admin logs in from the admin site (CORS allows exactly that site).
+          # The admin logs in from the admin site (CORS allows exactly that site), at the admin's own sign-in door.
           out=$(curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o body.json -H 'Origin: https://admin.localhost' -H 'Content-Type: application/json' \
-            -d '{"mobile":"9876543210","password":"ci-admin-password-123"}' https://api.localhost/api/auth/password-login)
+            -d '{"mobile":"9876543210","password":"ci-admin-password-123"}' https://api.localhost/api/auth/admin-login)
           if grep -qi '^access-control-allow-origin: https://admin.localhost' <<<"$out" && grep -q '"role":"admin"' body.json; then echo '✅ admin login from the admin site'; else echo "::error title=admin login::$(tr -d '\r' <<<"$out" | tr '\n' ' ' | head -c 600) $(head -c 300 body.json)"; fail=1; fi
+          # The shop app's sign-in does not know the admin: admin logins are a collection of their own.
+          shop=$(curl -sk --resolve api.localhost:443:127.0.0.1 -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+            -d '{"mobile":"9876543210","password":"ci-admin-password-123"}' https://api.localhost/api/auth/password-login)
+          if [ "$shop" = 404 ]; then echo '✅ the admin is not a shop login'; else echo "::error title=admin login::the shop sign-in answered $shop for the admin (want 404)"; fail=1; fi
           # Another website may not call the API.
           if curl -sk --resolve api.localhost:443:127.0.0.1 -D - -o /dev/null -H 'Origin: https://evil.example' https://api.localhost/api/health | grep -qi '^access-control-allow-origin'; then echo '::error title=CORS::another website was allowed'; fail=1; else echo '✅ other websites are refused (CORS)'; fi
           exit $fail

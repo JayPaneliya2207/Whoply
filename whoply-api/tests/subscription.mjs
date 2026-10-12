@@ -22,10 +22,12 @@ async function api(method, path, token, body) {
 const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const login = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/password-login', null, { mobile, password }))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 const near = (a, b) => Math.abs(a - b) < 0.011;
 
 (async () => {
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     const st = await login('9000000001'); // retail owner — Pro plan (₹299 / month)
     const ws = await login('9000000010'); // wholesale owner — Business plan (₹799 / month)
     const shops = d(await api('GET', '/admin/businesses?limit=100&lite=1', adm))?.items || [];

@@ -21,9 +21,11 @@ const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const pw = (mobile, password = 'whoply123') => api('POST', '/auth/password-login', null, { mobile, password });
 const login = async (mobile, password) => d(await pw(mobile, password))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 
 (async () => {
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     const st = await login('9000000001');
     const ws = await login('9000000010');
     const me = d(await api('GET', '/auth/me', adm))?.user;
@@ -66,13 +68,16 @@ const login = async (mobile, password) => d(await pw(mobile, password))?.token;
     r = await api('GET', '/admin/users?search=22200001', adm);
     check('search by part of a mobile', d(r)?.items?.some((u) => u.mobile === '9822200001'), JSON.stringify(d(r)?.items?.map((u) => u.mobile)));
     r = await api('GET', '/admin/users?limit=2&page=2', adm);
-    check('pages beyond the first are reachable', d(r)?.meta?.page === 2 && d(r)?.meta?.total >= 4, JSON.stringify(d(r)?.meta));
+    // two owners and a cashier at least — the admin is not a user, so it is not counted here
+    check('pages beyond the first are reachable', d(r)?.meta?.page === 2 && d(r)?.meta?.total >= 3, JSON.stringify(d(r)?.meta));
 
-    suite('admins can not be switched off');
+    suite('admins are not in the user list');
+    check('the admin signed in through the admin door, as an admin', me?.role === 'admin' && me?.adminRole === 'super' && me?.mobile === '9000000099', JSON.stringify(me));
+    check('no admin login is among the users', users.length >= 3 && users.every((u) => u.role !== 'admin' && u.mobile !== '9000000099'), users.map((u) => `${u.mobile}:${u.role}`).join(' '));
     r = await api('PATCH', `/admin/users/${me?.id}`, adm, { isActive: false });
-    check('an admin can not turn off their own login', r.status === 400, `${r.status} ${msg(r)}`);
+    check('so the Users page can not switch an admin off — it does not know one', r.status === 404, `${r.status} ${msg(r)}`);
     r = await api('GET', '/admin/stats', adm);
-    check('…and is still signed in', r.status === 200, `${r.status}`);
+    check('…and the admin is still signed in', r.status === 200, `${r.status}`);
 
     suite('GMV');
     const s0 = d(await api('GET', '/admin/stats', adm));
@@ -156,7 +161,7 @@ const login = async (mobile, password) => d(await pw(mobile, password))?.token;
     check("changing the owner's mobile updates the business card too", r.status === 200 && bizAfter?.mobile === '9822200014', `${r.status} ${msg(r)} biz=${bizAfter?.mobile}`);
     await api('PATCH', `/admin/users/${owner?._id}`, adm, { mobile: '9000000001' });
     r = await api('PATCH', `/admin/users/${me?.id}`, adm, { password: 'Hacker@123' });
-    check('an admin login is not changed from this list', r.status === 400, `${r.status} ${msg(r)}`);
+    check('an admin login can not be changed from this list (it is not a user)', r.status === 404, `${r.status} ${msg(r)}`);
     r = await api('GET', `/admin/users?role=manager&businessId=${shop._id}`, adm);
     check('the list filters by role and business', d(r)?.items?.some((u) => u._id === made._id) && d(r).items.every((u) => u.role === 'manager' && u.businessId?._id === shop._id), JSON.stringify(d(r)?.items?.map((u) => u.role)));
     r = await api('GET', '/admin/users?active=false', adm);
@@ -164,7 +169,7 @@ const login = async (mobile, password) => d(await pw(mobile, password))?.token;
     r = await api('DELETE', `/admin/users/${owner?._id}`, adm);
     check('an owner can not be deleted', r.status === 400, `${r.status} ${msg(r)}`);
     r = await api('DELETE', `/admin/users/${me?.id}`, adm);
-    check('an admin can not be deleted', r.status === 400, `${r.status} ${msg(r)}`);
+    check('an admin can not be deleted from this list either', r.status === 404 && (await api('GET', '/admin/stats', adm)).status === 200, `${r.status} ${msg(r)}`);
     r = await api('DELETE', `/admin/users/${made._id}`, adm);
     check('a login with no records is deleted for good', r.status === 200 && d(r)?.deleted === true, `${r.status} ${msg(r)}`);
     r = await pw('9822200013', 'NewPass@1');

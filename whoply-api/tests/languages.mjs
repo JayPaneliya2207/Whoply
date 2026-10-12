@@ -19,6 +19,8 @@ async function api(method, path, token, body) {
 const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const login = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/password-login', null, { mobile, password }))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 const list = (r) => (Array.isArray(d(r)) ? d(r) : d(r)?.items || []);
 const q = encodeURIComponent;
 
@@ -28,7 +30,7 @@ const HI = { item: 'टाटा नमक 1 किलो', sku: 'नमक-1', 
 (async () => {
     const st = await login('9000000001');
     const ws = await login('9000000010');
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
 
     suite('items in Gujarati and Hindi');
     let r = await api('POST', '/shopkeeper/categories', st, { name: GU.category });

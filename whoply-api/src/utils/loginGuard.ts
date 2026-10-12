@@ -21,6 +21,7 @@
  *   network address may ask for at most 20 codes in 15 minutes, whatever the
  *   numbers — every code is a real WhatsApp message to someone's phone.
  */
+import type { Model } from 'mongoose';
 import { AppError } from './AppError.js';
 import User from '../models/User.js';
 
@@ -96,13 +97,14 @@ export function assertNotLocked(user: Guarded, ip?: string, now = new Date()): v
  * Counts a wrong password / OTP and always throws: "… — N tries left", or, on
  * the 5th from one address, locks that address out of the account (and drops
  * its OTP) for 15 minutes. The account itself locks at 50 from all addresses —
- * or at 5 when the address is not known.
+ * or at 5 when the address is not known. `Logins` is the collection the login
+ * is in: shop users by default, AdminUser for the admin panel.
  */
-export async function wrongTry(user: Guarded, ip: string | undefined, message: string): Promise<never> {
+export async function wrongTry(user: Guarded, ip: string | undefined, message: string, Logins: Model<any> = User): Promise<never> {
     failedFromIp(ip);
     const now = new Date();
     // One atomic step, so tries sent at the same moment are all counted.
-    const after = await User.collection.findOneAndUpdate(
+    const after = await Logins.collection.findOneAndUpdate(
         { _id: user._id },
         [{ $set: { loginFails: { $cond: [{ $gt: ['$loginFailAt', new Date(+now - LOCK_MS)] }, { $add: [{ $ifNull: ['$loginFails', 0] }, 1] }, 1] }, loginFailAt: now } }],
         { returnDocument: 'after', projection: { loginFails: 1 } }
@@ -110,7 +112,7 @@ export async function wrongTry(user: Guarded, ip: string | undefined, message: s
     const total = Number(after?.loginFails) || 1;
     const known = !isLoopback(ip);
     if (total >= (known ? ACCOUNT_MAX_WRONG : MAX_WRONG)) {
-        await User.updateOne({ _id: user._id }, { $set: { lockedUntil: new Date(+now + LOCK_MS), loginFails: 0 }, $unset: { otp: 1, otpExpiry: 1 } });
+        await Logins.updateOne({ _id: user._id }, { $set: { lockedUntil: new Date(+now + LOCK_MS), loginFails: 0 }, $unset: { otp: 1, otpExpiry: 1 } }, { strict: false });
         throw LOCKED_NOW();
     }
     if (!known) throw AppError.badRequest(`${message} — ${tries(MAX_WRONG - total)} left`);
@@ -126,7 +128,7 @@ export async function wrongTry(user: Guarded, ip: string | undefined, message: s
         pair.count = 0;
         pair.lockedUntil = +now + LOCK_MS;
         // The code being guessed is dropped, so a move to another address starts from a new one.
-        await User.updateOne({ _id: user._id }, { $unset: { otp: 1, otpExpiry: 1 } });
+        await Logins.updateOne({ _id: user._id }, { $unset: { otp: 1, otpExpiry: 1 } }, { strict: false });
         throw LOCKED_NOW();
     }
     throw AppError.badRequest(`${message} — ${tries(MAX_WRONG - pair.count)} left`);

@@ -25,6 +25,12 @@ and not a surprise.
 - Every request is checked against a server-side session, so signing out,
   a password reset, switching a login off or suspending a business ends access
   at once — a copied token stops working (`middleware/auth.middleware.ts`).
+- Admin logins are kept apart from shop logins: their own collection
+  (`adminusers`, `models/AdminUser.ts`) and their own sign-in
+  (`POST /auth/admin-login`). The shop app's sign-in never finds an admin, the
+  admin sign-in never finds a shop login, and every request looks its token up
+  only on its own side — a shop login can not become an admin, whatever is in
+  the `users` collection.
 - Roles: owner, manager, cashier, warehouse, sales rep, accountant — each API
   route names the permission it needs (`utils/permissions.ts`). Platform admins
   have their own roles — super, support, billing, viewer
@@ -76,8 +82,10 @@ and not a surprise.
   pressing the same button at the same moment can't double-count.
 
 ### Checks that run on every push (GitHub CI)
-- 29 API test groups (1,150+ checks), including `tests/two-step.mjs` (admin
-  two-step sign-in), `tests/whatsapp-otp.mjs` (the sign-in code on WhatsApp),
+- 31 API test groups (1,200+ checks), including `tests/admin-users.mjs` and
+  `tests/admin-move.ts` (admin logins apart from shop users),
+  `tests/two-step.mjs` (admin two-step sign-in), `tests/whatsapp-otp.mjs`
+  (the sign-in code on WhatsApp),
   `tests/login-limits.mjs` (guessing limits),
   `tests/security.mjs` (injection, body size, pictures, headers, request
   limit) and `tests/access.mjs` (admin roles, lock-out rules, activity log,

@@ -20,6 +20,7 @@ import { env } from '../config/env.js';
 import { refuseOnLiveDatabase } from './guard.js';
 import Business from '../models/Business.js';
 import User from '../models/User.js';
+import AdminUser from '../models/AdminUser.js';
 import Plan from '../models/Plan.js';
 import { DEFAULT_PLANS } from './plans.js';
 import { wipeDatabase } from './wipe.js';
@@ -51,8 +52,9 @@ async function run() {
     await User.insertMany([
         { name: 'Shopkeeper', mobile: '9000000001', role: 'owner', businessId: retail._id, password: passwordHash },
         { name: 'Wholesaler', mobile: '9000000010', role: 'owner', businessId: wholesale._id, password: passwordHash },
-        { name: 'Whoply Admin', mobile: '9000000099', role: 'admin', password: passwordHash },
     ]);
+    // The admin panel's login is its own collection, apart from the shop users (insertMany: the hash is stored as it is).
+    await AdminUser.insertMany([{ name: 'Whoply Admin', mobile: '9000000099', adminRole: 'super', password: passwordHash }]);
 
     console.log('\n✅ Clean reset done. Logins (password: whoply123 · dev OTP: 123456):');
     console.log('   Shopkeeper (retail) owner   9000000001');

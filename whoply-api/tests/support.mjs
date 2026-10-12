@@ -18,10 +18,12 @@ async function api(method, path, token, body) {
 const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const login = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/password-login', null, { mobile, password }))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     const st = await login('9000000001');
     const ws = await login('9000000010');
     await api('POST', '/staff', st, { name: 'Chat Manager', mobile: '9822400001', role: 'manager', password: 'Staff@123' });

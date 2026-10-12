@@ -1,7 +1,9 @@
 /**
  * Auth Controller
- * Login (OTP or password) → onboarding → dashboard. Accounts are created by a
- * platform admin; self sign-up is closed unless ALLOW_SIGNUP=true.
+ * Sign-in of shop and wholesale logins (the `users` collection): login (OTP or
+ * password) → onboarding → dashboard. Accounts are created by a platform admin;
+ * self sign-up is closed unless ALLOW_SIGNUP=true. The admin panel signs in
+ * elsewhere (adminAuth.controller.ts) — an admin is not a user of the app.
  * The OTP goes to the phone on WhatsApp (services/whatsapp.service.ts); in dev
  * it is fixed to 123456 and also shown in the reply (see utils/otp).
  */
@@ -14,7 +16,7 @@ import { GUARD_FIELDS, assertIpAllowed, assertNotLocked, failedFromIp, wrongTry,
 import { generateToken } from '../utils/jwt.js';
 import { maskMobile } from '../utils/masking.js';
 import { normalizePhone } from '../utils/phone.js';
-import User from '../models/User.js';
+import User, { SHOP_LOGIN } from '../models/User.js';
 import Business from '../models/Business.js';
 import Session from '../models/Session.js';
 import { loginSchema, verifyOtpSchema, passwordLoginSchema, registerSchema, onboardingSchema } from '../validators/auth.validator.js';
@@ -24,7 +26,6 @@ import { endSessions } from '../utils/staff.js';
 import { cleanImage, cleanText } from '../utils/image.js';
 import { env } from '../config/env.js';
 import { isDevMode, DEMO_PASSWORD } from '../utils/devMode.js';
-import { TWO_STEP_FIELDS, CODE_NEEDED, spendCode } from '../services/twoStep.service.js';
 import { sendOtpOnWhatsApp, whatsappGateway } from '../services/whatsapp.service.js';
 
 /**
@@ -48,25 +49,10 @@ const deliverOtp = async (user: { mobile: string; countryCode?: string; language
 const NO_ACCOUNT = 'No account found for this mobile. Please contact the Whoply team to get an account.';
 
 /** A business the platform admin suspended: no sign-in for its owner or staff. */
-const assertBusinessOpen = async (user: { role: string; businessId?: unknown }) => {
-    if (!user.businessId || user.role === 'admin') return;
+const assertBusinessOpen = async (user: { businessId?: unknown }) => {
+    if (!user.businessId) return;
     const b = await Business.findById(user.businessId).select('isActive').lean();
     if (b?.isActive === false) throw AppError.forbidden(BUSINESS_SUSPENDED);
-};
-
-/**
- * An admin login with two-step sign-in on: the password (or OTP) alone is not
- * enough. Called only after that first step was right. Without a code it
- * answers 401 CODE_NEEDED and the sign-in screen asks for one; a wrong code
- * counts towards the lock like a wrong password.
- */
-const secondStep = async (user: any, code: string | undefined, ip?: string) => {
-    if (user.role !== 'admin' || !user.twoFactor?.on) return;
-    if (!code) throw new AppError('Enter the 6-digit code from your authenticator app.', 401, CODE_NEEDED);
-    const result = await spendCode(user, code);
-    if (result === 'unreadable') throw AppError.internal('The code can not be checked on this server. Ask the server owner to switch two-step sign-in off (npm run admin:2fa-off).');
-    if (result === 'used') throw AppError.badRequest('That code was already used. Wait for the next code and try again.');
-    if (result === 'wrong') await wrongTry(user, ip, 'Incorrect code');
 };
 
 const createSession = async (userId: any, mobile: string, role: any, businessId: any, req: AuthRequest) => {
@@ -88,7 +74,6 @@ const publicUser = (user: any, business: any) => ({
     mobile: user.mobile,
     email: user.email,
     role: user.role,
-    ...(user.role === 'admin' && { adminRole: user.adminRole || 'super', twoStep: !!user.twoFactor?.on }),
     language: user.language,
     avatar: user.avatar,
     business: business
@@ -142,7 +127,7 @@ export const requestOtp = asyncHandler(async (req, res) => {
     const body = loginSchema.parse(req.body);
     const mobile = normalizePhone(body.mobile);
 
-    const user = await User.findOne({ mobile }).select(`+otp +otpExpiry ${GUARD_FIELDS}`);
+    const user = await User.findOne({ mobile, ...SHOP_LOGIN }).select(`+otp +otpExpiry ${GUARD_FIELDS}`);
     if (!user) throw AppError.notFound(NO_ACCOUNT);
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
     await assertBusinessOpen(user);
@@ -164,7 +149,7 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     const mobile = normalizePhone(body.mobile);
     assertIpAllowed(req.ip);
 
-    const user = await User.findOne({ mobile }).select(`+otp +otpExpiry ${GUARD_FIELDS} ${TWO_STEP_FIELDS}`);
+    const user = await User.findOne({ mobile, ...SHOP_LOGIN }).select(`+otp +otpExpiry ${GUARD_FIELDS}`);
     if (!user) {
         failedFromIp(req.ip);
         throw AppError.notFound('No account found for this mobile');
@@ -174,7 +159,6 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     if (user.otpExpiry < new Date()) throw AppError.badRequest('OTP has expired. Please request a new one.');
     if (!sameOtp(String(body.otp), user.otp)) await wrongTry(user, req.ip, 'Incorrect OTP');
     await assertBusinessOpen(user);
-    await secondStep(user, body.code, req.ip);
 
     user.otp = undefined;
     user.otpExpiry = undefined;
@@ -200,7 +184,7 @@ export const passwordLogin = asyncHandler(async (req, res) => {
         throw AppError.unauthorized('This password is not allowed here. Ask the Whoply team to set a new one.');
     }
 
-    const user = await User.findOne({ mobile }).select(`+password ${GUARD_FIELDS} ${TWO_STEP_FIELDS}`);
+    const user = await User.findOne({ mobile, ...SHOP_LOGIN }).select(`+password ${GUARD_FIELDS}`);
     if (!user) {
         failedFromIp(req.ip);
         throw AppError.notFound('No account found for this mobile');
@@ -212,7 +196,6 @@ export const passwordLogin = asyncHandler(async (req, res) => {
     const ok = await user.comparePassword(body.password);
     if (!ok) await wrongTry(user, req.ip, 'Incorrect password');
     await assertBusinessOpen(user);
-    await secondStep(user, body.code, req.ip);
 
     clearWrongTries(user, req.ip);
     if (body.language) user.language = body.language;

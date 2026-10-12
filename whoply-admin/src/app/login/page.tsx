@@ -24,13 +24,8 @@ export default function AdminLogin() {
     const login = async () => {
         setError(''); setLoading(true);
         try {
-            const { data } = await api.post('/auth/password-login', { mobile, password, ...(step === 'code' && { code: code.trim() }) });
-            if (data.data.user.role !== 'admin') {
-                // Don't leave a live session behind for a shop login used here by mistake.
-                await api.post('/auth/logout', {}, { headers: { Authorization: `Bearer ${data.data.token}` } }).catch(() => {});
-                setError('This console is for platform admins only.');
-                return;
-            }
+            // Admin logins are their own list on the server: this door opens for them only, a shop login is simply not found.
+            const { data } = await api.post('/auth/admin-login', { mobile, password, ...(step === 'code' && { code: code.trim() }) });
             setSession(data.data.token, data.data.user);
             router.replace('/dashboard');
         } catch (e: any) {

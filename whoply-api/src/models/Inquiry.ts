@@ -47,7 +47,7 @@ const inquirySchema = new Schema<IInquiryDocument>(
         lang: String,
         status: { type: String, enum: ['new', 'contacted', 'closed'], default: 'new', index: true },
         note: { type: String, trim: true, maxlength: 500 },
-        handledBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        handledBy: { type: Schema.Types.ObjectId, ref: 'AdminUser' },
         handledAt: Date,
         ip: { type: String, select: false },
     },

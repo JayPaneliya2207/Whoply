@@ -21,6 +21,7 @@ import { env } from '../config/env.js';
 import { refuseOnLiveDatabase } from './guard.js';
 import Business from '../models/Business.js';
 import User from '../models/User.js';
+import AdminUser from '../models/AdminUser.js';
 import Category from '../models/Category.js';
 import Product from '../models/Product.js';
 import Customer from '../models/Customer.js';
@@ -90,8 +91,9 @@ async function run() {
         { name: 'Ramesh Warehouse', mobile: '9000000011', role: 'warehouse', businessId: wholesale._id, password: passwordHash, salary: 18000, kyc: { docType: 'aadhaar', docNumber: 'XXXX XXXX 8890', verified: true } },
         { name: 'Sunil Yadav', mobile: '9000000012', role: 'salesStaff', businessId: wholesale._id, password: passwordHash, salary: 20000, kyc: { docType: 'aadhaar', docNumber: 'XXXX XXXX 2213', verified: true } },
         { name: 'Farhan Sales', mobile: '9000000013', role: 'salesStaff', businessId: wholesale._id, password: passwordHash, salary: 20000, kyc: { docType: 'pan', docNumber: 'FGHPS8821L', verified: false } },
-        { name: 'Whoply Admin', mobile: '9000000099', role: 'admin', password: passwordHash },
     ]);
+    // The admin panel's login is its own collection, apart from the shop users (insertMany: the hash is stored as it is).
+    await AdminUser.insertMany([{ name: 'Whoply Admin', mobile: '9000000099', adminRole: 'super', password: passwordHash }]);
     console.log('Created businesses + users');
 
     /* ---------------- Categories & products (retail) ---------------- */

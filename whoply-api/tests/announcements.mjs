@@ -18,13 +18,15 @@ async function api(method, path, token, body) {
 const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || '';
 const login = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/password-login', null, { mobile, password }))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 // India-time day, n days from today, as YYYY-MM-DD
 const ymd = (n) => new Date(Date.now() + 5.5 * 3600_000 + n * 86400_000).toISOString().slice(0, 10);
 const titles = (r) => (d(r)?.items || []).map((a) => a.title);
 
 (async () => {
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     const shop = await login('9000000001');
     const wholesale = await login('9000000010');
 
@@ -110,7 +112,7 @@ const titles = (r) => (d(r)?.items || []).map((a) => a.title);
     r = await api('GET', '/admin/announcements', shop);
     check('…or list them', r.status === 403, `${r.status}`);
     await api('POST', '/admin/admins', adm, { name: 'Vik Viewer', mobile: '9811100042', password: 'Viewer@2026x', adminRole: 'viewer' });
-    const viewer = await login('9811100042', 'Viewer@2026x');
+    const viewer = await adminLogin('9811100042', 'Viewer@2026x');
     r = await api('POST', '/admin/announcements', viewer, { title: 'From a viewer' });
     check('a viewer admin can not make one', !!viewer && r.status === 403, `${r.status} viewer=${!!viewer}`);
     r = await api('GET', '/admin/audit', adm);

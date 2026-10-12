@@ -19,6 +19,8 @@ async function login(mobile, password = 'whoply123') {
     if (!r.json?.data?.token) throw new Error(`login ${mobile}: ${r.status} ${JSON.stringify(r.json)}`);
     return r.json.data.token;
 }
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => (await api('POST', '/auth/admin-login', null, { mobile, password })).json?.data?.token;
 const GOOD = '24AAAAA0000A1Z5';
 
 (async () => {
@@ -132,7 +134,7 @@ const GOOD = '24AAAAA0000A1Z5';
     check('deactivate staff (200)', r.status === 200, `${r.status}`);
 
     suite('admin');
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     r = await api('GET', '/admin/stats', adm);
     const stats = d(r);
     check('admin stats 200', r.status === 200 && stats?.businesses >= 2, `${r.status}`);

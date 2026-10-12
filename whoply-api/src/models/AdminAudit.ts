@@ -23,7 +23,7 @@ export interface IAdminAuditDocument extends IAdminAudit, Document {
 
 const adminAuditSchema = new Schema<IAdminAuditDocument>(
     {
-        adminId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+        adminId: { type: Schema.Types.ObjectId, ref: 'AdminUser', required: true, index: true },
         adminName: { type: String, default: '' },
         action: { type: String, required: true },
         detail: { type: String, default: '' },

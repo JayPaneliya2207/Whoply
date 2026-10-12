@@ -25,6 +25,8 @@ async function api(method, path, token, body, headers = {}) {
 const d = (r) => r.json?.data;
 const msg = (r) => r.json?.error?.message || r.json?.message || '';
 const login = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/password-login', null, { mobile, password }))?.token;
+/** The admin panel signs in at its own door: admin logins are not shop users. */
+const adminLogin = async (mobile, password = 'whoply123') => d(await api('POST', '/auth/admin-login', null, { mobile, password }))?.token;
 
 // ── A stand-in for the Whatsline gateway ───────────────────────────────────
 const TOKEN = 'tok-secret-4f9a71c2';
@@ -45,7 +47,7 @@ const GATEWAY_URL = `http://127.0.0.1:${gateway.address().port}/api/qr/rest/send
 const last = () => got[got.length - 1];
 
 (async () => {
-    const adm = await login('9000000099');
+    const adm = await adminLogin('9000000099');
     const owner = await login('9000000001');
     const wholesaler = await login('9000000010');
     // Each number may ask for one code per 30 seconds, so every step below uses its own login.
@@ -95,7 +97,7 @@ const last = () => got[got.length - 1];
 
     suite('the token stays on the server');
     await api('POST', '/admin/admins', adm, { name: 'Bills Only', mobile: '9811100071', adminRole: 'billing', password: 'Str0ng#Pass26' });
-    const billing = await login('9811100071', 'Str0ng#Pass26');
+    const billing = await adminLogin('9811100071', 'Str0ng#Pass26');
     const general = await api('GET', '/admin/settings', billing);
     const own = await api('GET', '/admin/whatsapp', billing);
     check('an admin who only does bills can not open the WhatsApp settings', !!billing && own.status === 403 && general.status === 200, `${own.status} ${general.status}`);

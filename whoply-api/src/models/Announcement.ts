@@ -39,7 +39,7 @@ const announcementSchema = new Schema<IAnnouncementDocument>(
         isActive: { type: Boolean, default: true },
         startsAt: Date,
         endsAt: Date,
-        createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+        createdBy: { type: Schema.Types.ObjectId, ref: 'AdminUser' },
     },
     { timestamps: true, collection: 'announcements' }
 );
