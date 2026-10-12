@@ -2,14 +2,15 @@
  * Auth Controller
  * Login (OTP or password) → onboarding → dashboard. Accounts are created by a
  * platform admin; self sign-up is closed unless ALLOW_SIGNUP=true.
- * OTP is fixed to 123456 in dev (see utils/otp).
+ * The OTP goes to the phone on WhatsApp (services/whatsapp.service.ts); in dev
+ * it is fixed to 123456 and also shown in the reply (see utils/otp).
  */
 import type { Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import { sendSuccess, sendCreated } from '../utils/response.js';
 import { generateOtp, getOtpExpiry, sameOtp } from '../utils/otp.js';
-import { GUARD_FIELDS, assertIpAllowed, assertNotLocked, failedFromIp, wrongTry, clearWrongTries, allowOtpSend } from '../utils/loginGuard.js';
+import { GUARD_FIELDS, assertIpAllowed, assertNotLocked, failedFromIp, wrongTry, clearWrongTries, allowOtpSend, allowOtpFromIp } from '../utils/loginGuard.js';
 import { generateToken } from '../utils/jwt.js';
 import { maskMobile } from '../utils/masking.js';
 import { normalizePhone } from '../utils/phone.js';
@@ -24,9 +25,26 @@ import { cleanImage, cleanText } from '../utils/image.js';
 import { env } from '../config/env.js';
 import { isDevMode, DEMO_PASSWORD } from '../utils/devMode.js';
 import { TWO_STEP_FIELDS, CODE_NEEDED, spendCode } from '../services/twoStep.service.js';
+import { sendOtpOnWhatsApp, whatsappGateway } from '../services/whatsapp.service.js';
 
-/** OTP sign-in works only where the code can reach the phone: off outside dev mode until OTP_LOGIN=on (an SMS provider is wired). */
-const otpLoginOn = () => (env.OTP_LOGIN ? env.OTP_LOGIN === 'on' : isDevMode());
+/**
+ * OTP sign-in is offered only where the code can reach the phone: once WhatsApp
+ * is switched on in the admin panel, and in dev mode (where the reply shows the
+ * code). OTP_LOGIN=off closes it whatever the panel says; OTP_LOGIN=on always offers it.
+ */
+const otpLoginOn = async (): Promise<boolean> => env.OTP_LOGIN === 'on' || (env.OTP_LOGIN !== 'off' && (isDevMode() || !!(await whatsappGateway())));
+
+/**
+ * Hands a new code to its owner. On WhatsApp when the gateway is set up; in
+ * dev mode the reply carries the code, so a failed send is not an error there.
+ * Anywhere else a code that could not be sent is said out loud — waiting for a
+ * message that never comes is the worst sign-in screen there is.
+ */
+const deliverOtp = async (user: { mobile: string; countryCode?: string; language?: string }, otp: string): Promise<boolean> => {
+    const sent = await sendOtpOnWhatsApp(user, otp);
+    if (!sent && !isDevMode()) throw new AppError('We could not send the code on WhatsApp just now. Please try again in a minute, or sign in with your password.', 503, 'OTP_NOT_SENT');
+    return sent;
+};
 const NO_ACCOUNT = 'No account found for this mobile. Please contact the Whoply team to get an account.';
 
 /** A business the platform admin suspended: no sign-in for its owner or staff. */
@@ -104,16 +122,23 @@ export const register = asyncHandler(async (req, res) => {
         otpWindowAt: now,
     });
 
+    const sent = await deliverOtp(user, otp);
     sendCreated(
         res,
-        { mobile: maskMobile(mobile), userId: user._id, ...(isDevMode() && { devOtp: otp }) },
+        { mobile: maskMobile(mobile), userId: user._id, ...(sent && { channel: 'whatsapp' }), ...(isDevMode() && { devOtp: otp }) },
         'Account created. Verify the OTP sent to your mobile.'
     );
 });
 
-/** POST /api/auth/login — request an OTP (one per 30 s, 5 an hour; not while locked) */
+/** GET /api/auth/sign-in-options — what the sign-in screen may offer (no login needed): is OTP on, and how the code travels. */
+export const signInOptions = asyncHandler(async (_req, res) => {
+    const otp = await otpLoginOn();
+    sendSuccess(res, { otp, otpChannel: otp && (await whatsappGateway()) ? 'whatsapp' : null });
+});
+
+/** POST /api/auth/login — request an OTP (one per 30 s, 5 an hour; not while locked; 20 per address in 15 min) */
 export const requestOtp = asyncHandler(async (req, res) => {
-    if (!otpLoginOn()) throw AppError.badRequest('OTP sign-in is not available yet. Please sign in with your password.');
+    if (!(await otpLoginOn())) throw AppError.badRequest('OTP sign-in is not available yet. Please sign in with your password.');
     const body = loginSchema.parse(req.body);
     const mobile = normalizePhone(body.mobile);
 
@@ -122,14 +147,15 @@ export const requestOtp = asyncHandler(async (req, res) => {
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
     await assertBusinessOpen(user);
     allowOtpSend(user, req.ip);
+    allowOtpFromIp(req.ip);
 
     const otp = generateOtp();
     user.otp = otp;
     user.otpExpiry = getOtpExpiry();
     await user.save();
 
-    // In prod: dispatch SMS via your provider here. Dev returns the OTP for convenience.
-    sendSuccess(res, { mobile: maskMobile(mobile), ...(isDevMode() && { devOtp: otp }) }, 'OTP sent successfully');
+    const sent = await deliverOtp(user, otp);
+    sendSuccess(res, { mobile: maskMobile(mobile), ...(sent && { channel: 'whatsapp' }), ...(isDevMode() && { devOtp: otp }) }, sent ? 'Code sent on WhatsApp' : 'OTP sent successfully');
 });
 
 /** POST /api/auth/verify-otp — verify OTP and issue token (wrong tries count towards the lock) */

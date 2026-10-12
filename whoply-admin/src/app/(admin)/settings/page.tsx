@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building2, IndianRupee, BellRing, LifeBuoy, MessageSquareText, Check, Save } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
+import { WhatsappCard } from '@/components/WhatsappCard';
 
 function Section({ title, hint, icon: Icon, children }: { title: string; hint: string; icon: any; children: React.ReactNode }) {
     return (
@@ -101,6 +102,8 @@ export default function SettingsPage() {
                     <F label="Support hours" className="sm:col-span-2">{text('support.hours', { placeholder: 'Mon–Sat, 10 am – 7 pm', maxLength: 80 })}</F>
                 </div>
             </Section>
+
+            <WhatsappCard />
 
             <Section title="Message wording" hint="Used for the WhatsApp bill and reminder messages." icon={MessageSquareText}>
                 <F label="New bill message"><textarea className="wp-input" rows={3} maxLength={600} value={s.templates.bill} onChange={(e) => set('templates.bill', e.target.value)} /></F>

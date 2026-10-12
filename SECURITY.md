@@ -7,12 +7,16 @@ and not a surprise.
 ## What is in place
 
 ### Sign-in and sessions
-- Passwords are stored hashed (bcrypt). OTP codes are random in production.
+- Passwords are stored hashed (bcrypt). OTP codes are random in production and
+  go to the phone on WhatsApp (a Whatsline account, set in the admin panel).
+  The gateway token is write-only: stored sealed, never returned by the API,
+  never logged (`services/whatsapp.service.ts`).
 - Guessing is slowed down: 5 wrong passwords or codes from one network address
   lock sign-in from that address for 15 minutes (the real owner, on their own
   network, still gets in); 50 from all addresses together lock the login for
   everyone; an address with 30 failed sign-ins in 15 minutes is refused; OTP
-  sends are limited (`utils/loginGuard.ts`).
+  sends are limited — one per 30 seconds and 5 an hour per number, 20 in 15
+  minutes per address (`utils/loginGuard.ts`).
 - Admin logins can have two-step sign-in: after the password, a 6-digit code
   from an authenticator app (Google Authenticator, Microsoft Authenticator…).
   Each admin turns it on from the account menu and gets 8 one-time recovery
@@ -72,8 +76,9 @@ and not a surprise.
   pressing the same button at the same moment can't double-count.
 
 ### Checks that run on every push (GitHub CI)
-- 28 API test groups (1,100+ checks), including `tests/two-step.mjs` (admin
-  two-step sign-in), `tests/login-limits.mjs` (guessing limits),
+- 29 API test groups (1,150+ checks), including `tests/two-step.mjs` (admin
+  two-step sign-in), `tests/whatsapp-otp.mjs` (the sign-in code on WhatsApp),
+  `tests/login-limits.mjs` (guessing limits),
   `tests/security.mjs` (injection, body size, pictures, headers, request
   limit) and `tests/access.mjs` (admin roles, lock-out rules, activity log,
   contact form).
@@ -135,7 +140,11 @@ When one server is not enough:
   that.
 - No independent security test (penetration test) has been done. Do one before
   handling many paying customers.
-- WhatsApp and SMS are not sent automatically yet (no provider account).
+- Sign-in codes go out through Whatsline, which sends from a WhatsApp number
+  linked by QR code — not WhatsApp's official business API. WhatsApp can block
+  such a number, and codes stop if its phone goes offline; password sign-in
+  always stays available. Bill and reminder messages are still opened by hand
+  (wa.me links), not sent automatically. No SMS.
 
 ## Reporting a problem
 

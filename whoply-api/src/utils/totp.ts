@@ -10,8 +10,8 @@
  *   be read — switch two-step off with `npm run admin:2fa-off` and set it up again.
  * - Recovery codes (for a lost phone) are kept only as hashes.
  */
-import { createCipheriv, createDecipheriv, createHash, createHmac, hkdfSync, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
-import { env } from '../config/env.js';
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { sealSecret, unsealSecret } from './seal.js';
 
 const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 export const STEP_MS = 30_000;
@@ -85,28 +85,11 @@ export function findStep(secret: string, code: string, now = Date.now()): number
 export const otpauthUrl = (secret: string, account: string, issuer = 'Whoply Admin'): string =>
     `otpauth://totp/${encodeURIComponent(`${issuer}:${account}`)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`;
 
-// ── Keeping the secret in the database ─────────────────────────────────────
-const sealKey = () => Buffer.from(hkdfSync('sha256', env.JWT_SECRET, Buffer.alloc(0), 'whoply two-step secret', 32));
-
-export function seal(text: string): string {
-    const iv = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', sealKey(), iv);
-    const data = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-    return ['v1', iv.toString('base64url'), cipher.getAuthTag().toString('base64url'), data.toString('base64url')].join('.');
-}
-
+// ── Keeping the secret in the database (utils/seal.ts) ─────────────────────
+const SEAL_PURPOSE = 'whoply two-step secret';
+export const seal = (text: string): string => sealSecret(text, SEAL_PURPOSE);
 /** The sealed text, or null when it is missing, changed, or sealed with another JWT_SECRET. */
-export function unseal(sealed?: string | null): string | null {
-    const [version, iv, tag, data] = String(sealed || '').split('.');
-    if (version !== 'v1' || !iv || !tag || !data) return null;
-    try {
-        const decipher = createDecipheriv('aes-256-gcm', sealKey(), Buffer.from(iv, 'base64url'));
-        decipher.setAuthTag(Buffer.from(tag, 'base64url'));
-        return Buffer.concat([decipher.update(Buffer.from(data, 'base64url')), decipher.final()]).toString('utf8');
-    } catch {
-        return null;
-    }
-}
+export const unseal = (sealed?: string | null): string | null => unsealSecret(sealed, SEAL_PURPOSE);
 
 // ── Recovery codes ─────────────────────────────────────────────────────────
 /** Letters and digits that are not mixed up when written down (no 0/o, 1/l/i). */

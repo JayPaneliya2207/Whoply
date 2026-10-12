@@ -34,8 +34,9 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
-      # Sign-in: self sign-up stays closed; OTP stays off until an SMS provider is connected
-      OTP_LOGIN: ${OTP_LOGIN:-off}
+      # Sign-in: self sign-up stays closed. OTP sign-in turns on by itself once WhatsApp is
+      # switched on in the admin panel (Settings → WhatsApp); OTP_LOGIN=off in .env forbids it.
+      OTP_LOGIN: ${OTP_LOGIN:-auto}
     volumes:
       - ./backups:/backups # daily backups land in deploy/backups on the server — copy them off it too
     # "healthy" only while the API answers AND its database is connected (docker compose ps shows it)

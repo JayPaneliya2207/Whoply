@@ -27,11 +27,13 @@ const envSchema = z.object({
     RATE_LIMIT_PER_MIN: z.coerce.number().int().min(0).default(1500),
 
     // Who may sign in. Self sign-up (POST /auth/register) is closed unless this is "true":
-    // a platform admin creates each business. OTP sign-in needs an SMS provider to carry the
-    // code to the phone — none is wired yet — so in production it is off unless this is "on"
-    // (owners and staff sign in with the password set for them).
+    // a platform admin creates each business.
+    // OTP sign-in: the code goes to the phone on WhatsApp, set up on the admin Settings page.
+    //   auto (default) — offered once WhatsApp is switched on there (and always in dev mode)
+    //   off            — never offered; everyone signs in with a password
+    //   on             — always offered (it still needs WhatsApp to deliver the code)
     ALLOW_SIGNUP: z.enum(['true', 'false']).default('false'),
-    OTP_LOGIN: z.enum(['on', 'off']).optional(),
+    OTP_LOGIN: z.enum(['on', 'off', 'auto']).default('auto'),
 
     // Phone notifications (Web Push). `npm run push:keys` prints a key pair; without it
     // phone notifications are simply off. VAPID_SUBJECT is a contact for the push service:

@@ -166,8 +166,9 @@ Checklist:
 - **Backups**: on MongoDB Atlas, turn on Atlas's own backups too. On your own server, set
   `BACKUP_DIR` to a disk other than the database's (`npm run backup:prod` / `restore:prod`
   use the build).
-- **OTP login**: production makes a real random code, but no SMS provider is connected yet, so
-  nobody receives it. Use password login until one is added.
+- **OTP login**: the code is sent on WhatsApp through a Whatsline account, set up in the admin
+  panel (**Settings → WhatsApp sign-in codes**; see DEPLOY.md step 9). Until that is switched on
+  a live server offers the password only.
 
 ## Demo logins
 

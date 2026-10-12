@@ -101,7 +101,7 @@ login. It never adds demo shops. The demo commands (`seed`, `seed:reset`) refuse
 live server, because they delete everything.
 
 Then open `https://admin.yourdomain.com`, sign in, and add the first shop with **Add business**.
-Give the owner a password there: OTP sign-in needs an SMS provider, which isn't connected yet.
+Give the owner a password there. OTP sign-in is optional and comes on WhatsApp — see step 9.
 
 **Turn on two-step sign-in for your admin login** — this login controls every shop. In the admin
 panel open the account menu (top right) → **Two-step sign-in**, scan the QR code with Google
@@ -121,6 +121,24 @@ then run `./deploy.sh` again. Each person turns it on for their own device in th
 **Notifications → Turn on**. On an iPhone the app must first be installed ("Add to Home Screen").
 
 Make the keys **once**. If they change, every device has to turn notifications on again.
+
+## Step 9 — OTP sign-in on WhatsApp (optional)
+
+People can sign in with a 6-digit code sent to their WhatsApp instead of a password. The code is
+sent through a [Whatsline](https://whatsline.io) account — nothing to install on the server:
+
+1. In Whatsline, link the WhatsApp number that will send the codes (scan its QR code) and copy
+   your API token.
+2. In the admin panel open **Settings → WhatsApp sign-in codes**. Fill in the sender number (with
+   the country code, like `919876543210`) and the token, and press **Save WhatsApp settings**.
+3. Under **Try it**, send a test message to your own number.
+4. Tick **Send sign-in codes on WhatsApp** and save. From now on the app's sign-in page offers
+   **OTP Login**; the password still works.
+
+Good to know: Whatsline sends from a normal WhatsApp number linked by QR code. Keep that phone
+online. If it disconnects, codes stop arriving (the sign-in page then says so) and people use
+their password until you link it again. To forbid OTP sign-in whatever the panel says, put
+`OTP_LOGIN=off` in `deploy/.env`.
 
 ## Updating to a new version
 
@@ -150,7 +168,7 @@ docker compose run --rm api node dist/seeds/restore.js whoply-2026-10-01_0215 --
 
 - [ ] Company details in `whoply-front/src/lib/legal.ts` (the Privacy and Terms pages show "Draft" until then), and a lawyer's review.
 - [ ] Try the app on a phone: sign in, make a bill, print, and install it ("Add to Home screen").
-- [ ] An SMS provider for OTP sign-in. Until then, owners sign in with the password you set. (Self sign-up is closed on purpose: you add each business in the admin panel.)
+- [ ] OTP sign-in, if you want it: set up WhatsApp (step 9) and send yourself a test message. Without it, owners sign in with the password you set. (Self sign-up is closed on purpose: you add each business in the admin panel.)
 - [ ] Copy one backup off the server and check that it restores (for example into a test database with `--into`).
 - [ ] Go through the checklist in `SECURITY.md` (secrets, admin logins, database access, uptime monitor).
 
