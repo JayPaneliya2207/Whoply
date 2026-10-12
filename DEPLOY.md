@@ -103,6 +103,11 @@ live server, because they delete everything.
 Then open `https://admin.yourdomain.com`, sign in, and add the first shop with **Add business**.
 Give the owner a password there: OTP sign-in needs an SMS provider, which isn't connected yet.
 
+**Turn on two-step sign-in for your admin login** — this login controls every shop. In the admin
+panel open the account menu (top right) → **Two-step sign-in**, scan the QR code with Google
+Authenticator or Microsoft Authenticator on your phone, type the code it shows, and save the 8
+recovery codes on paper. From then on, signing in needs your password and a code from the phone.
+
 ## Step 8 — Phone notifications (optional, once)
 
 Reminders and alerts can reach a phone even when Whoply is closed. The server needs one key pair:
@@ -173,4 +178,5 @@ Run these from `Whoply/deploy`:
 | "The API did not start" | Usually `MONGODB_URI`: check the password and that Atlas **Network Access** has the server IP |
 | HTTPS not working | The DNS records (step 3) must point to this server; see `docker compose logs caddy` |
 | Restart everything | `docker compose restart` |
+| An admin lost the phone with the authenticator app | First a recovery code. If none is left: another super admin switches it off on the **Access control** page, or run `docker compose run --rm api node dist/seeds/two-step-off.js 98XXXXXXXX` |
 | Out of disk | `docker system prune -f` (removes old images, keeps data and backups) |

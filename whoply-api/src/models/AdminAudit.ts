@@ -63,6 +63,7 @@ const ACTIONS: [string, RegExp, string][] = [
     ['POST', /^\/admins$/, 'Added an admin login'],
     ['PATCH', /^\/admins\/:id$/, 'Changed an admin login'],
     ['DELETE', /^\/admins\/:id$/, 'Deleted an admin login'],
+    ['DELETE', /^\/admins\/:id\/two-step$/, 'Turned off two-step sign-in for an admin'],
 ];
 /** Body fields that are safe and useful to keep. Never passwords, messages or settings values. */
 const SAFE_FIELDS = ['name', 'role', 'adminRole', 'status', 'plan', 'isActive', 'type', 'paidMode'];

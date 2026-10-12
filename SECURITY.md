@@ -8,9 +8,16 @@ and not a surprise.
 
 ### Sign-in and sessions
 - Passwords are stored hashed (bcrypt). OTP codes are random in production.
-- Guessing is slowed down: 5 wrong passwords lock a login for 15 minutes; an
-  address with 30 failed sign-ins in 15 minutes is refused; OTP sends are
-  limited (`utils/loginGuard.ts`).
+- Guessing is slowed down: 5 wrong passwords or codes from one network address
+  lock sign-in from that address for 15 minutes (the real owner, on their own
+  network, still gets in); 50 from all addresses together lock the login for
+  everyone; an address with 30 failed sign-ins in 15 minutes is refused; OTP
+  sends are limited (`utils/loginGuard.ts`).
+- Admin logins can have two-step sign-in: after the password, a 6-digit code
+  from an authenticator app (Google Authenticator, Microsoft Authenticator…).
+  Each admin turns it on from the account menu and gets 8 one-time recovery
+  codes. A code works once; the key is stored sealed, so a copy of the database
+  can not make codes (`services/twoStep.service.ts`, `utils/totp.ts`).
 - Every request is checked against a server-side session, so signing out,
   a password reset, switching a login off or suspending a business ends access
   at once — a copied token stops working (`middleware/auth.middleware.ts`).
@@ -107,12 +114,16 @@ When one server is not enough:
 - [ ] Each person who uses the admin panel has their own login with the
       smallest role that fits (Access control page). Remove logins of people
       who leave.
+- [ ] Every admin has turned on two-step sign-in (account menu → Two-step
+      sign-in) and saved the recovery codes somewhere that is not their phone.
+      The Access control page shows who has it on.
 - [ ] Company details and legal pages are filled in (`whoply-front/src/lib/legal.ts`).
 - [ ] An uptime monitor watches `https://api.<domain>/api/health`.
 
 ## Not done yet (know the gaps)
 
-- No second factor (OTP app) for admin logins.
+- Two-step sign-in is for admin logins only, and each admin chooses to turn it
+  on — it is not forced. Shop owners and staff sign in with a password alone.
 - Sign-in tokens are kept in the browser's storage, so a script-injection bug
   in a page could read them. React escapes everything shown, and pictures and
   text are checked on the way in, but a strict Content-Security-Policy is not

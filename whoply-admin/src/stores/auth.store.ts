@@ -12,6 +12,8 @@ export interface AuthUser {
     name: string;
     mobile: string;
     role: string;
+    adminRole?: string;
+    twoStep?: boolean; // two-step sign-in is on for this login
     language: string;
     avatar?: string;
     business: Business | null;
