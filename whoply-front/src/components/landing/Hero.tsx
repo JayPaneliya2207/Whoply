@@ -29,9 +29,10 @@ import {
 } from 'lucide-react';
 import { getCopy, type Lang } from '@/i18n/landing';
 import { MEDIA } from '@/lib/media';
-import { appEntry, type Role } from '@/lib/links';
+import type { Role } from '@/lib/links';
 import { cn } from '@/lib/cn';
 import { CountUp, Magnetic, useFinePointer } from './Motion';
+import { StartButton } from './StartButton';
 
 /* One icon per trust item, in the order of each role's `trust` list. */
 const TRUST_ICONS: Record<Role, LucideIcon[]> = {
@@ -169,14 +170,14 @@ export function Hero({ lang }: { lang: Lang }) {
 
                         <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
                             <Magnetic>
-                                <a href={appEntry(lang, role)} className="btn btn-primary btn-shine group">
+                                <StartButton ask={{ role }} className="btn btn-primary btn-shine group">
                                     {t.hero.ctaPrimary}
                                     <ArrowRight
                                         size={17}
                                         aria-hidden="true"
                                         className="transition-transform duration-200 group-hover:translate-x-1"
                                     />
-                                </a>
+                                </StartButton>
                             </Magnetic>
                             <a href="#tour" className="btn btn-secondary">
                                 {t.hero.ctaSecondary}

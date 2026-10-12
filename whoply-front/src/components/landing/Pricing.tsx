@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { Check, Sparkles } from 'lucide-react';
 import { getCopy, type Lang } from '@/i18n/landing';
-import { appEntry } from '@/lib/links';
 import { cn } from '@/lib/cn';
 import { Reveal } from './Reveal';
+import { StartButton } from './StartButton';
 
 export interface Plan {
     key: string;
@@ -18,7 +18,7 @@ export interface Plan {
 }
 
 /** Yearly billing takes this much off the monthly price. */
-const YEARLY_DISCOUNT = 0.2;
+export const YEARLY_DISCOUNT = 0.2;
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
@@ -167,9 +167,9 @@ export function Pricing({ lang, plans }: { lang: Lang; plans: Plan[] }) {
                             </ul>
 
                             <div className="mt-auto pt-8">
-                                <a href={appEntry(lang)} className={cn('btn w-full', hi ? 'btn-primary btn-shine' : 'btn-secondary')}>
+                                <StartButton ask={{ plan: p.key, billing: yearly ? 'yearly' : 'monthly' }} className={cn('btn w-full', hi ? 'btn-primary btn-shine' : 'btn-secondary')}>
                                     {free ? t.startFree : t.choose(p.name)}
-                                </a>
+                                </StartButton>
                             </div>
                         </div>
                     );

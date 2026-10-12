@@ -95,6 +95,14 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
     r = await api('GET', '/admin/stats', st);
     check('a shop login can not use the admin API', r.status === 403, `${r.status}`);
 
+    suite('sign-up is closed');
+    r = await api('POST', '/auth/register', null, { name: 'Stranger', mobile: '9811100001', password: 'Stranger@2026' });
+    check('nobody can create an account by themselves', r.status === 403 && !d(r)?.userId, `${r.status} ${msg(r)}`);
+    r = await api('POST', '/auth/password-login', null, { mobile: '9811100001', password: 'Stranger@2026' });
+    check('…and that number has no login afterwards', r.status !== 200 && !d(r)?.token, `${r.status} ${msg(r)}`);
+    r = await api('POST', '/auth/login', null, { mobile: '9811100001' });
+    check('asking for an OTP does not create one either', r.status === 404 && !d(r)?.devOtp, `${r.status} ${msg(r)}`);
+
     suite('request limit');
     const hit = (ip, n) => Promise.all(Array.from({ length: n }, () => api('GET', '/public/plans', null, null, { 'X-Forwarded-For': ip })));
     const first = await hit('198.51.100.77', 120);

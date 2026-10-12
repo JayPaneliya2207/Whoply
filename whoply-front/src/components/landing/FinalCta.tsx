@@ -6,9 +6,9 @@ import { motion, useMotionTemplate, useReducedMotion, useScroll, useTransform } 
 import { ArrowRight } from 'lucide-react';
 import { getCopy, type Lang } from '@/i18n/landing';
 import { MEDIA } from '@/lib/media';
-import { appEntry } from '@/lib/links';
 import { Reveal } from './Reveal';
 import { Magnetic } from './Motion';
+import { StartButton } from './StartButton';
 
 /**
  * The closing ask. The shop opens up as you arrive — an inset, rounded frame
@@ -59,14 +59,14 @@ export function FinalCta({ lang }: { lang: Lang }) {
                     </h2>
                     <p className="mx-auto mt-5 max-w-lg text-lg text-white/75">{t.sub}</p>
                     <Magnetic className="mt-9">
-                        <a href={appEntry(lang)} className="btn btn-primary btn-shine group">
+                        <StartButton className="btn btn-primary btn-shine group">
                             {t.button}
                             <ArrowRight
                                 size={17}
                                 aria-hidden="true"
                                 className="transition-transform duration-200 group-hover:translate-x-1"
                             />
-                        </a>
+                        </StartButton>
                     </Magnetic>
                     <p className="mt-5 text-sm text-white/60">{t.foot}</p>
                 </Reveal>

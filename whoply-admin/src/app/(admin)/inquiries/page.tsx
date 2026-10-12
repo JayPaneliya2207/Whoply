@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Phone, MessageCircle, Mail, Trash2, Store, Layers, HelpCircle, MapPin, StickyNote, Check } from 'lucide-react';
+import { Search, Phone, MessageCircle, Mail, Trash2, Store, Layers, HelpCircle, MapPin, StickyNote, Check, Crown, Building2 } from 'lucide-react';
 import { api, apiErr } from '@/lib/api';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 const TABS: [string, string][] = [['', 'All'], ['new', 'New'], ['contacted', 'Contacted'], ['closed', 'Closed']];
+/** What they sent: a plan request ("Start free" / a plan button) or a question ("Contact us"). */
+const KINDS: [string, string][] = [['', 'Everything'], ['plan', 'Plan requests'], ['contact', 'Questions']];
 const STATUS_TONE: Record<string, React.CSSProperties> = {
     new: { background: 'var(--accent-tint)', color: 'var(--accent-strong)' },
     contacted: { background: 'var(--brand-tint)', color: 'var(--brand-text)' },
@@ -14,16 +16,27 @@ const STATUS_TONE: Record<string, React.CSSProperties> = {
 const TYPE: Record<string, [string, any]> = { retail: ['Shopkeeper', Store], wholesale: ['Wholesaler', Layers], other: ['Other', HelpCircle] };
 const when = (d: string) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
-/** One inquiry: who, what they asked, ways to reach them, status and a private note. */
+/** One inquiry: who, what they asked for, ways to reach them, status and a private note. */
 function Card({ q, onPatch, onDelete, busy }: { q: any; onPatch: (body: any) => void; onDelete: () => void; busy: boolean }) {
     const [note, setNote] = useState(q.note || '');
     const [typeLabel, TypeIcon] = TYPE[q.businessType] || TYPE.other;
-    const hello = `Hello ${q.name}, this is the Whoply team. Thank you for contacting us.`;
+    const isPlan = q.kind === 'plan';
+    const hello = isPlan
+        ? `Hello ${q.name}, this is the Whoply team. Thank you for your request${q.planName ? ` for the ${q.planName} plan` : ''}. We will set up your account with you.`
+        : `Hello ${q.name}, this is the Whoply team. Thank you for contacting us.`;
     return (
-        <div className="wp-card p-4">
+        <div className="wp-card p-4" style={isPlan ? { borderColor: 'var(--accent)' } : undefined}>
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="font-bold" style={{ color: 'var(--text-primary)' }}>{q.name}</p>
+                    <p className="font-bold flex flex-wrap items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                        {q.name}
+                        {isPlan && (
+                            <span className="wp-chip !text-[11px]" style={{ background: 'var(--accent-tint)', color: 'var(--accent-strong)' }}>
+                                <Crown size={11} /> {q.planName ? `${q.planName}${q.billing ? ` · ${q.billing}` : ''}` : 'Plan not chosen'}
+                            </span>
+                        )}
+                    </p>
+                    {q.businessName && <p className="text-sm flex items-center gap-1.5 mt-1" style={{ color: 'var(--text-secondary)' }}><Building2 size={13} /> {q.businessName}</p>}
                     <p className="text-xs flex flex-wrap items-center gap-x-3 gap-y-1 mt-1" style={{ color: 'var(--text-muted)' }}>
                         <span className="flex items-center gap-1"><TypeIcon size={12} /> {typeLabel}</span>
                         {q.city && <span className="flex items-center gap-1"><MapPin size={12} /> {q.city}</span>}
@@ -35,7 +48,9 @@ function Card({ q, onPatch, onDelete, busy }: { q: any; onPatch: (body: any) => 
                     <option value="new">New</option><option value="contacted">Contacted</option><option value="closed">Closed</option>
                 </select>
             </div>
-            <p className="text-sm mt-3 whitespace-pre-wrap break-words rounded-xl p-3" style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}>{q.message}</p>
+            {q.message
+                ? <p className="text-sm mt-3 whitespace-pre-wrap break-words rounded-xl p-3" style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}>{q.message}</p>
+                : <p className="text-sm mt-3 rounded-xl p-3" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}>Wants to start with Whoply — no message. Create the account under Businesses, then call them.</p>}
             <div className="flex flex-wrap items-center gap-2 mt-3">
                 <a className="wp-btn wp-btn-ghost !py-1.5" href={`tel:+91${q.mobile}`}><Phone size={14} /> {q.mobile}</a>
                 <a className="wp-btn wp-btn-collect !py-1.5" target="_blank" rel="noreferrer" href={`https://wa.me/91${q.mobile}?text=${encodeURIComponent(hello)}`}><MessageCircle size={14} /> WhatsApp</a>
@@ -54,12 +69,15 @@ function Card({ q, onPatch, onDelete, busy }: { q: any; onPatch: (body: any) => 
 export default function InquiriesPage() {
     const qc = useQueryClient();
     const [status, setStatus] = useState('');
+    const [kind, setKind] = useState('');
     const [search, setSearch] = useState('');
     const [q, setQ] = useState('');
     const [page, setPage] = useState(1);
     useEffect(() => { const id = setTimeout(() => { setQ(search.trim()); setPage(1); }, 300); return () => clearTimeout(id); }, [search]);
+    // /inquiries?kind=plan (the link on the Billing page) opens straight on the plan requests.
+    useEffect(() => { const k = new URLSearchParams(window.location.search).get('kind'); if (k === 'plan' || k === 'contact') setKind(k); }, []);
 
-    const params = new URLSearchParams({ limit: '30', page: String(page), status, search: q }).toString();
+    const params = new URLSearchParams({ limit: '30', page: String(page), status, kind, search: q }).toString();
     const { data } = useQuery({ queryKey: ['admin-inquiries', params], queryFn: async () => (await api.get(`/admin/inquiries?${params}`)).data.data, refetchInterval: 30_000, placeholderData: (prev) => prev });
     const refresh = () => { qc.invalidateQueries({ queryKey: ['admin-inquiries'] }); qc.invalidateQueries({ queryKey: ['inquiry-summary'] }); };
     const [del, setDel] = useState<any>(null);
@@ -80,10 +98,21 @@ export default function InquiriesPage() {
     return (
         <div className="space-y-4">
             <div>
-                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Contact inquiries</h1>
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Messages from the “Contact us” form on the website{data?.summary ? ` · ${data.summary.new} new` : ''}.</p>
+                <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Inquiries &amp; plan requests</h1>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                    From the website: plan requests (“Start free” and the plan buttons) and questions (“Contact us”)
+                    {data?.summary ? ` · ${data.summary.new} new, ${data.summary.newPlans ?? 0} of them plan requests` : ''}.
+                </p>
             </div>
             <div className="wp-card p-3 flex flex-wrap items-center gap-2">
+                <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: 'var(--surface-2)' }}>
+                    {KINDS.map(([k, label]) => (
+                        <button key={k} onClick={() => { setKind(k); setPage(1); }} className="px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap"
+                            style={kind === k ? { background: 'var(--card-bg)', color: 'var(--brand-text)', boxShadow: 'var(--shadow-sm)' } : { color: 'var(--text-muted)' }}>
+                            {label}{k === 'plan' && data?.summary?.newPlans ? ` (${data.summary.newPlans})` : ''}
+                        </button>
+                    ))}
+                </div>
                 <div className="flex gap-1 p-1 rounded-xl overflow-x-auto" style={{ background: 'var(--surface-2)' }}>
                     {TABS.map(([k, label]) => (
                         <button key={k} onClick={() => { setStatus(k); setPage(1); }} className="px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap"
@@ -92,14 +121,14 @@ export default function InquiriesPage() {
                 </div>
                 <div className="relative flex-1 min-w-[200px]">
                     <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
-                    <input className="wp-input pl-11" placeholder="Search name, mobile, city or message…" value={search} onChange={(e) => setSearch(e.target.value)} />
+                    <input className="wp-input pl-11" placeholder="Search name, business, mobile, city or message…" value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
             </div>
 
             <div className="grid gap-3 xl:grid-cols-2">
                 {items.map((x) => <Card key={x._id + (x.note || '') + x.status} q={x} busy={patch.isPending} onPatch={(body) => patch.mutate({ id: x._id, body })} onDelete={() => setDel(x)} />)}
             </div>
-            {!items.length && <div className="wp-card p-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>No inquiries here. When someone fills the Contact us form on the website, it shows up in this list.</div>}
+            {!items.length && <div className="wp-card p-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Nothing here. When someone asks to start, picks a plan or fills the Contact us form on the website, it shows up in this list.</div>}
             {meta && meta.totalPages > 1 && (
                 <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-secondary)' }}>
                     <button className="wp-btn wp-btn-ghost !py-1.5" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button>

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, MessageCircle } from 'lucide-react';
 import { getCopy, type Lang } from '@/i18n/landing';
-import { appEntry, whatsappLink, WHATSAPP_NUMBER } from '@/lib/links';
+import { whatsappLink, WHATSAPP_NUMBER } from '@/lib/links';
+import { StartButton } from './StartButton';
 
 /**
  * Mobile: a bottom bar with "Start free" + WhatsApp. Desktop: a floating
@@ -50,9 +51,9 @@ export function StickyCta({ lang }: { lang: Lang }) {
                 style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
             >
                 <div className="flex items-center gap-3">
-                    <a href={appEntry(lang)} className="btn btn-primary flex-1 !py-3">
+                    <StartButton className="btn btn-primary flex-1 !py-3">
                         {t.nav.start} <ArrowRight size={17} aria-hidden="true" />
-                    </a>
+                    </StartButton>
                     {wa && (
                         <a
                             href={wa}

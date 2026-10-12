@@ -23,7 +23,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
             { href: '/plans', label: 'Subscriptions', icon: CreditCard, blurb: 'Plans, prices and who is on them', perm: 'plans.view' },
             { href: '/billing', label: 'Billing', icon: Receipt, blurb: 'Subscription bills, reminders and payments', perm: 'billing.view' },
             { href: '/support', label: 'Support', icon: MessagesSquare, blurb: 'Chat with business owners', perm: 'support.chat' },
-            { href: '/inquiries', label: 'Inquiries', icon: Inbox, blurb: 'Messages from the website contact form', perm: 'inquiries.view' },
+            { href: '/inquiries', label: 'Requests', icon: Inbox, blurb: 'Plan requests and questions from the website', perm: 'inquiries.view' },
         ],
     },
     {

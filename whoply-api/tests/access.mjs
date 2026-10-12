@@ -189,6 +189,27 @@ const from = (ip) => ({ 'X-Forwarded-For': ip });
     r = await api('GET', '/admin/inquiries', st);
     check('a shop owner can not read inquiries', r.status === 403, `${r.status}`);
 
+    suite('plan requests from the website');
+    const ask = { kind: 'plan', name: 'Mehul Shah', mobile: '9822580001', businessName: 'Shah Super Mart', businessType: 'retail', city: 'Rajkot', plan: 'pro', billing: 'yearly', lang: 'gu' };
+    r = await api('POST', '/public/inquiries', null, ask, from('203.0.113.60'));
+    check('a visitor can ask for a plan without writing a message', r.status === 201, `${r.status} ${msg(r)}`);
+    r = await api('POST', '/public/inquiries', null, { ...ask, mobile: '9822580002', businessName: '' }, from('203.0.113.60'));
+    check('a plan request needs the business name', r.status === 400, `${r.status} ${msg(r)}`);
+    r = await api('POST', '/public/inquiries', null, { ...ask, mobile: '9822580003', businessName: 'No Such Plan Traders', plan: 'platinum' }, from('203.0.113.60'));
+    check('an unknown plan is saved as a request with no plan', r.status === 201, `${r.status} ${msg(r)}`);
+    r = await api('POST', '/public/inquiries', null, { ...ask, mobile: '9822580004', businessName: 'Operator Traders', plan: { $ne: '' } }, from('203.0.113.60'));
+    check('an operator in place of the plan is refused', r.status === 400, `${r.status} ${msg(r)}`);
+    r = await api('GET', '/admin/inquiries?kind=plan', adm);
+    const asks = d(r)?.items || [];
+    const mehul = asks.find((i) => i.mobile === '9822580001');
+    check('the admin sees plan requests with the business, plan and billing', asks.length === 2 && mehul?.businessName === 'Shah Super Mart' && mehul?.plan === 'pro' && mehul?.planName === 'Pro' && mehul?.billing === 'yearly' && mehul?.kind === 'plan', JSON.stringify(asks.map((i) => [i.businessName, i.plan, i.billing])));
+    check('…the one with an unknown plan has none', asks.some((i) => i.mobile === '9822580003' && i.plan === undefined && i.billing === undefined), JSON.stringify(asks.find((i) => i.mobile === '9822580003')));
+    check('…and they are counted for the badge', d(r)?.summary?.newPlans === 2, JSON.stringify(d(r)?.summary));
+    r = await api('GET', '/admin/inquiries?kind=contact', adm);
+    check('questions and plan requests are listed apart', (d(r)?.items || []).length > 0 && d(r).items.every((i) => i.kind !== 'plan'), `${d(r)?.items?.length}`);
+    r = await api('GET', '/admin/inquiries?search=super mart', adm);
+    check('search finds a request by its business name', d(r)?.items?.length === 1 && d(r).items[0].mobile === '9822580001', JSON.stringify(d(r)?.items?.map((i) => i.name)));
+
     const fails = results.filter((x) => !x.pass);
     const bySuite = {};
     for (const x of results) { bySuite[x.S] ||= { p: 0, f: 0 }; x.pass ? bySuite[x.S].p++ : bySuite[x.S].f++; }

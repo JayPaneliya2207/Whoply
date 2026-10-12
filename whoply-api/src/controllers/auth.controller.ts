@@ -1,6 +1,7 @@
 /**
  * Auth Controller
- * Landing → login (OTP or password) → onboarding → dashboard, mirroring 1socio's flow.
+ * Login (OTP or password) → onboarding → dashboard. Accounts are created by a
+ * platform admin; self sign-up is closed unless ALLOW_SIGNUP=true.
  * OTP is fixed to 123456 in dev (see utils/otp).
  */
 import type { Response } from 'express';
@@ -20,6 +21,11 @@ import type { AuthRequest } from '../interfaces/index.js';
 import { BUSINESS_SUSPENDED } from '../middleware/auth.middleware.js';
 import { endSessions } from '../utils/staff.js';
 import { cleanImage, cleanText } from '../utils/image.js';
+import { env } from '../config/env.js';
+
+/** OTP sign-in works only where the code can reach the phone: off in production until OTP_LOGIN=on (an SMS provider is wired). */
+const otpLoginOn = () => (env.OTP_LOGIN ? env.OTP_LOGIN === 'on' : env.NODE_ENV !== 'production');
+const NO_ACCOUNT = 'No account found for this mobile. Please contact the Whoply team to get an account.';
 
 /** A business the platform admin suspended: no sign-in for its owner or staff. */
 const assertBusinessOpen = async (user: { role: string; businessId?: unknown }) => {
@@ -56,8 +62,9 @@ const publicUser = (user: any, business: any) => ({
     needsOnboarding: !user.businessId,
 });
 
-/** POST /api/auth/register — owner self sign-up */
+/** POST /api/auth/register — owner self sign-up. Closed unless ALLOW_SIGNUP=true: a stranger must not be able to make an account. */
 export const register = asyncHandler(async (req, res) => {
+    if (env.ALLOW_SIGNUP !== 'true') throw AppError.forbidden('Sign-up is closed. Please contact the Whoply team to get an account.');
     const body = registerSchema.parse(req.body);
     const mobile = normalizePhone(body.mobile);
 
@@ -89,11 +96,12 @@ export const register = asyncHandler(async (req, res) => {
 
 /** POST /api/auth/login — request an OTP (one per 30 s, 5 an hour; not while locked) */
 export const requestOtp = asyncHandler(async (req, res) => {
+    if (!otpLoginOn()) throw AppError.badRequest('OTP sign-in is not available yet. Please sign in with your password.');
     const body = loginSchema.parse(req.body);
     const mobile = normalizePhone(body.mobile);
 
     const user = await User.findOne({ mobile }).select(`+otp +otpExpiry ${GUARD_FIELDS}`);
-    if (!user) throw AppError.notFound('No account found for this mobile. Please sign up first.');
+    if (!user) throw AppError.notFound(NO_ACCOUNT);
     if (!user.isActive) throw AppError.forbidden('Account is deactivated');
     await assertBusinessOpen(user);
     allowOtpSend(user);
